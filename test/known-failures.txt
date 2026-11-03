@@ -1,0 +1,4 @@
+# Expected failures of the correctness suites (see test/spec/known.h). Columns, tab-separated:
+#   id  case-glob  forms-glob|-  reason
+# The case name is <suite>/<form name>/<variant>. A failing case must match a line; a line whose
+# cases ran and all passed fails the run ("XPASS"), so delete the line when the bug is fixed.
