@@ -122,6 +122,7 @@ Stages, each a label; the XED ones need `-DAVXEMU_TEST_XED=ON` (fetches pinned I
 | `spec` | `manifest.tsv`: every AVX2/FMA3/BMI1/BMI2/LZCNT/F16C/MOVBE form from XED, each `tested`, `refused` or `failing`; `spec-complete` fails on a form without status or one that disagrees with `decode()` |
 | `decoder` | `decode()` and `x86_len()` against XED: every form with varied REX/VEX/addressing/padding, the whole opcode space for what must be rejected (crc32, bsf/bsr, SSE4.2, AVX1), prefix orderings, random bytes |
 | `semantics` | each form through the real decoder and `avxemu_emulate()` against the real CPU; `semantics-self` and the `check` replay run anywhere, `silicon` tests need AVX2 |
+| `apps` | zstd, openssl, sqlite, numpy, duckdb natively and preloaded, sha256 of the output compared; `AVXEMU_APPS_REMOTE` runs them through e.g. `ssh avx1-host` |
 
 `test/known-failures.txt` lists the failures that exist today (id, case glob, forms, reason). A failing case
 that is not listed, and a listed entry whose cases all pass, both fail the run. Regenerate the manifest with

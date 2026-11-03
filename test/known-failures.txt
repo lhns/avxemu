@@ -18,3 +18,5 @@ X86LEN-OTHER	fuzz-len/*/x86_len	-	x86_len() applies 0x66 as rel16/imm16 under RE
 SEM-OVERREAD	semantics/@(vcvtph2ps.x_m64|vps[lr][la][wdq].y_y_m128)/@(hw|digest)	-	operand read wider than the instruction's memory operand (see DEC-MEMW-*): faults at a page end where the CPU does not
 SEM-PARTIAL-STORE	semantics/movbe.m16_g/@(hw|digest)	movbe.m16_g	a 16-bit store that faults on the second page has already written the first byte; the CPU commits nothing
 SEM-CVTPH2PS-SNAN	semantics/vcvtph2ps.*/@(hw|digest)	vcvtph2ps.*	signalling-NaN halves are converted to signalling-NaN singles; the SDM quiets them (and sets IE). Confirm on silicon
+APP-ZSTD-SCAN	apps/zstd-*/*	-	Debian 13 zstd 1.5.7 under LD_PRELOAD exits 127: 'unsupported executable: cannot safely discover required LZCNT/TZCNT' (cause not diagnosed; reproduce: LD_PRELOAD=libavxemu.so zstd --version)
+APP-DUCKDB-META	apps/duckdb*/*	-	duckdb exits 127: 'avxemu: cannot initialize executable metadata' (known; fix in progress elsewhere)

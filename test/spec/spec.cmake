@@ -85,3 +85,11 @@ if(QEMU_X86_64)
   add_test(NAME semantics-tcg COMMAND "${QEMU_X86_64}" -cpu max $<TARGET_FILE:semtest> ${SEM_ARGS} live smoke)
   set_tests_properties(semantics-tcg PROPERTIES LABELS tcg TIMEOUT 1800 SKIP_RETURN_CODE 77 ENVIRONMENT "AVXEMU_DISABLE=1")
 endif()
+
+# Stage 6: real programs natively and under the emulator (preload), outputs compared by sha256.
+find_package(Python3 COMPONENTS Interpreter)
+if(Python3_FOUND AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  add_test(NAME apps COMMAND "${Python3_EXECUTABLE}" -I "${CMAKE_CURRENT_SOURCE_DIR}/apps/run_apps.py"
+    --lib $<TARGET_FILE:avxemu> --known "${KNOWN_FAILURES}" --work "${CMAKE_BINARY_DIR}/apps-work")
+  set_tests_properties(apps PROPERTIES LABELS apps TIMEOUT 3600 SKIP_RETURN_CODE 77)
+endif()
