@@ -47,6 +47,7 @@ int known_finish(const char *suite) {
     int bad = (int)unexpected;
     for (int i = 0; i < nent; i++) {
         if (strncmp(ent[i].cases, suite, strlen(suite))) continue;
+        if (ent[i].ran && getenv("KNOWN_VERBOSE")) printf("  known %s: %u cases ran, %u failed\n", ent[i].id, ent[i].ran, ent[i].failed);
         if (ent[i].ran && !ent[i].failed) { printf("XPASS known failure %s now passes (%u cases): remove it\n", ent[i].id, ent[i].ran); bad++; }
     }
     printf("%s: %u cases, %u expected failures, %u unexpected failures, %d problems\n", suite, total, expected, unexpected, bad);

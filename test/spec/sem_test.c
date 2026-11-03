@@ -401,12 +401,19 @@ int main(int argc, char **argv) {
             snprintf(nm, sizeof nm, "%s:s", f->name); ref_put(nm, (unsigned long)cs, dh_s);
             snprintf(nm, sizeof nm, "%s:f", f->name); ref_put(nm, (unsigned long)cf, dh_f);
         } else if (check) {
-            unsigned long rc; uint64_t rd;
-            snprintf(nm, sizeof nm, "%s:%c", f->name, full ? 'f' : 's');
-            if (!ref_get(nm, &rc, &rd)) { printf("  repro semantics/%s/digest: not in the reference\n", f->name); bad_ref = 1; }
-            else { uint64_t mine = full ? ds : df; unsigned long mc = full ? (unsigned long)cf : (unsigned long)cs;
-                   if (mc != rc || mine != rd) { printf("  repro semantics/%s/digest: emulator digest %016llx (%lu cases) != recorded %016llx (%lu)\n", f->name, (unsigned long long)mine, mc, (unsigned long long)rd, rc); bad_ref = 1; } }
-            if (!full) { snprintf(nm, sizeof nm, "%s:f", f->name); ref_get(nm, &rc, &rd); }
+            /* smoke digests (:s) are always checkable; the full one (:f) only after a full run */
+            for (int pass = 0; pass < 2; pass++) {
+                int isfull = pass == 1;
+                snprintf(nm, sizeof nm, "%s:%c", f->name, isfull ? 'f' : 's');
+                unsigned long rc; uint64_t rd;
+                if (!ref_get(nm, &rc, &rd)) { printf("  repro semantics/%s/digest: %s not in the reference\n", f->name, nm); bad_ref = 1; continue; }
+                if (isfull && !full) continue;
+                uint64_t mine = isfull ? ds : df; unsigned long mc = isfull ? (unsigned long)cf : (unsigned long)cs;
+                if (mc != rc || mine != rd) {
+                    printf("  repro semantics/%s/digest: %s emulator %016llx (%lu cases) != recorded %016llx (%lu)\n", f->name, nm, (unsigned long long)mine, mc, (unsigned long long)rd, rc);
+                    bad_ref = 1;
+                }
+            }
         }
         if (!strcmp(mode, "self") || check) {     /* determinism: a second pass must give the same digest */
             uint64_t d2 = REF_FNV_OFFSET;
