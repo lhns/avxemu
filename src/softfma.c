@@ -25,7 +25,7 @@ float half_to_float(uint16_t h) {
             f = sign | ((exp + (127 - 15)) << 23) | (man << 13);
         }
     } else if (exp == 0x1F) {
-        f = sign | 0x7F800000u | (man << 13);        /* inf / nan */
+        f = sign | 0x7F800000u | (man << 13) | (man ? 0x400000u : 0);   /* inf / nan; quiet an sNaN */
     } else {
         f = sign | ((exp + (127 - 15)) << 23) | (man << 13);
     }
