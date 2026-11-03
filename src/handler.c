@@ -18,6 +18,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <xmmintrin.h>
 #include <fcntl.h>       /* open() in faulthist_dump */
 #include <stdio.h>       /* rename() in faulthist_dump */
 
@@ -558,7 +559,14 @@ static void on_sigill(int sig, siginfo_t *info, void *uctx) {
     if (pthread_sigmask(SIG_UNBLOCK,&operand_unblock,&handler_mask)) {
         chain(sig,info,uctx); return;
     }
+    /* Emulate under the application's rounding/FTZ/DAZ, not the handler's reset
+     * MXCSR, with all exceptions masked; sticky flags go back to the application. */
+    uint32_t app_csr = 0, host_csr = _mm_getcsr();
+    int have_csr = avxemu_context_mxcsr(uctx, &app_csr);
+    if (have_csr) _mm_setcsr(app_csr | 0x1F80u);
     int emulated=avxemu_emulate(&d,&rf);
+    uint32_t raised = have_csr ? (_mm_getcsr() & 0x3Fu) : 0;
+    _mm_setcsr(host_csr);
     pthread_sigmask(SIG_SETMASK,&handler_mask,0);
     if (!emulated) { chain(sig, info, uctx); return; }
 
@@ -566,6 +574,7 @@ static void on_sigill(int sig, siginfo_t *info, void *uctx) {
      * may become part of a later five-byte jump. */
     rf.rip = rip_next;
     if (!avxemu_context_write(uctx, &rf, 1)) { chain(sig, info, uctx); return; }
+    if (raised) (void)avxemu_context_set_mxcsr(uctx, app_csr | raised);
     if (slot >= 0 && g_hot[slot].state == SITE_RELOCATABLE)
         avxemu_context_set_ip(uctx, (uintptr_t)g_hot[slot].resume);
 }

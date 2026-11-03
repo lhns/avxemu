@@ -243,6 +243,13 @@ avxemu_test_exe(crc32-e2e SOURCES crc32_e2e.c)
 add_test(NAME crc32-e2e COMMAND sh "${CMAKE_CURRENT_SOURCE_DIR}/preload.sh" $<TARGET_FILE:avxemu> $<TARGET_FILE:crc32-e2e>)
 set_tests_properties(crc32-e2e PROPERTIES LABELS hermetic TIMEOUT 30
   ENVIRONMENT "AVXEMU_FORCEPATCH=1;AVXEMU_FORCETRAMP=1" PASS_REGULAR_EXPRESSION "crc32-e2e: OK")
+avxemu_test_exe(mxcsr-fma SOURCES mxcsr_fma.c)
+foreach(mode tramp handler)
+  add_test(NAME mxcsr-fma-${mode} COMMAND sh "${CMAKE_CURRENT_SOURCE_DIR}/preload.sh" $<TARGET_FILE:avxemu> $<TARGET_FILE:mxcsr-fma> ${mode})
+  set_tests_properties(mxcsr-fma-${mode} PROPERTIES LABELS hermetic TIMEOUT 30
+    ENVIRONMENT "AVXEMU_FORCEPATCH=1;AVXEMU_NOCACHE=1" PASS_REGULAR_EXPRESSION "mxcsr-fma: OK")
+endforeach()
+set_property(TEST mxcsr-fma-tramp APPEND PROPERTY ENVIRONMENT "AVXEMU_FORCETRAMP=1")
 set_tests_properties(prefix-handler PROPERTIES LABELS hermetic TIMEOUT 20 ENVIRONMENT "AVXEMU_FORCEPATCH=1;AVXEMU_NOCACHE=1")
 
 avxemu_test_exe(required-scan SOURCES required_scan.c LINK avxemu_core avxemu_asm)

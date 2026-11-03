@@ -10,4 +10,7 @@ void avxemu_context_set_ip(void *context, uintptr_t ip);
  * vector writes preserve x87, MXCSR and unrelated extended state. No allocation. */
 int avxemu_context_read(const void *context, avxemu_regfile *rf, int vectors);
 int avxemu_context_write(void *context, const avxemu_regfile *rf, int vectors);
+/* The interrupted code's MXCSR (the handler itself starts from the reset value). */
+int avxemu_context_mxcsr(const void *context, uint32_t *mxcsr);
+int avxemu_context_set_mxcsr(void *context, uint32_t mxcsr);
 #endif
