@@ -417,6 +417,7 @@ static void emit_ea(uint8_t **p, const decoded *d, uint64_t addr){
         if (sh) nb_shl_rcx(p, sh);
         nb_add_rax_rcx(p);
     }
+    if (d->addr32){ nb(p, 0x89); nb(p, 0xC0); }     /* mov eax,eax: wrap at 32 bits */
 }
 
 static int native_op_supported(vex_op op){

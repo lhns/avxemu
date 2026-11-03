@@ -53,7 +53,7 @@ static uint64_t ea_rf(const decoded *d, const avxemu_regfile *rf, uint64_t rip_n
     if (d->rip_rel) addr += rip_next;
     if (d->base  != OPND_NONE) addr += rf->gpr[d->base];
     if (d->index != OPND_NONE) addr += rf->gpr[d->index] * d->scale;
-    return addr;
+    return d->addr32 ? (uint32_t)addr : addr;
 }
 
 /*

@@ -91,7 +91,11 @@ AVXEMU_SYM(avxemu_tt_start):
     andq    $-16, %rsp                          // 16-align for the C call
     call    *Lavxemu_tt_dispatchptr(%rip)
     movq    %rbx, %rsp                          // restore frame base
-    ldmxcsr RF_MXCSR(%rsp)                       // restore SSE control word (C emu may have set flags)
+    stmxcsr -8(%rsp)                            // red zone: sticky flags the emulation raised
+    movl    -8(%rsp), %eax
+    andl    $0x3f, %eax
+    orl     %eax, RF_MXCSR(%rsp)                // keep the app's control bits, add the flags
+    ldmxcsr RF_MXCSR(%rsp)
 
     vmovdqu 0*32(%rsp),  %ymm0
     vmovdqu 1*32(%rsp),  %ymm1
@@ -207,6 +211,10 @@ AVXEMU_SYM(avxemu_ttg_start):
     andq    $-16, %rsp
     call    *Lavxemu_ttg_dispatchptr(%rip)
     movq    %rbx, %rsp
+    stmxcsr -8(%rsp)   // red zone: sticky flags the emulation raised
+    movl    -8(%rsp), %eax
+    andl    $0x3f, %eax
+    orl     %eax, RF_MXCSR(%rsp)  // keep the app's control bits, add the flags
     ldmxcsr RF_MXCSR(%rsp)
     movdqu  0*32(%rsp),  %xmm0
     movdqu  1*32(%rsp),  %xmm1

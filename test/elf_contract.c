@@ -82,6 +82,35 @@ static void rejected(void) {
     assert(!avxemu_elf_functions(&v, sink, 0)); assert(calls == 0);
 }
 static int refuse(uint64_t b, uint64_t e, void *arg) { (void)b; (void)e; (void)arg; calls++; return 0; }
+/* Linkers keep zero-length FDEs (discarded or empty functions) in .eh_frame and, as equal
+ * starts, in .eh_frame_hdr. They cover no byte, so they must neither refuse the image nor
+ * publish a bound; an out-of-order table is still refused. */
+static void empty_fde_tests(void) {
+    avxemu_elf_view v = {fixture, sizeof fixture, 0}; avxemu_elf e;
+    static const char hn[] = ".eh_frame_hdr";
+    synthetic();
+    Elf64_Ehdr h; memcpy(&h, fixture, sizeof h); h.e_shnum = 10; put(0, &h, sizeof h);
+    Elf64_Shdr str = getsh(8), eh = getsh(5), hdr = {0};
+    put(0x800 + str.sh_size, hn, sizeof hn);
+    hdr.sh_name = (uint32_t)str.sh_size; str.sh_size += sizeof hn; setsh(8, str);
+    eh.sh_size = 80; setsh(5, eh);
+    size_t off = 0x514 + 40;
+    put32(off, 16); put32(off+4, (uint32_t)(off+4-0x500));
+    put32(off+8, (uint32_t)((base+0x220) - (base+off+8))); put32(off+12, 0);
+    hdr.sh_type = SHT_PROGBITS; hdr.sh_flags = SHF_ALLOC; hdr.sh_addr = base + 0x560;
+    hdr.sh_offset = 0x560; hdr.sh_size = 36; setsh(9, hdr);
+    const uint8_t head[] = {1, 0x1b, 0x03, 0x3b};
+    put(0x560, head, sizeof head);
+    put32(0x564, (uint32_t)(0x500 - 0x564)); put32(0x568, 3);
+    const uint32_t begins[] = {0x200, 0x220, 0x220}, fdes[] = {0x514, 0x528, 0x53c};
+    for (size_t i = 0; i < 3; i++) {
+        put32(0x56c + 8*i, begins[i] - 0x560); put32(0x570 + 8*i, fdes[i] - 0x560);
+    }
+    assert(avxemu_elf_parse(&v, &e));
+    assert(e.nfunctions == 2 && e.functions[1].begin == base+0x220 && e.functions[1].end == base+0x228);
+    avxemu_elf_destroy(&e);
+    put32(0x56c, 0x230 - 0x560); rejected();    /* table disagrees with the FDE */
+}
 static void synthetic_tests(void) {
     avxemu_elf_view v = {fixture, sizeof fixture, 0}; avxemu_elf e;
     synthetic(); assert(avxemu_elf_parse(&v, &e));
@@ -246,7 +275,7 @@ static void real_tests(const char *plain, const char *stripped) {
     }
 }
 int main(int argc, char **argv) {
-    malformed(); synthetic_tests(); cross_range_conflicts(); encoding_tests();
+    malformed(); synthetic_tests(); empty_fde_tests(); cross_range_conflicts(); encoding_tests();
     assert(argc == 1 || argc == 5);
     if (argc == 5) { real_tests(argv[1],argv[2]); real_tests(argv[3],argv[4]); }
     puts("elf-contract: OK"); return 0;

@@ -59,18 +59,19 @@ static int decode_inner(const uint8_t *p, decoded *d);
  * (66/F2/F3/REX/LOCK are *not* legal VEX padding, so we don't skip those.)
  */
 int decode(const uint8_t *p, decoded *d) {
-    int pad = 0, seg = 0;
+    int pad = 0, seg = 0, addr32 = 0;
     while (pad < 8) {
         uint8_t c = p[pad];
-        /* 0x67 and the cs/ss/ds/es overrides are no-ops in 64-bit -> true padding.
+        /* The cs/ss/ds/es overrides are no-ops in 64-bit -> true padding; 0x67 is recorded.
          * fs/gs DO change the effective address, so record them, don't discard. */
-        if (c==0x67||c==0x2E||c==0x36||c==0x3E||c==0x26) pad++;
+        if (c==0x67) { addr32 = 1; pad++; }
+        else if (c==0x2E||c==0x36||c==0x3E||c==0x26) pad++;
         else if (c==0x65) { seg = 1; pad++; }   /* gs */
         else if (c==0x64) { seg = 2; pad++; }   /* fs */
         else break;
     }
     int r = decode_inner(p + pad, d);
-    if (r > 0) { d->len = (uint8_t)(d->len + pad); d->seg = (uint8_t)seg; return d->len; }
+    if (r > 0) { d->len = (uint8_t)(d->len + pad); d->seg = (uint8_t)seg; d->addr32 = (uint8_t)addr32; return d->len; }
     return 0;
 }
 
@@ -82,12 +83,12 @@ static int decode_inner(const uint8_t *p, decoded *d) {
     /* ---- legacy-encoded: tzcnt / lzcnt (F3 0F BC/BD), movbe (0F38 F0/F1) ---- */
     {
         const uint8_t *q = p; int rexW = 0, rexR = 0, rexX = 0, rexB = 0;
-        int has66 = 0, hasF3 = 0, hasLock = 0; int prefixes = 0;
+        int has66 = 0, hasF3 = 0, hasF2 = 0, hasLock = 0; int prefixes = 0;
         for (;;) {
             uint8_t c = *q;
             if (c == 0x66) { has66 = 1; q++; prefixes++; }
             else if (c == 0xF3) { hasF3 = 1; q++; prefixes++; }
-            else if (c == 0xF2) { q++; prefixes++; }
+            else if (c == 0xF2) { hasF2 = 1; q++; prefixes++; }
             else if (c == 0xF0) { hasLock = 1; q++; prefixes++; }   /* our patched lzcnt/tzcnt */
             else if ((c & 0xF0) == 0x40) { rexW=(c>>3)&1; rexR=(c>>2)&1; rexX=(c>>1)&1; rexB=c&1; q++; }
             else break;
@@ -110,7 +111,8 @@ static int decode_inner(const uint8_t *p, decoded *d) {
             d->len = (uint8_t)((q+2-p) + adv);
             return d->len;
         }
-        if (q[0] == 0x0F && q[1] == 0x38 && (q[2]==0xF0 || q[2]==0xF1)) {
+        /* F2 0F 38 F0/F1 is CRC32, not MOVBE: leave it to the CPU. */
+        if (!hasF2 && q[0] == 0x0F && q[1] == 0x38 && (q[2]==0xF0 || q[2]==0xF1)) {
             int reg, rm; int adv = parse_modrm(q+3, rexX, rexB, d, &rm);
             reg = ((q[3]>>3)&7) + (rexR?8:0);
             d->op = BMI_MOVBE; d->is_bmi = 1; d->opsize = rexW?64:(has66?16:32);
@@ -195,9 +197,12 @@ static int decode_inner(const uint8_t *p, decoded *d) {
         case 0x6A: VVV(VPUNPCKHDQ); break; case 0x6D: VVV(VPUNPCKHQDQ); break;
         case 0x63: VVV(VPACKSSWB); break; case 0x6B: VVV(VPACKSSDW); break;
         case 0x67: VVV(VPACKUSWB); break;
-        case 0xF1: VVV(VPSLLW); break; case 0xF2: VVV(VPSLLD); break; case 0xF3: VVV(VPSLLQ); break;
-        case 0xD1: VVV(VPSRLW); break; case 0xD2: VVV(VPSRLD); break; case 0xD3: VVV(VPSRLQ); break;
-        case 0xE1: VVV(VPSRAW); break; case 0xE2: VVV(VPSRAD); break;
+        /* Shift by xmm/m128 count: the memory operand is 16 bytes even for ymm. */
+        case 0xF1: VVV(VPSLLW); d->mem_bytes=16; break; case 0xF2: VVV(VPSLLD); d->mem_bytes=16; break;
+        case 0xF3: VVV(VPSLLQ); d->mem_bytes=16; break;
+        case 0xD1: VVV(VPSRLW); d->mem_bytes=16; break; case 0xD2: VVV(VPSRLD); d->mem_bytes=16; break;
+        case 0xD3: VVV(VPSRLQ); d->mem_bytes=16; break;
+        case 0xE1: VVV(VPSRAW); d->mem_bytes=16; break; case 0xE2: VVV(VPSRAD); d->mem_bytes=16; break;
         case 0x70: VVI(VPSHUFD); handled=1; break;
         case 0xD7: d->op=VPMOVMSKB; d->dst=reg; d->dst_kind=DST_GPR; d->b_src=rm; d->opsize=32; handled=1; break;
         case 0x71: case 0x72: case 0x73: {   /* shift by imm; reg field selects sub-op, vvvv=dst, rm=src */

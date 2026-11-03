@@ -33,6 +33,7 @@ typedef struct {
     int32_t disp;
     uint8_t rip_rel;
     uint8_t seg;         /* segment override: 0=none, 1=gs (0x65), 2=fs (0x64) */
+    uint8_t addr32;      /* 0x67 prefix: the effective address wraps at 32 bits */
     uint8_t mem_bytes;   /* bytes to load/store for the memory operand */
     uint8_t shift_imm;   /* scalar-count shift whose count is `imm` */
 
