@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# platform: host-agnostic -- plain python3
 """Merge xedgen's TSV (stdin) with the statuses already in manifest.tsv. New forms get UNSET,
 which the spec-complete test refuses. Usage: xedgen | make_manifest.py manifest.tsv [probe.tsv refused.tsv]"""
 import sys, collections, fnmatch

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# platform: host-agnostic -- Linux preload; Darwin would need DYLD_INSERT_LIBRARIES
 """Run real programs natively and under libavxemu, one shell command per workload, and compare the
 sha256 of what they print (and their exit status).
 

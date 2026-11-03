@@ -1,6 +1,6 @@
 #!/bin/sh
-# Regenerate manifest.tsv from XED (build with -DAVXEMU_TEST_XED=ON), probing decode.c for the
-# status of new forms: gen-manifest.sh BUILD_DIR
+# platform: host-agnostic
+# usage: gen-manifest.sh BUILD_DIR -- regenerate manifest.tsv from XED (configure with -DAVXEMU_TEST_XED=ON)
 set -eu
 b=${1:?build dir}; d=$(cd "$(dirname "$0")" && pwd)
 "$b/test/spec-check" "$d/manifest.tsv" "$d/../known-failures.txt" --propose > "$b/probe.tsv"

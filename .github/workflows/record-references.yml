@@ -1,7 +1,7 @@
 name: record-references
 
-# Records test/reference/semantics.ref on AVX2 silicon and runs the full emulator-vs-CPU
-# comparison, uploading both as artifacts. Nothing is committed from here.
+# spec: DEVELOPING.md "Correctness suite" -- records semantics.ref on AVX2 silicon and runs the
+#       full emulator-vs-CPU comparison; both are uploaded, nothing is committed from here.
 on:
   workflow_dispatch:
   pull_request:
