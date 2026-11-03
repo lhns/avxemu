@@ -89,8 +89,8 @@ static const char *hex(const uint8_t *b, int n) {
 static char cname[256];
 static void result(const char *suite, const char *form, const char *what, int ok, const uint8_t *b, int n, const char *why) {
     snprintf(cname, sizeof cname, "%s/%s/%s", suite, form, what);
-    known_case(cname, ok);
-    if (!ok) printf("  repro %s: %s %s\n", cname, hex(b, n), why ? why : "");
+    int unexpected = known_case(cname, ok);
+    if (unexpected || (!ok && getenv("KNOWN_VERBOSE"))) printf("  repro %s: %s %s\n", cname, hex(b, n), why ? why : "");
 }
 
 /* ------------------------------------------------------------ positive */

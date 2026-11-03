@@ -35,7 +35,7 @@ MOVBE_GPRv_MEMv@LEG.-.66.0F38.W0.F0/x.m.o16	MOVBE	MOVBE	0	2	1	0xF0	x	mem	0	-	0	1
 MOVBE_GPRv_MEMv@LEG.-.NP.0F38.W0.F0/x.m.o32	MOVBE	MOVBE	0	2	0	0xF0	x	mem	0	-	0	32	gpr,m32	4	r	movbe.g_m32	tested	
 MOVBE_GPRv_MEMv@LEG.-.NP.0F38.W1.F0/x.m.o64	MOVBE	MOVBE	0	2	0	0xF0	x	mem	1	-	0	64	gpr,m64	8	r	movbe.g_m64.o64	tested	
 MOVBE_GPRv_MEMv@LEG.-.66.0F38.W1.F0/x.m.o64	MOVBE	MOVBE	0	2	1	0xF0	x	mem	1	-	0	64	gpr,m64	8	r	movbe.g_m64.2	tested	
-MOVBE_MEMv_GPRv@LEG.-.66.0F38.W0.F1/x.m.o16	MOVBE	MOVBE	0	2	1	0xF1	x	mem	0	-	0	16	m16,gpr	2	w	movbe.m16_g	tested	
+MOVBE_MEMv_GPRv@LEG.-.66.0F38.W0.F1/x.m.o16	MOVBE	MOVBE	0	2	1	0xF1	x	mem	0	-	0	16	m16,gpr	2	w	movbe.m16_g	failing	SEM-PARTIAL-STORE
 MOVBE_MEMv_GPRv@LEG.-.NP.0F38.W0.F1/x.m.o32	MOVBE	MOVBE	0	2	0	0xF1	x	mem	0	-	0	32	m32,gpr	4	w	movbe.m32_g	tested	
 MOVBE_MEMv_GPRv@LEG.-.NP.0F38.W1.F1/x.m.o64	MOVBE	MOVBE	0	2	0	0xF1	x	mem	1	-	0	64	m64,gpr	8	w	movbe.m64_g.o64	tested	
 MOVBE_MEMv_GPRv@LEG.-.66.0F38.W1.F1/x.m.o64	MOVBE	MOVBE	0	2	1	0xF1	x	mem	1	-	0	64	m64,gpr	8	w	movbe.m64_g.2	tested	
@@ -79,10 +79,10 @@ VBROADCASTI128_YMMqq_MEMdq@VEX.256.66.0F38.W0.5A/x.m	VBROADCASTI128	AVX2	1	2	1	0
 VBROADCASTSD_YMMqq_XMMdq@VEX.256.66.0F38.W0.19/x.r	VBROADCASTSD	AVX2	1	2	1	0x19	x	reg	0	1	0	0	ymm,xmm	0	-	vbroadcastsd.y_x	refused	register-source vbroadcastss/sd is AVX2-only and not decoded (the memory form is AVX1)
 VBROADCASTSS_XMMdq_XMMdq@VEX.128.66.0F38.W0.18/x.r	VBROADCASTSS	AVX2	1	2	1	0x18	x	reg	0	0	0	0	xmm,xmm	0	-	vbroadcastss.x_x	refused	register-source vbroadcastss/sd is AVX2-only and not decoded (the memory form is AVX1)
 VBROADCASTSS_YMMqq_XMMdq@VEX.256.66.0F38.W0.18/x.r	VBROADCASTSS	AVX2	1	2	1	0x18	x	reg	0	1	0	0	ymm,xmm	0	-	vbroadcastss.y_x	refused	register-source vbroadcastss/sd is AVX2-only and not decoded (the memory form is AVX1)
-VCVTPH2PS_XMMdq_MEMq@VEX.128.66.0F38.W0.13/x.m	VCVTPH2PS	F16C	1	2	1	0x13	x	mem	0	0	0	0	xmm,m64	8	r	vcvtph2ps.x_m64	failing	DEC-MEMW-CVTPH2PS
-VCVTPH2PS_XMMdq_XMMq@VEX.128.66.0F38.W0.13/x.r	VCVTPH2PS	F16C	1	2	1	0x13	x	reg	0	0	0	0	xmm,xmm	0	-	vcvtph2ps.x_x	tested	
-VCVTPH2PS_YMMqq_MEMdq@VEX.256.66.0F38.W0.13/x.m	VCVTPH2PS	F16C	1	2	1	0x13	x	mem	0	1	0	0	ymm,m128	16	r	vcvtph2ps.y_m128	tested	
-VCVTPH2PS_YMMqq_XMMdq@VEX.256.66.0F38.W0.13/x.r	VCVTPH2PS	F16C	1	2	1	0x13	x	reg	0	1	0	0	ymm,xmm	0	-	vcvtph2ps.y_x	tested	
+VCVTPH2PS_XMMdq_MEMq@VEX.128.66.0F38.W0.13/x.m	VCVTPH2PS	F16C	1	2	1	0x13	x	mem	0	0	0	0	xmm,m64	8	r	vcvtph2ps.x_m64	failing	DEC-MEMW-CVTPH2PS,SEM-CVTPH2PS-SNAN
+VCVTPH2PS_XMMdq_XMMq@VEX.128.66.0F38.W0.13/x.r	VCVTPH2PS	F16C	1	2	1	0x13	x	reg	0	0	0	0	xmm,xmm	0	-	vcvtph2ps.x_x	failing	SEM-CVTPH2PS-SNAN
+VCVTPH2PS_YMMqq_MEMdq@VEX.256.66.0F38.W0.13/x.m	VCVTPH2PS	F16C	1	2	1	0x13	x	mem	0	1	0	0	ymm,m128	16	r	vcvtph2ps.y_m128	failing	SEM-CVTPH2PS-SNAN
+VCVTPH2PS_YMMqq_XMMdq@VEX.256.66.0F38.W0.13/x.r	VCVTPH2PS	F16C	1	2	1	0x13	x	reg	0	1	0	0	ymm,xmm	0	-	vcvtph2ps.y_x	failing	SEM-CVTPH2PS-SNAN
 VCVTPS2PH_MEMdq_YMMqq_IMMb@VEX.256.66.0F3A.W0.1D/x.m	VCVTPS2PH	F16C	1	3	1	0x1D	x	mem	0	1	1	0	m128,ymm,imm8	16	w	vcvtps2ph.m128_y_i	refused	F16C store form not implemented, only vcvtph2ps
 VCVTPS2PH_MEMq_XMMdq_IMMb@VEX.128.66.0F3A.W0.1D/x.m	VCVTPS2PH	F16C	1	3	1	0x1D	x	mem	0	0	1	0	m64,xmm,imm8	8	w	vcvtps2ph.m64_x_i	refused	F16C store form not implemented, only vcvtph2ps
 VCVTPS2PH_XMMdq_YMMqq_IMMb@VEX.256.66.0F3A.W0.1D/x.r	VCVTPS2PH	F16C	1	3	1	0x1D	x	reg	0	1	1	0	xmm,ymm,imm8	0	-	vcvtps2ph.x_y_i	refused	F16C store form not implemented, only vcvtph2ps

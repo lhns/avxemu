@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include "known.h"
 #include <fnmatch.h>
 #include <stdio.h>
@@ -30,15 +31,16 @@ int known_count(void) { return nent; }
 const known_entry *known_get(int i) { return &ent[i]; }
 void known_reset_counts(void) { for (int i = 0; i < nent; i++) ent[i].ran = ent[i].failed = 0; unexpected = expected = total = 0; }
 
-void known_case(const char *name, int ok) {
+int known_case(const char *name, int ok) {
     int hit = 0; total++;
     for (int i = 0; i < nent; i++) {
-        if (fnmatch(ent[i].cases, name, 0)) continue;
+        if (fnmatch(ent[i].cases, name, FNM_EXTMATCH)) continue;
         ent[i].ran++; if (!ok) { ent[i].failed++; hit = 1; }
     }
-    if (ok) return;
-    if (hit) { expected++; return; }
+    if (ok) return 0;
+    if (hit) { expected++; return 0; }
     if (unexpected++ < (getenv("KNOWN_VERBOSE") ? 1000000u : 40u)) printf("FAIL %s\n", name);
+    return 1;
 }
 
 int known_finish(const char *suite) {

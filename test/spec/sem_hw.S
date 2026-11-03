@@ -63,6 +63,7 @@ sem_hw_after:
         mov     %r15, 512+120(%rax)
         mov     sem_rax(%rip), %rcx
         mov     %rcx, 512(%rax)
+        mov     sem_saved_rsp(%rip), %rsp
         pushfq
         pop     %rcx
         mov     %rcx, 640(%rax)
@@ -71,7 +72,6 @@ sem_hw_after:
         vmovups %ymm\n, \n*32(%rax)
         .endr
         vzeroupper
-        mov     sem_saved_rsp(%rip), %rsp
         pop     %r15
         pop     %r14
         pop     %r13

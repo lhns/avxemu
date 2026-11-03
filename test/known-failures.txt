@@ -15,3 +15,6 @@ DEC-AVX1-128	decoder-neg/vp*/vex	-	decode() ignores VEX.L and accepts the AVX1 1
 DEC-INVALID-VEX	decoder-neg/invalid.vex.*/vex	-	encodings that are #UD on hardware (register form of a memory-only op, wrong pp/L/W/modrm.reg) are accepted and would be emulated instead of faulting
 X86LEN-TLS	decoder-idiom/tls-gd-call/x86_len	-	x86_len() of 66 66 48 E8 rel32 (the TLS general-dynamic call, in every shared object using it) is 6, not 8: the scanner desynchronises
 X86LEN-OTHER	fuzz-len/*/x86_len	-	x86_len() applies 0x66 as rel16/imm16 under REX.W (add/or/sub/cmp/test/imul/push imm32) and ignores 0x67 for moffs mov; wrong lengths
+SEM-OVERREAD	semantics/@(vcvtph2ps.x_m64|vps[lr][la][wdq].y_y_m128)/@(hw|digest)	-	operand read wider than the instruction's memory operand (see DEC-MEMW-*): faults at a page end where the CPU does not
+SEM-PARTIAL-STORE	semantics/movbe.m16_g/@(hw|digest)	movbe.m16_g	a 16-bit store that faults on the second page has already written the first byte; the CPU commits nothing
+SEM-CVTPH2PS-SNAN	semantics/vcvtph2ps.*/@(hw|digest)	vcvtph2ps.*	signalling-NaN halves are converted to signalling-NaN singles; the SDM quiets them (and sets IE). Confirm on silicon

@@ -6,7 +6,7 @@
 #include <string.h>
 #include <sys/utsname.h>
 
-#define REF_MAX 256
+#define REF_MAX 2048
 struct ref_line { char name[32]; unsigned long cases; uint64_t digest; int seen; };
 
 static struct ref_line lines[REF_MAX];
@@ -149,4 +149,13 @@ int ref_finish(void) {
     for (int k = 0; k < nlines; k++)
         if (!lines[k].seen) { printf("  %-18s FAIL -- in the reference but no longer tested\n", lines[k].name); bad++; }
     return bad;
+}
+
+/* Plain name/cases/digest lines, for suites whose results are not per-op ref_op structs. */
+int ref_put(const char *name, unsigned long cases, uint64_t digest) { return add_line(name, cases, digest); }
+int ref_get(const char *name, unsigned long *cases, uint64_t *digest) {
+    int k = find_line(name);
+    if (k < 0) return 0;
+    lines[k].seen = 1; *cases = lines[k].cases; *digest = lines[k].digest;
+    return 1;
 }
