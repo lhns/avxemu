@@ -3,8 +3,9 @@
 which the spec-complete test refuses. Usage: xedgen | make_manifest.py manifest.tsv [probe.tsv refused.tsv]"""
 import sys, collections, fnmatch
 path = sys.argv[1]
-prop = dict(l.split(chr(9))[:2] for l in open(sys.argv[2])) if len(sys.argv) > 2 else {}
-refused = [l.rstrip(chr(10)).split(chr(9)) for l in open(sys.argv[3]) if l[0] != "#"] if len(sys.argv) > 3 else []
+prop = dict(l.split(chr(9))[:2] for l in open(sys.argv[2])) if len(sys.argv) > 2 and sys.argv[2] != "-" else {}
+known = [l.rstrip(chr(10)).split(chr(9)) for l in open(sys.argv[4]) if l[0] != "#" and l.strip()] if len(sys.argv) > 4 and sys.argv[4] != "-" else []
+refused = [l.rstrip(chr(10)).split(chr(9)) for l in open(sys.argv[3]) if l[0] != "#"] if len(sys.argv) > 3 and sys.argv[3] != "-" else []
 old = {}
 try:
     for l in open(path):
@@ -36,6 +37,9 @@ for c, n in zip(rows, names):
         else:
             for g, r in refused:
                 if fnmatch.fnmatch(n, g): st, why = 'refused', r; break
-    out.append('\t'.join(c + [n, st, why]))
+    if st in ('tested', 'failing') and known:
+        hit = [k[0] for k in known if k[2] != '-' and fnmatch.fnmatch(n, k[2])]
+        st, why = ('failing', ','.join(hit)) if hit else ('tested', '')
+    out.append(chr(9).join(c + [n, st, why]))
 open(path, 'w', newline='\n').write('\n'.join(out) + '\n')
 print(len(rows), 'forms', sum(1 for l in out[1:] if '\tUNSET\t' in l), 'unset')

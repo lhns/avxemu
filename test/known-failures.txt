@@ -2,3 +2,16 @@
 #   id  case-glob  forms-glob|-  reason
 # The case name is <suite>/<form name>/<variant>. A failing case must match a line; a line whose
 # cases ran and all passed fails the run ("XPASS"), so delete the line when the bug is fixed.
+DEC-ADDR32	decoder/*/addr32	-	decode() treats 0x67 as padding, but it is the address-size override: a memory operand's address is computed in 32 bits (and rip-relative becomes eip-relative) on hardware, 64 bits here
+DEC-MEMW-SHIFT	decoder/vps[lr][la][wdq].y_y_m128/memw	vps[lr][la][wdq].y_y_m128	ymm shift by memory count: mem_bytes is 32 but the operand is 16 bytes, so the emulator over-reads 16 bytes (can fault at a page end where hardware does not)
+DEC-MEMW-CVTPH2PS	decoder/vcvtph2ps.x_m64/memw	vcvtph2ps.x_m64	vcvtph2ps xmm, m64 reads 8 bytes; mem_bytes is 16
+DEC-CRC32	decoder-*/crc32*/*	-	F2 [REX.W|66] 0F 38 F0/F1 (crc32, SSE4.2, runs natively) is decoded as MOVBE; the scanner would trampoline it and compute a byte swap
+DEC-MOVBE-FORMS	decoder-neg/invalid.leg.*.2.f[01]/legacy	-	movbe accepted with a register operand (mod=3 is #UD) and with F2/F3 prefixes (not movbe)
+DEC-MOVBE-SOUP	decoder-soup/0f38f[01]/accept	-	same: 0F 38 F0/F1 with a register modrm decodes as movbe
+DEC-BSF-F3F2	decoder-neg/bs[fr]/*	-	F3 F2 0F BC/BD: F2 is the last mandatory prefix so it is bsf/bsr, yet decode() accepts it as tzcnt/lzcnt and the lzcnt patcher rewrites its F3 to F0
+DEC-LOCK-BSF	decoder-soup/0fb[cd]/accept	-	LOCK + 0F BC/BD is accepted on purpose (the patcher's F0 marker); lock bsf is #UD anyway. Design, listed so a change is noticed
+DEC-REX-ORDER	decoder-soup/0fb[cd]/opsize	-	a REX byte before F3 (not adjacent to the opcode) is ignored by hardware but decode() reads REX.W from it: 48 F3 0F BC is tzcnt r32 on hardware, r64 here
+DEC-AVX1-128	decoder-neg/vp*/vex	-	decode() ignores VEX.L and accepts the AVX1 128-bit integer forms (vpaddb xmm...) that run natively; the scanner trampolines them needlessly (may be deliberate)
+DEC-INVALID-VEX	decoder-neg/invalid.vex.*/vex	-	encodings that are #UD on hardware (register form of a memory-only op, wrong pp/L/W/modrm.reg) are accepted and would be emulated instead of faulting
+X86LEN-TLS	decoder-idiom/tls-gd-call/x86_len	-	x86_len() of 66 66 48 E8 rel32 (the TLS general-dynamic call, in every shared object using it) is 6, not 8: the scanner desynchronises
+X86LEN-OTHER	fuzz-len/*/x86_len	-	x86_len() applies 0x66 as rel16/imm16 under REX.W (add/or/sub/cmp/test/imul/push imm32) and ignores 0x67 for moffs mov; wrong lengths

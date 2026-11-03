@@ -38,7 +38,7 @@ void known_case(const char *name, int ok) {
     }
     if (ok) return;
     if (hit) { expected++; return; }
-    if (unexpected++ < 40) printf("FAIL %s\n", name);
+    if (unexpected++ < (getenv("KNOWN_VERBOSE") ? 1000000u : 40u)) printf("FAIL %s\n", name);
 }
 
 int known_finish(const char *suite) {

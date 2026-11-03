@@ -79,7 +79,7 @@ VBROADCASTI128_YMMqq_MEMdq@VEX.256.66.0F38.W0.5A/x.m	VBROADCASTI128	AVX2	1	2	1	0
 VBROADCASTSD_YMMqq_XMMdq@VEX.256.66.0F38.W0.19/x.r	VBROADCASTSD	AVX2	1	2	1	0x19	x	reg	0	1	0	0	ymm,xmm	0	-	vbroadcastsd.y_x	refused	register-source vbroadcastss/sd is AVX2-only and not decoded (the memory form is AVX1)
 VBROADCASTSS_XMMdq_XMMdq@VEX.128.66.0F38.W0.18/x.r	VBROADCASTSS	AVX2	1	2	1	0x18	x	reg	0	0	0	0	xmm,xmm	0	-	vbroadcastss.x_x	refused	register-source vbroadcastss/sd is AVX2-only and not decoded (the memory form is AVX1)
 VBROADCASTSS_YMMqq_XMMdq@VEX.256.66.0F38.W0.18/x.r	VBROADCASTSS	AVX2	1	2	1	0x18	x	reg	0	1	0	0	ymm,xmm	0	-	vbroadcastss.y_x	refused	register-source vbroadcastss/sd is AVX2-only and not decoded (the memory form is AVX1)
-VCVTPH2PS_XMMdq_MEMq@VEX.128.66.0F38.W0.13/x.m	VCVTPH2PS	F16C	1	2	1	0x13	x	mem	0	0	0	0	xmm,m64	8	r	vcvtph2ps.x_m64	tested	
+VCVTPH2PS_XMMdq_MEMq@VEX.128.66.0F38.W0.13/x.m	VCVTPH2PS	F16C	1	2	1	0x13	x	mem	0	0	0	0	xmm,m64	8	r	vcvtph2ps.x_m64	failing	DEC-MEMW-CVTPH2PS
 VCVTPH2PS_XMMdq_XMMq@VEX.128.66.0F38.W0.13/x.r	VCVTPH2PS	F16C	1	2	1	0x13	x	reg	0	0	0	0	xmm,xmm	0	-	vcvtph2ps.x_x	tested	
 VCVTPH2PS_YMMqq_MEMdq@VEX.256.66.0F38.W0.13/x.m	VCVTPH2PS	F16C	1	2	1	0x13	x	mem	0	1	0	0	ymm,m128	16	r	vcvtph2ps.y_m128	tested	
 VCVTPH2PS_YMMqq_XMMdq@VEX.256.66.0F38.W0.13/x.r	VCVTPH2PS	F16C	1	2	1	0x13	x	reg	0	1	0	0	ymm,xmm	0	-	vcvtph2ps.y_x	tested	
@@ -498,11 +498,11 @@ VPSIGND_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.Wx.0A/x.r	VPSIGND	AVX2	1	2	1	0x0A	x	re
 VPSIGNW_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.Wx.09/x.m	VPSIGNW	AVX2	1	2	1	0x09	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpsignw.y_y_m256	tested	
 VPSIGNW_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.Wx.09/x.r	VPSIGNW	AVX2	1	2	1	0x09	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpsignw.y_y_y	tested	
 VPSLLD_YMMqq_YMMqq_IMMb@VEX.256.66.0F.Wx.72/6.r	VPSLLD	AVX2	1	1	1	0x72	6	reg	x	1	1	0	ymm,ymm,imm8	0	-	vpslld.y_y_i	tested	
-VPSLLD_YMMqq_YMMqq_MEMdq@VEX.256.66.0F.Wx.F2/x.m	VPSLLD	AVX2	1	1	1	0xF2	x	mem	x	1	0	0	ymm,ymm,m128	16	r	vpslld.y_y_m128	tested	
+VPSLLD_YMMqq_YMMqq_MEMdq@VEX.256.66.0F.Wx.F2/x.m	VPSLLD	AVX2	1	1	1	0xF2	x	mem	x	1	0	0	ymm,ymm,m128	16	r	vpslld.y_y_m128	failing	DEC-MEMW-SHIFT
 VPSLLD_YMMqq_YMMqq_XMMq@VEX.256.66.0F.Wx.F2/x.r	VPSLLD	AVX2	1	1	1	0xF2	x	reg	x	1	0	0	ymm,ymm,xmm	0	-	vpslld.y_y_x	tested	
 VPSLLDQ_YMMqq_YMMqq_IMMb@VEX.256.66.0F.Wx.73/7.r	VPSLLDQ	AVX2	1	1	1	0x73	7	reg	x	1	1	0	ymm,ymm,imm8	0	-	vpslldq.y_y_i	tested	
 VPSLLQ_YMMqq_YMMqq_IMMb@VEX.256.66.0F.Wx.73/6.r	VPSLLQ	AVX2	1	1	1	0x73	6	reg	x	1	1	0	ymm,ymm,imm8	0	-	vpsllq.y_y_i	tested	
-VPSLLQ_YMMqq_YMMqq_MEMdq@VEX.256.66.0F.Wx.F3/x.m	VPSLLQ	AVX2	1	1	1	0xF3	x	mem	x	1	0	0	ymm,ymm,m128	16	r	vpsllq.y_y_m128	tested	
+VPSLLQ_YMMqq_YMMqq_MEMdq@VEX.256.66.0F.Wx.F3/x.m	VPSLLQ	AVX2	1	1	1	0xF3	x	mem	x	1	0	0	ymm,ymm,m128	16	r	vpsllq.y_y_m128	failing	DEC-MEMW-SHIFT
 VPSLLQ_YMMqq_YMMqq_XMMq@VEX.256.66.0F.Wx.F3/x.r	VPSLLQ	AVX2	1	1	1	0xF3	x	reg	x	1	0	0	ymm,ymm,xmm	0	-	vpsllq.y_y_x	tested	
 VPSLLVD_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W0.47/x.m	VPSLLVD	AVX2	1	2	1	0x47	x	mem	0	0	0	0	xmm,xmm,m128	16	r	vpsllvd.x_x_m128	tested	
 VPSLLVD_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W0.47/x.r	VPSLLVD	AVX2	1	2	1	0x47	x	reg	0	0	0	0	xmm,xmm,xmm	0	-	vpsllvd.x_x_x	tested	
@@ -513,24 +513,24 @@ VPSLLVQ_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W1.47/x.r	VPSLLVQ	AVX2	1	2	1	0x47	x	re
 VPSLLVQ_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W1.47/x.m	VPSLLVQ	AVX2	1	2	1	0x47	x	mem	1	1	0	0	ymm,ymm,m256	32	r	vpsllvq.y_y_m256	tested	
 VPSLLVQ_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W1.47/x.r	VPSLLVQ	AVX2	1	2	1	0x47	x	reg	1	1	0	0	ymm,ymm,ymm	0	-	vpsllvq.y_y_y	tested	
 VPSLLW_YMMqq_YMMqq_IMMb@VEX.256.66.0F.Wx.71/6.r	VPSLLW	AVX2	1	1	1	0x71	6	reg	x	1	1	0	ymm,ymm,imm8	0	-	vpsllw.y_y_i	tested	
-VPSLLW_YMMqq_YMMqq_MEMdq@VEX.256.66.0F.Wx.F1/x.m	VPSLLW	AVX2	1	1	1	0xF1	x	mem	x	1	0	0	ymm,ymm,m128	16	r	vpsllw.y_y_m128	tested	
+VPSLLW_YMMqq_YMMqq_MEMdq@VEX.256.66.0F.Wx.F1/x.m	VPSLLW	AVX2	1	1	1	0xF1	x	mem	x	1	0	0	ymm,ymm,m128	16	r	vpsllw.y_y_m128	failing	DEC-MEMW-SHIFT
 VPSLLW_YMMqq_YMMqq_XMMq@VEX.256.66.0F.Wx.F1/x.r	VPSLLW	AVX2	1	1	1	0xF1	x	reg	x	1	0	0	ymm,ymm,xmm	0	-	vpsllw.y_y_x	tested	
 VPSRAD_YMMqq_YMMqq_IMMb@VEX.256.66.0F.Wx.72/4.r	VPSRAD	AVX2	1	1	1	0x72	4	reg	x	1	1	0	ymm,ymm,imm8	0	-	vpsrad.y_y_i	tested	
-VPSRAD_YMMqq_YMMqq_MEMdq@VEX.256.66.0F.Wx.E2/x.m	VPSRAD	AVX2	1	1	1	0xE2	x	mem	x	1	0	0	ymm,ymm,m128	16	r	vpsrad.y_y_m128	tested	
+VPSRAD_YMMqq_YMMqq_MEMdq@VEX.256.66.0F.Wx.E2/x.m	VPSRAD	AVX2	1	1	1	0xE2	x	mem	x	1	0	0	ymm,ymm,m128	16	r	vpsrad.y_y_m128	failing	DEC-MEMW-SHIFT
 VPSRAD_YMMqq_YMMqq_XMMq@VEX.256.66.0F.Wx.E2/x.r	VPSRAD	AVX2	1	1	1	0xE2	x	reg	x	1	0	0	ymm,ymm,xmm	0	-	vpsrad.y_y_x	tested	
 VPSRAVD_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W0.46/x.m	VPSRAVD	AVX2	1	2	1	0x46	x	mem	0	0	0	0	xmm,xmm,m128	16	r	vpsravd.x_x_m128	tested	
 VPSRAVD_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W0.46/x.r	VPSRAVD	AVX2	1	2	1	0x46	x	reg	0	0	0	0	xmm,xmm,xmm	0	-	vpsravd.x_x_x	tested	
 VPSRAVD_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W0.46/x.m	VPSRAVD	AVX2	1	2	1	0x46	x	mem	0	1	0	0	ymm,ymm,m256	32	r	vpsravd.y_y_m256	tested	
 VPSRAVD_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W0.46/x.r	VPSRAVD	AVX2	1	2	1	0x46	x	reg	0	1	0	0	ymm,ymm,ymm	0	-	vpsravd.y_y_y	tested	
 VPSRAW_YMMqq_YMMqq_IMMb@VEX.256.66.0F.Wx.71/4.r	VPSRAW	AVX2	1	1	1	0x71	4	reg	x	1	1	0	ymm,ymm,imm8	0	-	vpsraw.y_y_i	tested	
-VPSRAW_YMMqq_YMMqq_MEMdq@VEX.256.66.0F.Wx.E1/x.m	VPSRAW	AVX2	1	1	1	0xE1	x	mem	x	1	0	0	ymm,ymm,m128	16	r	vpsraw.y_y_m128	tested	
+VPSRAW_YMMqq_YMMqq_MEMdq@VEX.256.66.0F.Wx.E1/x.m	VPSRAW	AVX2	1	1	1	0xE1	x	mem	x	1	0	0	ymm,ymm,m128	16	r	vpsraw.y_y_m128	failing	DEC-MEMW-SHIFT
 VPSRAW_YMMqq_YMMqq_XMMq@VEX.256.66.0F.Wx.E1/x.r	VPSRAW	AVX2	1	1	1	0xE1	x	reg	x	1	0	0	ymm,ymm,xmm	0	-	vpsraw.y_y_x	tested	
 VPSRLD_YMMqq_YMMqq_IMMb@VEX.256.66.0F.Wx.72/2.r	VPSRLD	AVX2	1	1	1	0x72	2	reg	x	1	1	0	ymm,ymm,imm8	0	-	vpsrld.y_y_i	tested	
-VPSRLD_YMMqq_YMMqq_MEMdq@VEX.256.66.0F.Wx.D2/x.m	VPSRLD	AVX2	1	1	1	0xD2	x	mem	x	1	0	0	ymm,ymm,m128	16	r	vpsrld.y_y_m128	tested	
+VPSRLD_YMMqq_YMMqq_MEMdq@VEX.256.66.0F.Wx.D2/x.m	VPSRLD	AVX2	1	1	1	0xD2	x	mem	x	1	0	0	ymm,ymm,m128	16	r	vpsrld.y_y_m128	failing	DEC-MEMW-SHIFT
 VPSRLD_YMMqq_YMMqq_XMMq@VEX.256.66.0F.Wx.D2/x.r	VPSRLD	AVX2	1	1	1	0xD2	x	reg	x	1	0	0	ymm,ymm,xmm	0	-	vpsrld.y_y_x	tested	
 VPSRLDQ_YMMqq_YMMqq_IMMb@VEX.256.66.0F.Wx.73/3.r	VPSRLDQ	AVX2	1	1	1	0x73	3	reg	x	1	1	0	ymm,ymm,imm8	0	-	vpsrldq.y_y_i	tested	
 VPSRLQ_YMMqq_YMMqq_IMMb@VEX.256.66.0F.Wx.73/2.r	VPSRLQ	AVX2	1	1	1	0x73	2	reg	x	1	1	0	ymm,ymm,imm8	0	-	vpsrlq.y_y_i	tested	
-VPSRLQ_YMMqq_YMMqq_MEMdq@VEX.256.66.0F.Wx.D3/x.m	VPSRLQ	AVX2	1	1	1	0xD3	x	mem	x	1	0	0	ymm,ymm,m128	16	r	vpsrlq.y_y_m128	tested	
+VPSRLQ_YMMqq_YMMqq_MEMdq@VEX.256.66.0F.Wx.D3/x.m	VPSRLQ	AVX2	1	1	1	0xD3	x	mem	x	1	0	0	ymm,ymm,m128	16	r	vpsrlq.y_y_m128	failing	DEC-MEMW-SHIFT
 VPSRLQ_YMMqq_YMMqq_XMMq@VEX.256.66.0F.Wx.D3/x.r	VPSRLQ	AVX2	1	1	1	0xD3	x	reg	x	1	0	0	ymm,ymm,xmm	0	-	vpsrlq.y_y_x	tested	
 VPSRLVD_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W0.45/x.m	VPSRLVD	AVX2	1	2	1	0x45	x	mem	0	0	0	0	xmm,xmm,m128	16	r	vpsrlvd.x_x_m128	tested	
 VPSRLVD_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W0.45/x.r	VPSRLVD	AVX2	1	2	1	0x45	x	reg	0	0	0	0	xmm,xmm,xmm	0	-	vpsrlvd.x_x_x	tested	
@@ -541,7 +541,7 @@ VPSRLVQ_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W1.45/x.r	VPSRLVQ	AVX2	1	2	1	0x45	x	re
 VPSRLVQ_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W1.45/x.m	VPSRLVQ	AVX2	1	2	1	0x45	x	mem	1	1	0	0	ymm,ymm,m256	32	r	vpsrlvq.y_y_m256	tested	
 VPSRLVQ_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W1.45/x.r	VPSRLVQ	AVX2	1	2	1	0x45	x	reg	1	1	0	0	ymm,ymm,ymm	0	-	vpsrlvq.y_y_y	tested	
 VPSRLW_YMMqq_YMMqq_IMMb@VEX.256.66.0F.Wx.71/2.r	VPSRLW	AVX2	1	1	1	0x71	2	reg	x	1	1	0	ymm,ymm,imm8	0	-	vpsrlw.y_y_i	tested	
-VPSRLW_YMMqq_YMMqq_MEMdq@VEX.256.66.0F.Wx.D1/x.m	VPSRLW	AVX2	1	1	1	0xD1	x	mem	x	1	0	0	ymm,ymm,m128	16	r	vpsrlw.y_y_m128	tested	
+VPSRLW_YMMqq_YMMqq_MEMdq@VEX.256.66.0F.Wx.D1/x.m	VPSRLW	AVX2	1	1	1	0xD1	x	mem	x	1	0	0	ymm,ymm,m128	16	r	vpsrlw.y_y_m128	failing	DEC-MEMW-SHIFT
 VPSRLW_YMMqq_YMMqq_XMMq@VEX.256.66.0F.Wx.D1/x.r	VPSRLW	AVX2	1	1	1	0xD1	x	reg	x	1	0	0	ymm,ymm,xmm	0	-	vpsrlw.y_y_x	tested	
 VPSUBB_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.F8/x.m	VPSUBB	AVX2	1	1	1	0xF8	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpsubb.y_y_m256	tested	
 VPSUBB_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.F8/x.r	VPSUBB	AVX2	1	1	1	0xF8	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpsubb.y_y_y	tested	

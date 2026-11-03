@@ -34,6 +34,15 @@ int spec_load(const char *path, specform **out) {
 
 uint64_t spec_rng(uint64_t *s) { uint64_t x = *s; x ^= x << 13; x ^= x >> 7; x ^= x << 17; return *s = x; }
 
+/* Does the form read VEX.vvvv? Otherwise the field must be 1111. */
+int spec_uses_vvvv(const specform *f) {
+    int n = 0, im = 0;
+    for (const char *p = f->ops; *p; p++) if (*p == ',') n++;
+    n++; if (f->imm8) im = 1;
+    n -= im;
+    return n >= 3 || (f->ext >= 0 && n >= 2);
+}
+
 int spec_encode(const specform *f, const specenc *e, uint8_t *o) {
     int n = 0;
     int reg = f->ext >= 0 ? f->ext : (e->reg & 15);
@@ -64,8 +73,7 @@ int spec_encode(const specform *f, const specenc *e, uint8_t *o) {
     for (int i = 0; i < e->pad67; i++) o[n++] = 0x67;
     if (e->segpfx) o[n++] = (uint8_t)e->segpfx;
     if (f->vex) {
-        int vvvv = (~e->vvvv) & 15;
-        if (f->ext >= 0 || strstr(f->ops, "imm8") == 0) { /* vvvv as given */ }
+        int vvvv = spec_uses_vvvv(f) ? (~e->vvvv) & 15 : 15;
         if (e->vex2 && f->map == 1 && !W && !rexX && !rexB) {
             o[n++] = 0xC5; o[n++] = (uint8_t)((!rexR) << 7 | vvvv << 3 | L << 2 | f->pp);
         } else {

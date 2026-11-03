@@ -28,6 +28,8 @@ typedef struct {
     int segpfx;                 /* 0, 0x64 or 0x65 */
 } specenc;
 
+int spec_uses_vvvv(const specform *f);
+
 /* Encode one instance of f. Returns length (<= 15 plus padding). */
 int spec_encode(const specform *f, const specenc *e, uint8_t *out);
 
