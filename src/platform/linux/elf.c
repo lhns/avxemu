@@ -208,7 +208,7 @@ static int unwind(const avxemu_elf_view *v, const Elf64_Shdr *s, avxemu_elf *e,
             if (lo < ncies && cies[lo].offset == idpos - id) c = &cies[lo];
             uint64_t begin, length, end;
             if (!c || !encoded(&record, c->encoding, 0, 0, 0, &begin) ||
-                !encoded(&record, c->encoding & 15, 0, 0, 0, &length) || !length || !add(begin, length, &end)) goto done;
+                !encoded(&record, c->encoding & 15, 0, 0, 0, &length) || !add(begin, length, &end)) goto done;
             if (c->augmented) {
                 uint64_t n, ignored;
                 if (!leb(&record, &n, 0) || !span(finish, record.pos, n)) goto done;
@@ -219,8 +219,10 @@ static int unwind(const avxemu_elf_view *v, const Elf64_Shdr *s, avxemu_elf *e,
             }
             fde_index entry = {s->sh_addr + start, begin};
             if (!append((void **)index, nindex, sizeof entry, &entry)) goto done;
+            /* An empty FDE (discarded or zero-size function) covers no byte: it is
+             * indexed for the header cross-check but publishes no bound. */
             avxemu_elf_bound f = {begin, end};
-            if (!append((void **)&e->functions, &e->nfunctions, sizeof f, &f)) goto done;
+            if (length && !append((void **)&e->functions, &e->nfunctions, sizeof f, &f)) goto done;
         }
         r.pos = finish;
     }
@@ -244,7 +246,7 @@ static int unwind_header(const avxemu_elf_view *v, const Elf64_Shdr *s,
     for (size_t i = 0; i < count; i++) {
         uint64_t begin, fde;
         if (!encoded(&r, table_enc, 1, s->sh_addr, 0, &begin) ||
-            !encoded(&r, table_enc, 1, s->sh_addr, 0, &fde) || (i && begin <= previous)) return 0;
+            !encoded(&r, table_enc, 1, s->sh_addr, 0, &fde) || (i && begin < previous)) return 0;
         size_t lo = 0, hi = nindex;
         while (lo < hi) {
             size_t mid = lo + (hi - lo) / 2;

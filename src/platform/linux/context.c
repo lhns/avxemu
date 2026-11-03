@@ -56,3 +56,15 @@ int avxemu_context_write(void *context, const avxemu_regfile *rf, int vectors) {
     }
     return 1;
 }
+int avxemu_context_mxcsr(const void *context, uint32_t *mxcsr) {
+    const ucontext_t *uc=context;
+    if (!uc || !mxcsr || !uc->uc_mcontext.fpregs) return 0;
+    *mxcsr=uc->uc_mcontext.fpregs->mxcsr;
+    return 1;
+}
+int avxemu_context_set_mxcsr(void *context, uint32_t mxcsr) {
+    ucontext_t *uc=context;
+    if (!uc || !uc->uc_mcontext.fpregs) return 0;
+    uc->uc_mcontext.fpregs->mxcsr=mxcsr;
+    return 1;
+}
