@@ -59,18 +59,19 @@ static int decode_inner(const uint8_t *p, decoded *d);
  * (66/F2/F3/REX/LOCK are *not* legal VEX padding, so we don't skip those.)
  */
 int decode(const uint8_t *p, decoded *d) {
-    int pad = 0, seg = 0;
+    int pad = 0, seg = 0, addr32 = 0;
     while (pad < 8) {
         uint8_t c = p[pad];
-        /* 0x67 and the cs/ss/ds/es overrides are no-ops in 64-bit -> true padding.
+        /* The cs/ss/ds/es overrides are no-ops in 64-bit -> true padding; 0x67 is recorded.
          * fs/gs DO change the effective address, so record them, don't discard. */
-        if (c==0x67||c==0x2E||c==0x36||c==0x3E||c==0x26) pad++;
+        if (c==0x67) { addr32 = 1; pad++; }
+        else if (c==0x2E||c==0x36||c==0x3E||c==0x26) pad++;
         else if (c==0x65) { seg = 1; pad++; }   /* gs */
         else if (c==0x64) { seg = 2; pad++; }   /* fs */
         else break;
     }
     int r = decode_inner(p + pad, d);
-    if (r > 0) { d->len = (uint8_t)(d->len + pad); d->seg = (uint8_t)seg; return d->len; }
+    if (r > 0) { d->len = (uint8_t)(d->len + pad); d->seg = (uint8_t)seg; d->addr32 = (uint8_t)addr32; return d->len; }
     return 0;
 }
 

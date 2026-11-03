@@ -250,6 +250,13 @@ foreach(mode tramp handler)
     ENVIRONMENT "AVXEMU_FORCEPATCH=1;AVXEMU_NOCACHE=1" PASS_REGULAR_EXPRESSION "mxcsr-fma: OK")
 endforeach()
 set_property(TEST mxcsr-fma-tramp APPEND PROPERTY ENVIRONMENT "AVXEMU_FORCETRAMP=1")
+avxemu_test_exe(addr32 SOURCES addr32.c)
+foreach(mode tramp handler)
+  add_test(NAME addr32-${mode} COMMAND sh "${CMAKE_CURRENT_SOURCE_DIR}/preload.sh" $<TARGET_FILE:avxemu> $<TARGET_FILE:addr32> ${mode})
+  set_tests_properties(addr32-${mode} PROPERTIES LABELS hermetic TIMEOUT 30
+    ENVIRONMENT "AVXEMU_FORCEPATCH=1;AVXEMU_NOCACHE=1" PASS_REGULAR_EXPRESSION "addr32: OK")
+endforeach()
+set_property(TEST addr32-tramp APPEND PROPERTY ENVIRONMENT "AVXEMU_FORCETRAMP=1")
 set_tests_properties(prefix-handler PROPERTIES LABELS hermetic TIMEOUT 20 ENVIRONMENT "AVXEMU_FORCEPATCH=1;AVXEMU_NOCACHE=1")
 
 avxemu_test_exe(required-scan SOURCES required_scan.c LINK avxemu_core avxemu_asm)
