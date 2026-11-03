@@ -197,9 +197,12 @@ static int decode_inner(const uint8_t *p, decoded *d) {
         case 0x6A: VVV(VPUNPCKHDQ); break; case 0x6D: VVV(VPUNPCKHQDQ); break;
         case 0x63: VVV(VPACKSSWB); break; case 0x6B: VVV(VPACKSSDW); break;
         case 0x67: VVV(VPACKUSWB); break;
-        case 0xF1: VVV(VPSLLW); break; case 0xF2: VVV(VPSLLD); break; case 0xF3: VVV(VPSLLQ); break;
-        case 0xD1: VVV(VPSRLW); break; case 0xD2: VVV(VPSRLD); break; case 0xD3: VVV(VPSRLQ); break;
-        case 0xE1: VVV(VPSRAW); break; case 0xE2: VVV(VPSRAD); break;
+        /* Shift by xmm/m128 count: the memory operand is 16 bytes even for ymm. */
+        case 0xF1: VVV(VPSLLW); d->mem_bytes=16; break; case 0xF2: VVV(VPSLLD); d->mem_bytes=16; break;
+        case 0xF3: VVV(VPSLLQ); d->mem_bytes=16; break;
+        case 0xD1: VVV(VPSRLW); d->mem_bytes=16; break; case 0xD2: VVV(VPSRLD); d->mem_bytes=16; break;
+        case 0xD3: VVV(VPSRLQ); d->mem_bytes=16; break;
+        case 0xE1: VVV(VPSRAW); d->mem_bytes=16; break; case 0xE2: VVV(VPSRAD); d->mem_bytes=16; break;
         case 0x70: VVI(VPSHUFD); handled=1; break;
         case 0xD7: d->op=VPMOVMSKB; d->dst=reg; d->dst_kind=DST_GPR; d->b_src=rm; d->opsize=32; handled=1; break;
         case 0x71: case 0x72: case 0x73: {   /* shift by imm; reg field selects sub-op, vvvv=dst, rm=src */

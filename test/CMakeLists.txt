@@ -257,6 +257,13 @@ foreach(mode tramp handler)
     ENVIRONMENT "AVXEMU_FORCEPATCH=1;AVXEMU_NOCACHE=1" PASS_REGULAR_EXPRESSION "addr32: OK")
 endforeach()
 set_property(TEST addr32-tramp APPEND PROPERTY ENVIRONMENT "AVXEMU_FORCETRAMP=1")
+avxemu_test_exe(shift-mem SOURCES shift_mem.c)
+foreach(mode tramp handler)
+  add_test(NAME shift-mem-${mode} COMMAND sh "${CMAKE_CURRENT_SOURCE_DIR}/preload.sh" $<TARGET_FILE:avxemu> $<TARGET_FILE:shift-mem> ${mode})
+  set_tests_properties(shift-mem-${mode} PROPERTIES LABELS hermetic TIMEOUT 30
+    ENVIRONMENT "AVXEMU_FORCEPATCH=1;AVXEMU_NOCACHE=1" PASS_REGULAR_EXPRESSION "shift-mem: OK")
+endforeach()
+set_property(TEST shift-mem-tramp APPEND PROPERTY ENVIRONMENT "AVXEMU_FORCETRAMP=1")
 set_tests_properties(prefix-handler PROPERTIES LABELS hermetic TIMEOUT 20 ENVIRONMENT "AVXEMU_FORCEPATCH=1;AVXEMU_NOCACHE=1")
 
 avxemu_test_exe(required-scan SOURCES required_scan.c LINK avxemu_core avxemu_asm)
