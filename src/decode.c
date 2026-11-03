@@ -82,12 +82,12 @@ static int decode_inner(const uint8_t *p, decoded *d) {
     /* ---- legacy-encoded: tzcnt / lzcnt (F3 0F BC/BD), movbe (0F38 F0/F1) ---- */
     {
         const uint8_t *q = p; int rexW = 0, rexR = 0, rexX = 0, rexB = 0;
-        int has66 = 0, hasF3 = 0, hasLock = 0; int prefixes = 0;
+        int has66 = 0, hasF3 = 0, hasF2 = 0, hasLock = 0; int prefixes = 0;
         for (;;) {
             uint8_t c = *q;
             if (c == 0x66) { has66 = 1; q++; prefixes++; }
             else if (c == 0xF3) { hasF3 = 1; q++; prefixes++; }
-            else if (c == 0xF2) { q++; prefixes++; }
+            else if (c == 0xF2) { hasF2 = 1; q++; prefixes++; }
             else if (c == 0xF0) { hasLock = 1; q++; prefixes++; }   /* our patched lzcnt/tzcnt */
             else if ((c & 0xF0) == 0x40) { rexW=(c>>3)&1; rexR=(c>>2)&1; rexX=(c>>1)&1; rexB=c&1; q++; }
             else break;
@@ -110,7 +110,8 @@ static int decode_inner(const uint8_t *p, decoded *d) {
             d->len = (uint8_t)((q+2-p) + adv);
             return d->len;
         }
-        if (q[0] == 0x0F && q[1] == 0x38 && (q[2]==0xF0 || q[2]==0xF1)) {
+        /* F2 0F 38 F0/F1 is CRC32, not MOVBE: leave it to the CPU. */
+        if (!hasF2 && q[0] == 0x0F && q[1] == 0x38 && (q[2]==0xF0 || q[2]==0xF1)) {
             int reg, rm; int adv = parse_modrm(q+3, rexX, rexB, d, &rm);
             reg = ((q[3]>>3)&7) + (rexR?8:0);
             d->op = BMI_MOVBE; d->is_bmi = 1; d->opsize = rexW?64:(has66?16:32);
