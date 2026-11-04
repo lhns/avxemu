@@ -247,7 +247,7 @@ static int decode_inner(const uint8_t *p, decoded *d) {
         case 0x30: UNB(VPMOVZXBW); d->mem_bytes=16; break; case 0x31: UNB(VPMOVZXBD); d->mem_bytes=8; break;
         case 0x32: UNB(VPMOVZXBQ); d->mem_bytes=4; break;  case 0x33: UNB(VPMOVZXWD); d->mem_bytes=16; break;
         case 0x34: UNB(VPMOVZXWQ); d->mem_bytes=8; break;  case 0x35: UNB(VPMOVZXDQ); d->mem_bytes=16; break;
-        case 0x13: UNB(VCVTPH2PS); d->mem_bytes=16; break;
+        case 0x13: UNB(VCVTPH2PS); d->mem_bytes=L?16:8; break;   /* xmm: 4 halves = m64 */
         /* AVX2 masked move: 8C load (reg<-mask,mem), 8E store (mem<-mask,reg). W: D/Q. */
         case 0x8C: d->op = W?VPMASKMOVQ:VPMASKMOVD; d->dst=reg; d->dst_kind=DST_YMM;
                    d->a_src=vvvv; d->b_src=(rm<0)?OPND_MEM:rm; d->mem_bytes=L?32:16; handled=1; break;

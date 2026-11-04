@@ -134,6 +134,7 @@ int avxemu_emulate(const decoded *d, avxemu_regfile *rf) {
     if (!d->wide && d->op >= VFMADD132 && d->op <= VFNMSUB231) {
         memset(A.b + 16, 0, 16); memset(B.b + 16, 0, 16); memset(C.b + 16, 0, 16);
     }
+    if (!d->wide && d->op == VCVTPH2PS) memset(B.b + 8, 0, 24);   /* xmm form: 4 halves only */
 
     if (!vec_exec(d->op, d->type, &A, &B, &C, d->imm, &OUT, &gpr_out)) return 0;
 
