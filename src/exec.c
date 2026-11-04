@@ -261,7 +261,12 @@ int vec_exec(vex_op op, int type,
     /* ---- F16C: 8 halfs (low 128 of b) -> 8 floats ---- */
     case VCVTPH2PS: {
         const uint16_t *s=(const uint16_t*)b->b; float *o=(float*)out->b;
-        for (int i=0;i<8;i++) o[i]=half_to_float(s[i]);
+        uint32_t fl=0;
+        for (int i=0;i<8;i++) {
+            o[i]=half_to_float(s[i]);
+            if ((s[i]&0x7E00)==0x7C00 && (s[i]&0x3FF)) fl=1;      /* signalling NaN: IE */
+        }
+        fp_raise(fl);
         return 1;
     }
 

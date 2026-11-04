@@ -375,7 +375,7 @@ int main(int argc, char **argv) {
         int total = full_cases(f);
         FLAGS_MASK = flags_mask(f);
         uint64_t ds = REF_FNV_OFFSET, df = REF_FNV_OFFSET, dh_s = REF_FNV_OFFSET, dh_f = REF_FNV_OFFSET; long cs = 0, cf = 0;
-        int bad_hw = 0, bad_dec = 0, bad_ref = 0; char repro[600] = "";
+        int bad_hw = 0, bad_dec = 0, bad_ref = 0; int diffs = 0; char repro[600] = "";
         for (int k = 0; k < total; k++) {
             int smoke = is_smoke(k);
             if (!full && !smoke) continue;
@@ -395,6 +395,15 @@ int main(int argc, char **argv) {
                 run_hw(&c, &ho);
                 size_t nh = pack(&ho, ph);
                 dh_f = fnv(ph, nh, dh_f); if (smoke) dh_s = fnv(ph, nh, dh_s);
+                if ((nh != ne || memcmp(ph, pe, ne)) && getenv("SEM_DIFFMAX") && diffs++ < atoi(getenv("SEM_DIFFMAX"))) {
+                    /* debug: every differing case with its inputs and both outcomes, beyond the first repro */
+                    printf("  diff %s case %d mxcsr_in=%04x kind hw=%d emu=%d mxcsr hw=%x emu=%x\n", f->name, k, c.in.mxcsr, ho.kind, eo.kind, ho.st.mxcsr & 0x3F, eo.st.mxcsr & 0x3F);
+                    int rg[3] = {c.reg, c.vvvv, c.rm}; static const char *rn[3] = {"dst", "vvvv", "rm"};
+                    for (int q = 0; q < 3; q++) { printf("    %s(in)=", rn[q]); for (int b = 31; b >= 0; b--) printf("%02x", c.in.ymm[rg[q] & 15][b]); putchar('\n'); }
+                    if (f->mem) { long off = (long)(c.ea - (uintptr_t)g_data); printf("    mem@%ld=", off); for (int b = 31; b >= 0; b--) printf("%02x", off >= 0 && off + b < 2 * PAGE ? c.mem[off + b] : 0); putchar('\n'); }
+                    printf("    hw  dst="); for (int b = 31; b >= 0; b--) printf("%02x", ho.st.ymm[c.reg & 15][b]); putchar('\n');
+                    printf("    emu dst="); for (int b = 31; b >= 0; b--) printf("%02x", eo.st.ymm[c.reg & 15][b]); putchar('\n');
+                }
                 if (nh != ne || memcmp(ph, pe, ne)) {
                     if (!bad_hw) {
                         char why[200], hx[80] = ""; describe_diff(&ho, &eo, why, sizeof why);
