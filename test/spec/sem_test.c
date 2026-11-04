@@ -60,13 +60,12 @@ static void on_fault(int sig, siginfo_t *si, void *uc) { (void)uc; g_sig = sig; 
 #if defined(__linux__) && defined(__x86_64__)
 #include <sys/syscall.h>
 #include <unistd.h>
-__asm__(".text
-.type sem_restorer,@function
-sem_restorer:
-	movl $15,%eax
-	syscall
-.size sem_restorer,.-sem_restorer
-");
+__asm__(".text\n"
+        ".type sem_restorer,@function\n"
+        "sem_restorer:\n"
+        "\tmovl $15,%eax\n"
+        "\tsyscall\n"
+        ".size sem_restorer,.-sem_restorer\n");
 void sem_restorer(void);
 static void set_handler(int sig, const struct sigaction *sa) {
     struct { void *h; unsigned long flags; void *restorer; uint64_t mask; } ks;
@@ -417,8 +416,7 @@ int main(int argc, char **argv) {
     install_handlers();
     if (!strcmp(mode, "fault")) {     /* the handlers must catch a real fault, also in a static link */
         if (sigsetjmp(g_jb, 1) == 0) { *(volatile uint8_t *)g_gl = 1; puts("fault: no fault raised"); return 1; }
-        printf("fault: caught signal %d at %p
-", g_sig, (void *)g_addr);
+        printf("fault: caught signal %d at %p\n", g_sig, (void *)g_addr);
         return g_sig == SIGSEGV && g_addr == (uintptr_t)g_gl ? 0 : 1;
     }
     avxemu_page_size();
