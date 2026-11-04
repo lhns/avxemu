@@ -132,7 +132,7 @@ recorded on AVX2 silicon: run the `record-references` workflow and commit its ar
 
 Run a stage with `ctest --test-dir "$AVXEMU_BUILD_DIR" -L spec` (likewise `decoder`, `semantics`, `apps`;
 `-L semantics-full` is the full-size replay, `-L silicon` the live comparison on an AVX2 host).
-The default `-L 'hermetic|replay'` run takes about a minute. `semtest record` refuses non-AVX2 CPUs and QEMU TCG; a KVM guest named QEMU runs these instructions on the host CPU and may record.
+The default `-L 'hermetic|replay'` run takes about a minute. `semtest record` refuses non-AVX2 CPUs and QEMU TCG (a KVM guest named QEMU runs on the host CPU and may record).
 
 **Re-recording a reference:** `oracle`, `bmi_oracle`, `patchtest`, `bmimem`: see INGREDIENTS.md, "Releasing".
 `semantics.ref` and `apps/expected.tsv`: run the `record-references` workflow (manual, or on a PR; it
@@ -146,7 +146,7 @@ It differs from `semantics.ref` in one form, `movbe.m64_g.2` (`66 REX.W 0F 38 F1
 fault on a page-split store, memory after the fault differs. A Xeon 6975P matches `semantics.ref` there, so
 this is CPU generation, not vendor. `SEM_DUMP=file` writes one line per case, with raw rflags, to compare
 machines; it also shows the BMI/LZCNT/TZCNT flags the SDM leaves undefined, which digests mask and which do
-differ between Intel and AMD.
+differ between Intel and AMD. Every measured difference and the decision on it: [docs/vendor-differences.md](docs/vendor-differences.md).
 
 ## Mavericks CI
 

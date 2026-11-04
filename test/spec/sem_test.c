@@ -54,6 +54,8 @@ typedef void (*sem_runner)(const sem_case *c, sem_out *o);
 static sigjmp_buf g_jb; static volatile int g_sig; static volatile uintptr_t g_addr;
 static void on_fault(int sig, siginfo_t *si, void *uc) { (void)uc; g_sig = sig; g_addr = (uintptr_t)si->si_addr; siglongjmp(g_jb, 1); }
 
+/* Known gap: the platform loader interposes sigaction(), so a static link (no RTLD_NEXT to the libc
+ * original) loses these handlers and a faulting case kills the run. A fix needs a raw rt_sigaction. */
 static void install_handlers(void) {
     static uint8_t stack[65536];
     stack_t ss = {.ss_sp = stack, .ss_size = sizeof stack}; sigaltstack(&ss, 0);
@@ -346,9 +348,16 @@ static int emulated_cpu(void) {
         __asm__ volatile("cpuid" : "=a"(r[0]), "=b"(r[1]), "=c"(r[2]), "=d"(r[3]) : "a"(0x80000002 + i), "c"(0));
         memcpy(name + 16 * i, r, 16);
     }
-    unsigned r[4];
-    __asm__ volatile("cpuid" : "=a"(r[0]), "=b"(r[1]), "=c"(r[2]), "=d"(r[3]) : "a"(0x40000000), "c"(0));
-    return strstr(name, "QEMU") != NULL && memcmp(&r[1], "KVMKVMKVM\0\0\0", 12) != 0;
+    unsigned r[4], h[4];
+    __asm__ volatile("cpuid" : "=a"(h[0]), "=b"(h[1]), "=c"(h[2]), "=d"(h[3]) : "a"(1), "c"(0));
+    char sig[13] = "";
+    if ((h[2] >> 31) & 1) { /* hypervisor bit: leaf 0x40000000 is only meaningful then */
+        __asm__ volatile("cpuid" : "=a"(r[0]), "=b"(r[1]), "=c"(r[2]), "=d"(r[3]) : "a"(0x40000000), "c"(0));
+        memcpy(sig, &r[1], 12);
+    }
+    /* TCG announces itself; the QEMU name only counts as KVM when the hypervisor says so. A TCG guest that
+     * hides both (custom model name, KVM signature) cannot be told apart from here. */
+    return !strcmp(sig, "TCGTCGTCGTCG") || (strstr(name, "QEMU") && strcmp(sig, "KVMKVMKVM"));
 }
 
 static uint64_t flags_mask(const specform *f) {
@@ -392,6 +401,7 @@ int main(int argc, char **argv) {
     }
     sem_runner emu = run_emu;
     FILE *dump = live && getenv("SEM_DUMP") ? fopen(getenv("SEM_DUMP"), "w") : NULL;
+    if (live && getenv("SEM_DUMP") && !dump) { perror("SEM_DUMP"); return 1; }
     long ncases = 0, nforms = 0; int deterministic_bad = 0;
     for (int i = 0; i < nf; i++) {
         const specform *f = &forms[i];
