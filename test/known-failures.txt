@@ -2,6 +2,7 @@
 #   id  case-glob  forms-glob|-  reason
 # The case name is <suite>/<form name>/<variant>. A failing case must match a line; a line whose
 # cases ran and all passed fails the run ("XPASS"), so delete the line when the bug is fixed.
+# A reason starting "[compiler-dependent]" opts out of XPASS: the failure shows only in some builds (gcc, not clang).
 DEC-MEMW-CVTPH2PS	decoder/vcvtph2ps.x_m64/memw	vcvtph2ps.x_m64	vcvtph2ps xmm, m64 reads 8 bytes; mem_bytes is 16
 DEC-MOVBE-FORMS	decoder-neg/invalid.leg.*.2.f[01]/legacy	-	movbe accepted with a register operand (mod=3 is #UD) and with F2/F3 prefixes (not movbe)
 DEC-MOVBE-SOUP	decoder-soup/0f38f[01]/accept	-	same: 0F 38 F0/F1 with a register modrm decodes as movbe
@@ -14,8 +15,8 @@ X86LEN-TLS	decoder-idiom/tls-gd-call/x86_len	-	x86_len() of 66 66 48 E8 rel32 (t
 X86LEN-OTHER	fuzz-len/*/x86_len	-	x86_len() applies 0x66 as rel16/imm16 under REX.W (add/or/sub/cmp/test/imul/push imm32) and ignores 0x67 for moffs mov; wrong lengths
 SEM-OVERREAD	semantics/vcvtph2ps.x_m64/@(hw|digest)	vcvtph2ps.x_m64	vcvtph2ps xmm, m64 reads 16 bytes (see DEC-MEMW-CVTPH2PS): faults at a page end where the CPU does not
 APP-ZSTD-SCAN	apps/zstd-*/*	-	Debian 13 zstd 1.5.7 under LD_PRELOAD exits 127: 'unsupported executable: cannot safely discover required LZCNT/TZCNT' (cause not diagnosed; reproduce: LD_PRELOAD=libavxemu.so zstd --version)
-SEM-PARTIAL-STORE	semantics/movbe.m16_g/@(hw|digest)	movbe.m16_g	a 16-bit store that faults on the second page has already written the first byte; the CPU commits nothing (silicon-confirmed)
-SEM-PARTIAL-STORE-EXTRACT	semantics/vextracti128.m128_y_i/@(hw|digest)	vextracti128.m128_y_i	a 16-byte store that faults on the second page leaves the first bytes written; the CPU commits nothing (silicon-confirmed)
+SEM-PARTIAL-STORE	semantics/movbe.m16_g/@(hw|digest)	movbe.m16_g	[compiler-dependent] a 16-bit store that faults on the second page has already written the first byte; the CPU commits nothing (silicon-confirmed)
+SEM-PARTIAL-STORE-EXTRACT	semantics/vextracti128.m128_y_i/@(hw|digest)	vextracti128.m128_y_i	[compiler-dependent] a 16-byte store that faults on the second page leaves the first bytes written; the CPU commits nothing (silicon-confirmed)
 SEM-PARTIAL-STORE-MASKMOV	semantics/vpmaskmov[dq].m*/@(hw|digest)	vpmaskmov[dq].m*	masked store that faults on a selected lane has already written the lanes before it; the CPU commits nothing (silicon-confirmed)
 SEM-FMA-FMADD	semantics/vfmadd[123]*/@(hw|digest)	vfmadd[123]*	FMA: sticky MXCSR exception flags differ from the CPU, and the negated forms (vfnm*) flip the sign of a NaN operand where the CPU propagates it unchanged (silicon-confirmed); further causes not yet separated
 SEM-FMA-FMSUB	semantics/vfmsub[123]*/@(hw|digest)	vfmsub[123]*	FMA: sticky MXCSR exception flags differ from the CPU, and the negated forms (vfnm*) flip the sign of a NaN operand where the CPU propagates it unchanged (silicon-confirmed); further causes not yet separated
