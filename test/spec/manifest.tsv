@@ -1,0 +1,579 @@
+#id	iclass	isa	vex	map	pp	opc	ext	mod	W	L	imm8	opsz	ops	memw	memrw	name	status	reason
+ANDN_GPR32d_GPR32d_GPR32d@VEX.128.NP.0F38.W0.F2/x.r	ANDN	BMI1	1	2	0	0xF2	x	reg	0	0	0	0	gpr,gpr,gpr	0	-	andn.g_g_g.w0	tested	
+ANDN_GPR32d_GPR32d_MEMd@VEX.128.NP.0F38.W0.F2/x.m	ANDN	BMI1	1	2	0	0xF2	x	mem	0	0	0	0	gpr,gpr,m32	4	r	andn.g_g_m32	tested	
+ANDN_GPR64q_GPR64q_GPR64q@VEX.128.NP.0F38.W1.F2/x.r	ANDN	BMI1	1	2	0	0xF2	x	reg	1	0	0	0	gpr,gpr,gpr	0	-	andn.g_g_g.w1	tested	
+ANDN_GPR64q_GPR64q_MEMq@VEX.128.NP.0F38.W1.F2/x.m	ANDN	BMI1	1	2	0	0xF2	x	mem	1	0	0	0	gpr,gpr,m64	8	r	andn.g_g_m64	tested	
+BEXTR_GPR32d_GPR32d_GPR32d@VEX.128.NP.0F38.W0.F7/x.r	BEXTR	BMI1	1	2	0	0xF7	x	reg	0	0	0	0	gpr,gpr,gpr	0	-	bextr.g_g_g.w0	tested	
+BEXTR_GPR32d_MEMd_GPR32d@VEX.128.NP.0F38.W0.F7/x.m	BEXTR	BMI1	1	2	0	0xF7	x	mem	0	0	0	0	gpr,m32,gpr	4	r	bextr.g_m32_g	tested	
+BEXTR_GPR64q_GPR64q_GPR64q@VEX.128.NP.0F38.W1.F7/x.r	BEXTR	BMI1	1	2	0	0xF7	x	reg	1	0	0	0	gpr,gpr,gpr	0	-	bextr.g_g_g.w1	tested	
+BEXTR_GPR64q_MEMq_GPR64q@VEX.128.NP.0F38.W1.F7/x.m	BEXTR	BMI1	1	2	0	0xF7	x	mem	1	0	0	0	gpr,m64,gpr	8	r	bextr.g_m64_g	tested	
+BLSI_GPR32d_GPR32d@VEX.128.NP.0F38.W0.F3/3.r	BLSI	BMI1	1	2	0	0xF3	3	reg	0	0	0	0	gpr,gpr	0	-	blsi.g_g.w0	tested	
+BLSI_GPR32d_MEMd@VEX.128.NP.0F38.W0.F3/3.m	BLSI	BMI1	1	2	0	0xF3	3	mem	0	0	0	0	gpr,m32	4	r	blsi.g_m32	tested	
+BLSI_GPR64q_GPR64q@VEX.128.NP.0F38.W1.F3/3.r	BLSI	BMI1	1	2	0	0xF3	3	reg	1	0	0	0	gpr,gpr	0	-	blsi.g_g.w1	tested	
+BLSI_GPR64q_MEMq@VEX.128.NP.0F38.W1.F3/3.m	BLSI	BMI1	1	2	0	0xF3	3	mem	1	0	0	0	gpr,m64	8	r	blsi.g_m64	tested	
+BLSMSK_GPR32d_GPR32d@VEX.128.NP.0F38.W0.F3/2.r	BLSMSK	BMI1	1	2	0	0xF3	2	reg	0	0	0	0	gpr,gpr	0	-	blsmsk.g_g.w0	tested	
+BLSMSK_GPR32d_MEMd@VEX.128.NP.0F38.W0.F3/2.m	BLSMSK	BMI1	1	2	0	0xF3	2	mem	0	0	0	0	gpr,m32	4	r	blsmsk.g_m32	tested	
+BLSMSK_GPR64q_GPR64q@VEX.128.NP.0F38.W1.F3/2.r	BLSMSK	BMI1	1	2	0	0xF3	2	reg	1	0	0	0	gpr,gpr	0	-	blsmsk.g_g.w1	tested	
+BLSMSK_GPR64q_MEMq@VEX.128.NP.0F38.W1.F3/2.m	BLSMSK	BMI1	1	2	0	0xF3	2	mem	1	0	0	0	gpr,m64	8	r	blsmsk.g_m64	tested	
+BLSR_GPR32d_GPR32d@VEX.128.NP.0F38.W0.F3/1.r	BLSR	BMI1	1	2	0	0xF3	1	reg	0	0	0	0	gpr,gpr	0	-	blsr.g_g.w0	tested	
+BLSR_GPR32d_MEMd@VEX.128.NP.0F38.W0.F3/1.m	BLSR	BMI1	1	2	0	0xF3	1	mem	0	0	0	0	gpr,m32	4	r	blsr.g_m32	tested	
+BLSR_GPR64q_GPR64q@VEX.128.NP.0F38.W1.F3/1.r	BLSR	BMI1	1	2	0	0xF3	1	reg	1	0	0	0	gpr,gpr	0	-	blsr.g_g.w1	tested	
+BLSR_GPR64q_MEMq@VEX.128.NP.0F38.W1.F3/1.m	BLSR	BMI1	1	2	0	0xF3	1	mem	1	0	0	0	gpr,m64	8	r	blsr.g_m64	tested	
+BZHI_GPR32d_GPR32d_GPR32d@VEX.128.NP.0F38.W0.F5/x.r	BZHI	BMI2	1	2	0	0xF5	x	reg	0	0	0	0	gpr,gpr,gpr	0	-	bzhi.g_g_g.w0	tested	
+BZHI_GPR32d_MEMd_GPR32d@VEX.128.NP.0F38.W0.F5/x.m	BZHI	BMI2	1	2	0	0xF5	x	mem	0	0	0	0	gpr,m32,gpr	4	r	bzhi.g_m32_g	tested	
+BZHI_GPR64q_GPR64q_GPR64q@VEX.128.NP.0F38.W1.F5/x.r	BZHI	BMI2	1	2	0	0xF5	x	reg	1	0	0	0	gpr,gpr,gpr	0	-	bzhi.g_g_g.w1	tested	
+BZHI_GPR64q_MEMq_GPR64q@VEX.128.NP.0F38.W1.F5/x.m	BZHI	BMI2	1	2	0	0xF5	x	mem	1	0	0	0	gpr,m64,gpr	8	r	bzhi.g_m64_g	tested	
+LZCNT_GPRv_GPRv@LEG.-.66F3.0F.W0.BD/x.r.o16	LZCNT	LZCNT	0	1	4	0xBD	x	reg	0	-	0	16	gpr,gpr	0	-	lzcnt.g_g.o16	tested	
+LZCNT_GPRv_GPRv@LEG.-.F3.0F.W0.BD/x.r.o32	LZCNT	LZCNT	0	1	3	0xBD	x	reg	0	-	0	32	gpr,gpr	0	-	lzcnt.g_g.o32	tested	
+LZCNT_GPRv_GPRv@LEG.-.F3.0F.W1.BD/x.r.o64	LZCNT	LZCNT	0	1	3	0xBD	x	reg	1	-	0	64	gpr,gpr	0	-	lzcnt.g_g.o64	tested	
+LZCNT_GPRv_GPRv@LEG.-.66F3.0F.W1.BD/x.r.o64	LZCNT	LZCNT	0	1	4	0xBD	x	reg	1	-	0	64	gpr,gpr	0	-	lzcnt.g_g.2	tested	
+LZCNT_GPRv_MEMv@LEG.-.66F3.0F.W0.BD/x.m.o16	LZCNT	LZCNT	0	1	4	0xBD	x	mem	0	-	0	16	gpr,m16	2	r	lzcnt.g_m16	tested	
+LZCNT_GPRv_MEMv@LEG.-.F3.0F.W0.BD/x.m.o32	LZCNT	LZCNT	0	1	3	0xBD	x	mem	0	-	0	32	gpr,m32	4	r	lzcnt.g_m32	tested	
+LZCNT_GPRv_MEMv@LEG.-.F3.0F.W1.BD/x.m.o64	LZCNT	LZCNT	0	1	3	0xBD	x	mem	1	-	0	64	gpr,m64	8	r	lzcnt.g_m64.o64	tested	
+LZCNT_GPRv_MEMv@LEG.-.66F3.0F.W1.BD/x.m.o64	LZCNT	LZCNT	0	1	4	0xBD	x	mem	1	-	0	64	gpr,m64	8	r	lzcnt.g_m64.2	tested	
+MOVBE_GPRv_MEMv@LEG.-.66.0F38.W0.F0/x.m.o16	MOVBE	MOVBE	0	2	1	0xF0	x	mem	0	-	0	16	gpr,m16	2	r	movbe.g_m16	tested	
+MOVBE_GPRv_MEMv@LEG.-.NP.0F38.W0.F0/x.m.o32	MOVBE	MOVBE	0	2	0	0xF0	x	mem	0	-	0	32	gpr,m32	4	r	movbe.g_m32	tested	
+MOVBE_GPRv_MEMv@LEG.-.NP.0F38.W1.F0/x.m.o64	MOVBE	MOVBE	0	2	0	0xF0	x	mem	1	-	0	64	gpr,m64	8	r	movbe.g_m64.o64	tested	
+MOVBE_GPRv_MEMv@LEG.-.66.0F38.W1.F0/x.m.o64	MOVBE	MOVBE	0	2	1	0xF0	x	mem	1	-	0	64	gpr,m64	8	r	movbe.g_m64.2	tested	
+MOVBE_MEMv_GPRv@LEG.-.66.0F38.W0.F1/x.m.o16	MOVBE	MOVBE	0	2	1	0xF1	x	mem	0	-	0	16	m16,gpr	2	w	movbe.m16_g	failing	SEM-PARTIAL-STORE
+MOVBE_MEMv_GPRv@LEG.-.NP.0F38.W0.F1/x.m.o32	MOVBE	MOVBE	0	2	0	0xF1	x	mem	0	-	0	32	m32,gpr	4	w	movbe.m32_g	tested	
+MOVBE_MEMv_GPRv@LEG.-.NP.0F38.W1.F1/x.m.o64	MOVBE	MOVBE	0	2	0	0xF1	x	mem	1	-	0	64	m64,gpr	8	w	movbe.m64_g.o64	tested	
+MOVBE_MEMv_GPRv@LEG.-.66.0F38.W1.F1/x.m.o64	MOVBE	MOVBE	0	2	1	0xF1	x	mem	1	-	0	64	m64,gpr	8	w	movbe.m64_g.2	tested	
+MULX_GPR32d_GPR32d_GPR32d@VEX.128.F2.0F38.W0.F6/x.r	MULX	BMI2	1	2	3	0xF6	x	reg	0	0	0	0	gpr,gpr,gpr	0	-	mulx.g_g_g.w0	tested	
+MULX_GPR32d_GPR32d_MEMd@VEX.128.F2.0F38.W0.F6/x.m	MULX	BMI2	1	2	3	0xF6	x	mem	0	0	0	0	gpr,gpr,m32	4	r	mulx.g_g_m32	tested	
+MULX_GPR64q_GPR64q_GPR64q@VEX.128.F2.0F38.W1.F6/x.r	MULX	BMI2	1	2	3	0xF6	x	reg	1	0	0	0	gpr,gpr,gpr	0	-	mulx.g_g_g.w1	tested	
+MULX_GPR64q_GPR64q_MEMq@VEX.128.F2.0F38.W1.F6/x.m	MULX	BMI2	1	2	3	0xF6	x	mem	1	0	0	0	gpr,gpr,m64	8	r	mulx.g_g_m64	tested	
+PDEP_GPR32d_GPR32d_GPR32d@VEX.128.F2.0F38.W0.F5/x.r	PDEP	BMI2	1	2	3	0xF5	x	reg	0	0	0	0	gpr,gpr,gpr	0	-	pdep.g_g_g.w0	tested	
+PDEP_GPR32d_GPR32d_MEMd@VEX.128.F2.0F38.W0.F5/x.m	PDEP	BMI2	1	2	3	0xF5	x	mem	0	0	0	0	gpr,gpr,m32	4	r	pdep.g_g_m32	tested	
+PDEP_GPR64q_GPR64q_GPR64q@VEX.128.F2.0F38.W1.F5/x.r	PDEP	BMI2	1	2	3	0xF5	x	reg	1	0	0	0	gpr,gpr,gpr	0	-	pdep.g_g_g.w1	tested	
+PDEP_GPR64q_GPR64q_MEMq@VEX.128.F2.0F38.W1.F5/x.m	PDEP	BMI2	1	2	3	0xF5	x	mem	1	0	0	0	gpr,gpr,m64	8	r	pdep.g_g_m64	tested	
+PEXT_GPR32d_GPR32d_GPR32d@VEX.128.F3.0F38.W0.F5/x.r	PEXT	BMI2	1	2	2	0xF5	x	reg	0	0	0	0	gpr,gpr,gpr	0	-	pext.g_g_g.w0	tested	
+PEXT_GPR32d_GPR32d_MEMd@VEX.128.F3.0F38.W0.F5/x.m	PEXT	BMI2	1	2	2	0xF5	x	mem	0	0	0	0	gpr,gpr,m32	4	r	pext.g_g_m32	tested	
+PEXT_GPR64q_GPR64q_GPR64q@VEX.128.F3.0F38.W1.F5/x.r	PEXT	BMI2	1	2	2	0xF5	x	reg	1	0	0	0	gpr,gpr,gpr	0	-	pext.g_g_g.w1	tested	
+PEXT_GPR64q_GPR64q_MEMq@VEX.128.F3.0F38.W1.F5/x.m	PEXT	BMI2	1	2	2	0xF5	x	mem	1	0	0	0	gpr,gpr,m64	8	r	pext.g_g_m64	tested	
+RORX_GPR32d_GPR32d_IMMb@VEX.128.F2.0F3A.W0.F0/x.r	RORX	BMI2	1	3	3	0xF0	x	reg	0	0	1	0	gpr,gpr,imm8	0	-	rorx.g_g_i.w0	tested	
+RORX_GPR32d_MEMd_IMMb@VEX.128.F2.0F3A.W0.F0/x.m	RORX	BMI2	1	3	3	0xF0	x	mem	0	0	1	0	gpr,m32,imm8	4	r	rorx.g_m32_i	tested	
+RORX_GPR64q_GPR64q_IMMb@VEX.128.F2.0F3A.W1.F0/x.r	RORX	BMI2	1	3	3	0xF0	x	reg	1	0	1	0	gpr,gpr,imm8	0	-	rorx.g_g_i.w1	tested	
+RORX_GPR64q_MEMq_IMMb@VEX.128.F2.0F3A.W1.F0/x.m	RORX	BMI2	1	3	3	0xF0	x	mem	1	0	1	0	gpr,m64,imm8	8	r	rorx.g_m64_i	tested	
+SARX_GPR32d_GPR32d_GPR32d@VEX.128.F3.0F38.W0.F7/x.r	SARX	BMI2	1	2	2	0xF7	x	reg	0	0	0	0	gpr,gpr,gpr	0	-	sarx.g_g_g.w0	tested	
+SARX_GPR32d_MEMd_GPR32d@VEX.128.F3.0F38.W0.F7/x.m	SARX	BMI2	1	2	2	0xF7	x	mem	0	0	0	0	gpr,m32,gpr	4	r	sarx.g_m32_g	tested	
+SARX_GPR64q_GPR64q_GPR64q@VEX.128.F3.0F38.W1.F7/x.r	SARX	BMI2	1	2	2	0xF7	x	reg	1	0	0	0	gpr,gpr,gpr	0	-	sarx.g_g_g.w1	tested	
+SARX_GPR64q_MEMq_GPR64q@VEX.128.F3.0F38.W1.F7/x.m	SARX	BMI2	1	2	2	0xF7	x	mem	1	0	0	0	gpr,m64,gpr	8	r	sarx.g_m64_g	tested	
+SHLX_GPR32d_GPR32d_GPR32d@VEX.128.66.0F38.W0.F7/x.r	SHLX	BMI2	1	2	1	0xF7	x	reg	0	0	0	0	gpr,gpr,gpr	0	-	shlx.g_g_g.w0	tested	
+SHLX_GPR32d_MEMd_GPR32d@VEX.128.66.0F38.W0.F7/x.m	SHLX	BMI2	1	2	1	0xF7	x	mem	0	0	0	0	gpr,m32,gpr	4	r	shlx.g_m32_g	tested	
+SHLX_GPR64q_GPR64q_GPR64q@VEX.128.66.0F38.W1.F7/x.r	SHLX	BMI2	1	2	1	0xF7	x	reg	1	0	0	0	gpr,gpr,gpr	0	-	shlx.g_g_g.w1	tested	
+SHLX_GPR64q_MEMq_GPR64q@VEX.128.66.0F38.W1.F7/x.m	SHLX	BMI2	1	2	1	0xF7	x	mem	1	0	0	0	gpr,m64,gpr	8	r	shlx.g_m64_g	tested	
+SHRX_GPR32d_GPR32d_GPR32d@VEX.128.F2.0F38.W0.F7/x.r	SHRX	BMI2	1	2	3	0xF7	x	reg	0	0	0	0	gpr,gpr,gpr	0	-	shrx.g_g_g.w0	tested	
+SHRX_GPR32d_MEMd_GPR32d@VEX.128.F2.0F38.W0.F7/x.m	SHRX	BMI2	1	2	3	0xF7	x	mem	0	0	0	0	gpr,m32,gpr	4	r	shrx.g_m32_g	tested	
+SHRX_GPR64q_GPR64q_GPR64q@VEX.128.F2.0F38.W1.F7/x.r	SHRX	BMI2	1	2	3	0xF7	x	reg	1	0	0	0	gpr,gpr,gpr	0	-	shrx.g_g_g.w1	tested	
+SHRX_GPR64q_MEMq_GPR64q@VEX.128.F2.0F38.W1.F7/x.m	SHRX	BMI2	1	2	3	0xF7	x	mem	1	0	0	0	gpr,m64,gpr	8	r	shrx.g_m64_g	tested	
+TZCNT_GPRv_GPRv@LEG.-.66F3.0F.W0.BC/x.r.o16	TZCNT	BMI1	0	1	4	0xBC	x	reg	0	-	0	16	gpr,gpr	0	-	tzcnt.g_g.o16	tested	
+TZCNT_GPRv_GPRv@LEG.-.F3.0F.W0.BC/x.r.o32	TZCNT	BMI1	0	1	3	0xBC	x	reg	0	-	0	32	gpr,gpr	0	-	tzcnt.g_g.o32	tested	
+TZCNT_GPRv_GPRv@LEG.-.F3.0F.W1.BC/x.r.o64	TZCNT	BMI1	0	1	3	0xBC	x	reg	1	-	0	64	gpr,gpr	0	-	tzcnt.g_g.o64	tested	
+TZCNT_GPRv_GPRv@LEG.-.66F3.0F.W1.BC/x.r.o64	TZCNT	BMI1	0	1	4	0xBC	x	reg	1	-	0	64	gpr,gpr	0	-	tzcnt.g_g.2	tested	
+TZCNT_GPRv_MEMv@LEG.-.66F3.0F.W0.BC/x.m.o16	TZCNT	BMI1	0	1	4	0xBC	x	mem	0	-	0	16	gpr,m16	2	r	tzcnt.g_m16	tested	
+TZCNT_GPRv_MEMv@LEG.-.F3.0F.W0.BC/x.m.o32	TZCNT	BMI1	0	1	3	0xBC	x	mem	0	-	0	32	gpr,m32	4	r	tzcnt.g_m32	tested	
+TZCNT_GPRv_MEMv@LEG.-.F3.0F.W1.BC/x.m.o64	TZCNT	BMI1	0	1	3	0xBC	x	mem	1	-	0	64	gpr,m64	8	r	tzcnt.g_m64.o64	tested	
+TZCNT_GPRv_MEMv@LEG.-.66F3.0F.W1.BC/x.m.o64	TZCNT	BMI1	0	1	4	0xBC	x	mem	1	-	0	64	gpr,m64	8	r	tzcnt.g_m64.2	tested	
+VBROADCASTI128_YMMqq_MEMdq@VEX.256.66.0F38.W0.5A/x.m	VBROADCASTI128	AVX2	1	2	1	0x5A	x	mem	0	1	0	0	ymm,m128	16	r	vbroadcasti128.y_m128	tested	
+VBROADCASTSD_YMMqq_XMMdq@VEX.256.66.0F38.W0.19/x.r	VBROADCASTSD	AVX2	1	2	1	0x19	x	reg	0	1	0	0	ymm,xmm	0	-	vbroadcastsd.y_x	refused	register-source vbroadcastss/sd is AVX2-only and not decoded (the memory form is AVX1)
+VBROADCASTSS_XMMdq_XMMdq@VEX.128.66.0F38.W0.18/x.r	VBROADCASTSS	AVX2	1	2	1	0x18	x	reg	0	0	0	0	xmm,xmm	0	-	vbroadcastss.x_x	refused	register-source vbroadcastss/sd is AVX2-only and not decoded (the memory form is AVX1)
+VBROADCASTSS_YMMqq_XMMdq@VEX.256.66.0F38.W0.18/x.r	VBROADCASTSS	AVX2	1	2	1	0x18	x	reg	0	1	0	0	ymm,xmm	0	-	vbroadcastss.y_x	refused	register-source vbroadcastss/sd is AVX2-only and not decoded (the memory form is AVX1)
+VCVTPH2PS_XMMdq_MEMq@VEX.128.66.0F38.W0.13/x.m	VCVTPH2PS	F16C	1	2	1	0x13	x	mem	0	0	0	0	xmm,m64	8	r	vcvtph2ps.x_m64	failing	DEC-MEMW-CVTPH2PS,SEM-OVERREAD,SEM-CVTPH2PS-SNAN
+VCVTPH2PS_XMMdq_XMMq@VEX.128.66.0F38.W0.13/x.r	VCVTPH2PS	F16C	1	2	1	0x13	x	reg	0	0	0	0	xmm,xmm	0	-	vcvtph2ps.x_x	failing	SEM-CVTPH2PS-SNAN
+VCVTPH2PS_YMMqq_MEMdq@VEX.256.66.0F38.W0.13/x.m	VCVTPH2PS	F16C	1	2	1	0x13	x	mem	0	1	0	0	ymm,m128	16	r	vcvtph2ps.y_m128	failing	SEM-CVTPH2PS-SNAN
+VCVTPH2PS_YMMqq_XMMdq@VEX.256.66.0F38.W0.13/x.r	VCVTPH2PS	F16C	1	2	1	0x13	x	reg	0	1	0	0	ymm,xmm	0	-	vcvtph2ps.y_x	failing	SEM-CVTPH2PS-SNAN
+VCVTPS2PH_MEMdq_YMMqq_IMMb@VEX.256.66.0F3A.W0.1D/x.m	VCVTPS2PH	F16C	1	3	1	0x1D	x	mem	0	1	1	0	m128,ymm,imm8	16	w	vcvtps2ph.m128_y_i	refused	F16C store form not implemented, only vcvtph2ps
+VCVTPS2PH_MEMq_XMMdq_IMMb@VEX.128.66.0F3A.W0.1D/x.m	VCVTPS2PH	F16C	1	3	1	0x1D	x	mem	0	0	1	0	m64,xmm,imm8	8	w	vcvtps2ph.m64_x_i	refused	F16C store form not implemented, only vcvtph2ps
+VCVTPS2PH_XMMdq_YMMqq_IMMb@VEX.256.66.0F3A.W0.1D/x.r	VCVTPS2PH	F16C	1	3	1	0x1D	x	reg	0	1	1	0	xmm,ymm,imm8	0	-	vcvtps2ph.x_y_i	refused	F16C store form not implemented, only vcvtph2ps
+VCVTPS2PH_XMMq_XMMdq_IMMb@VEX.128.66.0F3A.W0.1D/x.r	VCVTPS2PH	F16C	1	3	1	0x1D	x	reg	0	0	1	0	xmm,xmm,imm8	0	-	vcvtps2ph.x_x_i	refused	F16C store form not implemented, only vcvtph2ps
+VEXTRACTI128_MEMdq_YMMqq_IMMb@VEX.256.66.0F3A.W0.39/x.m	VEXTRACTI128	AVX2	1	3	1	0x39	x	mem	0	1	1	0	m128,ymm,imm8	16	w	vextracti128.m128_y_i	failing	SEM-PARTIAL-STORE-EXTRACT
+VEXTRACTI128_XMMdq_YMMqq_IMMb@VEX.256.66.0F3A.W0.39/x.r	VEXTRACTI128	AVX2	1	3	1	0x39	x	reg	0	1	1	0	xmm,ymm,imm8	0	-	vextracti128.x_y_i	tested	
+VFMADD132PD_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W1.98/x.m	VFMADD132PD	FMA	1	2	1	0x98	x	mem	1	0	0	0	xmm,xmm,m128	16	r	vfmadd132pd.x_x_m128	failing	SEM-FMA-FMADD
+VFMADD132PD_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W1.98/x.r	VFMADD132PD	FMA	1	2	1	0x98	x	reg	1	0	0	0	xmm,xmm,xmm	0	-	vfmadd132pd.x_x_x	failing	SEM-FMA-FMADD
+VFMADD132PD_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W1.98/x.m	VFMADD132PD	FMA	1	2	1	0x98	x	mem	1	1	0	0	ymm,ymm,m256	32	r	vfmadd132pd.y_y_m256	failing	SEM-FMA-FMADD
+VFMADD132PD_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W1.98/x.r	VFMADD132PD	FMA	1	2	1	0x98	x	reg	1	1	0	0	ymm,ymm,ymm	0	-	vfmadd132pd.y_y_y	failing	SEM-FMA-FMADD
+VFMADD132PS_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W0.98/x.m	VFMADD132PS	FMA	1	2	1	0x98	x	mem	0	0	0	0	xmm,xmm,m128	16	r	vfmadd132ps.x_x_m128	failing	SEM-FMA-FMADD
+VFMADD132PS_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W0.98/x.r	VFMADD132PS	FMA	1	2	1	0x98	x	reg	0	0	0	0	xmm,xmm,xmm	0	-	vfmadd132ps.x_x_x	failing	SEM-FMA-FMADD
+VFMADD132PS_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W0.98/x.m	VFMADD132PS	FMA	1	2	1	0x98	x	mem	0	1	0	0	ymm,ymm,m256	32	r	vfmadd132ps.y_y_m256	failing	SEM-FMA-FMADD
+VFMADD132PS_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W0.98/x.r	VFMADD132PS	FMA	1	2	1	0x98	x	reg	0	1	0	0	ymm,ymm,ymm	0	-	vfmadd132ps.y_y_y	failing	SEM-FMA-FMADD
+VFMADD132SD_XMMdq_XMMq_MEMq@VEX.LIG.66.0F38.W1.99/x.m	VFMADD132SD	FMA	1	2	1	0x99	x	mem	1	x	0	0	xmm,xmm,m64	8	r	vfmadd132sd.x_x_m64	failing	SEM-FMA-FMADD
+VFMADD132SD_XMMdq_XMMq_XMMq@VEX.LIG.66.0F38.W1.99/x.r	VFMADD132SD	FMA	1	2	1	0x99	x	reg	1	x	0	0	xmm,xmm,xmm	0	-	vfmadd132sd.x_x_x	failing	SEM-FMA-FMADD
+VFMADD132SS_XMMdq_XMMd_MEMd@VEX.LIG.66.0F38.W0.99/x.m	VFMADD132SS	FMA	1	2	1	0x99	x	mem	0	x	0	0	xmm,xmm,m32	4	r	vfmadd132ss.x_x_m32	failing	SEM-FMA-FMADD
+VFMADD132SS_XMMdq_XMMd_XMMd@VEX.LIG.66.0F38.W0.99/x.r	VFMADD132SS	FMA	1	2	1	0x99	x	reg	0	x	0	0	xmm,xmm,xmm	0	-	vfmadd132ss.x_x_x	failing	SEM-FMA-FMADD
+VFMADD213PD_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W1.A8/x.m	VFMADD213PD	FMA	1	2	1	0xA8	x	mem	1	0	0	0	xmm,xmm,m128	16	r	vfmadd213pd.x_x_m128	failing	SEM-FMA-FMADD
+VFMADD213PD_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W1.A8/x.r	VFMADD213PD	FMA	1	2	1	0xA8	x	reg	1	0	0	0	xmm,xmm,xmm	0	-	vfmadd213pd.x_x_x	failing	SEM-FMA-FMADD
+VFMADD213PD_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W1.A8/x.m	VFMADD213PD	FMA	1	2	1	0xA8	x	mem	1	1	0	0	ymm,ymm,m256	32	r	vfmadd213pd.y_y_m256	failing	SEM-FMA-FMADD
+VFMADD213PD_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W1.A8/x.r	VFMADD213PD	FMA	1	2	1	0xA8	x	reg	1	1	0	0	ymm,ymm,ymm	0	-	vfmadd213pd.y_y_y	failing	SEM-FMA-FMADD
+VFMADD213PS_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W0.A8/x.m	VFMADD213PS	FMA	1	2	1	0xA8	x	mem	0	0	0	0	xmm,xmm,m128	16	r	vfmadd213ps.x_x_m128	failing	SEM-FMA-FMADD
+VFMADD213PS_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W0.A8/x.r	VFMADD213PS	FMA	1	2	1	0xA8	x	reg	0	0	0	0	xmm,xmm,xmm	0	-	vfmadd213ps.x_x_x	failing	SEM-FMA-FMADD
+VFMADD213PS_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W0.A8/x.m	VFMADD213PS	FMA	1	2	1	0xA8	x	mem	0	1	0	0	ymm,ymm,m256	32	r	vfmadd213ps.y_y_m256	failing	SEM-FMA-FMADD
+VFMADD213PS_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W0.A8/x.r	VFMADD213PS	FMA	1	2	1	0xA8	x	reg	0	1	0	0	ymm,ymm,ymm	0	-	vfmadd213ps.y_y_y	failing	SEM-FMA-FMADD
+VFMADD213SD_XMMdq_XMMq_MEMq@VEX.LIG.66.0F38.W1.A9/x.m	VFMADD213SD	FMA	1	2	1	0xA9	x	mem	1	x	0	0	xmm,xmm,m64	8	r	vfmadd213sd.x_x_m64	failing	SEM-FMA-FMADD
+VFMADD213SD_XMMdq_XMMq_XMMq@VEX.LIG.66.0F38.W1.A9/x.r	VFMADD213SD	FMA	1	2	1	0xA9	x	reg	1	x	0	0	xmm,xmm,xmm	0	-	vfmadd213sd.x_x_x	failing	SEM-FMA-FMADD
+VFMADD213SS_XMMdq_XMMd_MEMd@VEX.LIG.66.0F38.W0.A9/x.m	VFMADD213SS	FMA	1	2	1	0xA9	x	mem	0	x	0	0	xmm,xmm,m32	4	r	vfmadd213ss.x_x_m32	failing	SEM-FMA-FMADD
+VFMADD213SS_XMMdq_XMMd_XMMd@VEX.LIG.66.0F38.W0.A9/x.r	VFMADD213SS	FMA	1	2	1	0xA9	x	reg	0	x	0	0	xmm,xmm,xmm	0	-	vfmadd213ss.x_x_x	failing	SEM-FMA-FMADD
+VFMADD231PD_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W1.B8/x.m	VFMADD231PD	FMA	1	2	1	0xB8	x	mem	1	0	0	0	xmm,xmm,m128	16	r	vfmadd231pd.x_x_m128	failing	SEM-FMA-FMADD
+VFMADD231PD_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W1.B8/x.r	VFMADD231PD	FMA	1	2	1	0xB8	x	reg	1	0	0	0	xmm,xmm,xmm	0	-	vfmadd231pd.x_x_x	failing	SEM-FMA-FMADD
+VFMADD231PD_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W1.B8/x.m	VFMADD231PD	FMA	1	2	1	0xB8	x	mem	1	1	0	0	ymm,ymm,m256	32	r	vfmadd231pd.y_y_m256	failing	SEM-FMA-FMADD
+VFMADD231PD_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W1.B8/x.r	VFMADD231PD	FMA	1	2	1	0xB8	x	reg	1	1	0	0	ymm,ymm,ymm	0	-	vfmadd231pd.y_y_y	failing	SEM-FMA-FMADD
+VFMADD231PS_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W0.B8/x.m	VFMADD231PS	FMA	1	2	1	0xB8	x	mem	0	0	0	0	xmm,xmm,m128	16	r	vfmadd231ps.x_x_m128	failing	SEM-FMA-FMADD
+VFMADD231PS_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W0.B8/x.r	VFMADD231PS	FMA	1	2	1	0xB8	x	reg	0	0	0	0	xmm,xmm,xmm	0	-	vfmadd231ps.x_x_x	failing	SEM-FMA-FMADD
+VFMADD231PS_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W0.B8/x.m	VFMADD231PS	FMA	1	2	1	0xB8	x	mem	0	1	0	0	ymm,ymm,m256	32	r	vfmadd231ps.y_y_m256	failing	SEM-FMA-FMADD
+VFMADD231PS_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W0.B8/x.r	VFMADD231PS	FMA	1	2	1	0xB8	x	reg	0	1	0	0	ymm,ymm,ymm	0	-	vfmadd231ps.y_y_y	failing	SEM-FMA-FMADD
+VFMADD231SD_XMMdq_XMMq_MEMq@VEX.LIG.66.0F38.W1.B9/x.m	VFMADD231SD	FMA	1	2	1	0xB9	x	mem	1	x	0	0	xmm,xmm,m64	8	r	vfmadd231sd.x_x_m64	failing	SEM-FMA-FMADD
+VFMADD231SD_XMMdq_XMMq_XMMq@VEX.LIG.66.0F38.W1.B9/x.r	VFMADD231SD	FMA	1	2	1	0xB9	x	reg	1	x	0	0	xmm,xmm,xmm	0	-	vfmadd231sd.x_x_x	failing	SEM-FMA-FMADD
+VFMADD231SS_XMMdq_XMMd_MEMd@VEX.LIG.66.0F38.W0.B9/x.m	VFMADD231SS	FMA	1	2	1	0xB9	x	mem	0	x	0	0	xmm,xmm,m32	4	r	vfmadd231ss.x_x_m32	failing	SEM-FMA-FMADD
+VFMADD231SS_XMMdq_XMMd_XMMd@VEX.LIG.66.0F38.W0.B9/x.r	VFMADD231SS	FMA	1	2	1	0xB9	x	reg	0	x	0	0	xmm,xmm,xmm	0	-	vfmadd231ss.x_x_x	failing	SEM-FMA-FMADD
+VFMADDSUB132PD_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W1.96/x.m	VFMADDSUB132PD	FMA	1	2	1	0x96	x	mem	1	0	0	0	xmm,xmm,m128	16	r	vfmaddsub132pd.x_x_m128	refused	FMA3 addsub/subadd variants are not implemented
+VFMADDSUB132PD_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W1.96/x.r	VFMADDSUB132PD	FMA	1	2	1	0x96	x	reg	1	0	0	0	xmm,xmm,xmm	0	-	vfmaddsub132pd.x_x_x	refused	FMA3 addsub/subadd variants are not implemented
+VFMADDSUB132PD_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W1.96/x.m	VFMADDSUB132PD	FMA	1	2	1	0x96	x	mem	1	1	0	0	ymm,ymm,m256	32	r	vfmaddsub132pd.y_y_m256	refused	FMA3 addsub/subadd variants are not implemented
+VFMADDSUB132PD_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W1.96/x.r	VFMADDSUB132PD	FMA	1	2	1	0x96	x	reg	1	1	0	0	ymm,ymm,ymm	0	-	vfmaddsub132pd.y_y_y	refused	FMA3 addsub/subadd variants are not implemented
+VFMADDSUB132PS_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W0.96/x.m	VFMADDSUB132PS	FMA	1	2	1	0x96	x	mem	0	0	0	0	xmm,xmm,m128	16	r	vfmaddsub132ps.x_x_m128	refused	FMA3 addsub/subadd variants are not implemented
+VFMADDSUB132PS_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W0.96/x.r	VFMADDSUB132PS	FMA	1	2	1	0x96	x	reg	0	0	0	0	xmm,xmm,xmm	0	-	vfmaddsub132ps.x_x_x	refused	FMA3 addsub/subadd variants are not implemented
+VFMADDSUB132PS_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W0.96/x.m	VFMADDSUB132PS	FMA	1	2	1	0x96	x	mem	0	1	0	0	ymm,ymm,m256	32	r	vfmaddsub132ps.y_y_m256	refused	FMA3 addsub/subadd variants are not implemented
+VFMADDSUB132PS_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W0.96/x.r	VFMADDSUB132PS	FMA	1	2	1	0x96	x	reg	0	1	0	0	ymm,ymm,ymm	0	-	vfmaddsub132ps.y_y_y	refused	FMA3 addsub/subadd variants are not implemented
+VFMADDSUB213PD_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W1.A6/x.m	VFMADDSUB213PD	FMA	1	2	1	0xA6	x	mem	1	0	0	0	xmm,xmm,m128	16	r	vfmaddsub213pd.x_x_m128	refused	FMA3 addsub/subadd variants are not implemented
+VFMADDSUB213PD_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W1.A6/x.r	VFMADDSUB213PD	FMA	1	2	1	0xA6	x	reg	1	0	0	0	xmm,xmm,xmm	0	-	vfmaddsub213pd.x_x_x	refused	FMA3 addsub/subadd variants are not implemented
+VFMADDSUB213PD_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W1.A6/x.m	VFMADDSUB213PD	FMA	1	2	1	0xA6	x	mem	1	1	0	0	ymm,ymm,m256	32	r	vfmaddsub213pd.y_y_m256	refused	FMA3 addsub/subadd variants are not implemented
+VFMADDSUB213PD_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W1.A6/x.r	VFMADDSUB213PD	FMA	1	2	1	0xA6	x	reg	1	1	0	0	ymm,ymm,ymm	0	-	vfmaddsub213pd.y_y_y	refused	FMA3 addsub/subadd variants are not implemented
+VFMADDSUB213PS_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W0.A6/x.m	VFMADDSUB213PS	FMA	1	2	1	0xA6	x	mem	0	0	0	0	xmm,xmm,m128	16	r	vfmaddsub213ps.x_x_m128	refused	FMA3 addsub/subadd variants are not implemented
+VFMADDSUB213PS_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W0.A6/x.r	VFMADDSUB213PS	FMA	1	2	1	0xA6	x	reg	0	0	0	0	xmm,xmm,xmm	0	-	vfmaddsub213ps.x_x_x	refused	FMA3 addsub/subadd variants are not implemented
+VFMADDSUB213PS_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W0.A6/x.m	VFMADDSUB213PS	FMA	1	2	1	0xA6	x	mem	0	1	0	0	ymm,ymm,m256	32	r	vfmaddsub213ps.y_y_m256	refused	FMA3 addsub/subadd variants are not implemented
+VFMADDSUB213PS_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W0.A6/x.r	VFMADDSUB213PS	FMA	1	2	1	0xA6	x	reg	0	1	0	0	ymm,ymm,ymm	0	-	vfmaddsub213ps.y_y_y	refused	FMA3 addsub/subadd variants are not implemented
+VFMADDSUB231PD_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W1.B6/x.m	VFMADDSUB231PD	FMA	1	2	1	0xB6	x	mem	1	0	0	0	xmm,xmm,m128	16	r	vfmaddsub231pd.x_x_m128	refused	FMA3 addsub/subadd variants are not implemented
+VFMADDSUB231PD_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W1.B6/x.r	VFMADDSUB231PD	FMA	1	2	1	0xB6	x	reg	1	0	0	0	xmm,xmm,xmm	0	-	vfmaddsub231pd.x_x_x	refused	FMA3 addsub/subadd variants are not implemented
+VFMADDSUB231PD_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W1.B6/x.m	VFMADDSUB231PD	FMA	1	2	1	0xB6	x	mem	1	1	0	0	ymm,ymm,m256	32	r	vfmaddsub231pd.y_y_m256	refused	FMA3 addsub/subadd variants are not implemented
+VFMADDSUB231PD_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W1.B6/x.r	VFMADDSUB231PD	FMA	1	2	1	0xB6	x	reg	1	1	0	0	ymm,ymm,ymm	0	-	vfmaddsub231pd.y_y_y	refused	FMA3 addsub/subadd variants are not implemented
+VFMADDSUB231PS_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W0.B6/x.m	VFMADDSUB231PS	FMA	1	2	1	0xB6	x	mem	0	0	0	0	xmm,xmm,m128	16	r	vfmaddsub231ps.x_x_m128	refused	FMA3 addsub/subadd variants are not implemented
+VFMADDSUB231PS_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W0.B6/x.r	VFMADDSUB231PS	FMA	1	2	1	0xB6	x	reg	0	0	0	0	xmm,xmm,xmm	0	-	vfmaddsub231ps.x_x_x	refused	FMA3 addsub/subadd variants are not implemented
+VFMADDSUB231PS_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W0.B6/x.m	VFMADDSUB231PS	FMA	1	2	1	0xB6	x	mem	0	1	0	0	ymm,ymm,m256	32	r	vfmaddsub231ps.y_y_m256	refused	FMA3 addsub/subadd variants are not implemented
+VFMADDSUB231PS_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W0.B6/x.r	VFMADDSUB231PS	FMA	1	2	1	0xB6	x	reg	0	1	0	0	ymm,ymm,ymm	0	-	vfmaddsub231ps.y_y_y	refused	FMA3 addsub/subadd variants are not implemented
+VFMSUB132PD_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W1.9A/x.m	VFMSUB132PD	FMA	1	2	1	0x9A	x	mem	1	0	0	0	xmm,xmm,m128	16	r	vfmsub132pd.x_x_m128	failing	SEM-FMA-FMSUB
+VFMSUB132PD_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W1.9A/x.r	VFMSUB132PD	FMA	1	2	1	0x9A	x	reg	1	0	0	0	xmm,xmm,xmm	0	-	vfmsub132pd.x_x_x	failing	SEM-FMA-FMSUB
+VFMSUB132PD_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W1.9A/x.m	VFMSUB132PD	FMA	1	2	1	0x9A	x	mem	1	1	0	0	ymm,ymm,m256	32	r	vfmsub132pd.y_y_m256	failing	SEM-FMA-FMSUB
+VFMSUB132PD_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W1.9A/x.r	VFMSUB132PD	FMA	1	2	1	0x9A	x	reg	1	1	0	0	ymm,ymm,ymm	0	-	vfmsub132pd.y_y_y	failing	SEM-FMA-FMSUB
+VFMSUB132PS_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W0.9A/x.m	VFMSUB132PS	FMA	1	2	1	0x9A	x	mem	0	0	0	0	xmm,xmm,m128	16	r	vfmsub132ps.x_x_m128	failing	SEM-FMA-FMSUB
+VFMSUB132PS_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W0.9A/x.r	VFMSUB132PS	FMA	1	2	1	0x9A	x	reg	0	0	0	0	xmm,xmm,xmm	0	-	vfmsub132ps.x_x_x	failing	SEM-FMA-FMSUB
+VFMSUB132PS_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W0.9A/x.m	VFMSUB132PS	FMA	1	2	1	0x9A	x	mem	0	1	0	0	ymm,ymm,m256	32	r	vfmsub132ps.y_y_m256	failing	SEM-FMA-FMSUB
+VFMSUB132PS_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W0.9A/x.r	VFMSUB132PS	FMA	1	2	1	0x9A	x	reg	0	1	0	0	ymm,ymm,ymm	0	-	vfmsub132ps.y_y_y	failing	SEM-FMA-FMSUB
+VFMSUB132SD_XMMdq_XMMq_MEMq@VEX.LIG.66.0F38.W1.9B/x.m	VFMSUB132SD	FMA	1	2	1	0x9B	x	mem	1	x	0	0	xmm,xmm,m64	8	r	vfmsub132sd.x_x_m64	failing	SEM-FMA-FMSUB
+VFMSUB132SD_XMMdq_XMMq_XMMq@VEX.LIG.66.0F38.W1.9B/x.r	VFMSUB132SD	FMA	1	2	1	0x9B	x	reg	1	x	0	0	xmm,xmm,xmm	0	-	vfmsub132sd.x_x_x	failing	SEM-FMA-FMSUB
+VFMSUB132SS_XMMdq_XMMd_MEMd@VEX.LIG.66.0F38.W0.9B/x.m	VFMSUB132SS	FMA	1	2	1	0x9B	x	mem	0	x	0	0	xmm,xmm,m32	4	r	vfmsub132ss.x_x_m32	failing	SEM-FMA-FMSUB
+VFMSUB132SS_XMMdq_XMMd_XMMd@VEX.LIG.66.0F38.W0.9B/x.r	VFMSUB132SS	FMA	1	2	1	0x9B	x	reg	0	x	0	0	xmm,xmm,xmm	0	-	vfmsub132ss.x_x_x	failing	SEM-FMA-FMSUB
+VFMSUB213PD_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W1.AA/x.m	VFMSUB213PD	FMA	1	2	1	0xAA	x	mem	1	0	0	0	xmm,xmm,m128	16	r	vfmsub213pd.x_x_m128	failing	SEM-FMA-FMSUB
+VFMSUB213PD_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W1.AA/x.r	VFMSUB213PD	FMA	1	2	1	0xAA	x	reg	1	0	0	0	xmm,xmm,xmm	0	-	vfmsub213pd.x_x_x	failing	SEM-FMA-FMSUB
+VFMSUB213PD_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W1.AA/x.m	VFMSUB213PD	FMA	1	2	1	0xAA	x	mem	1	1	0	0	ymm,ymm,m256	32	r	vfmsub213pd.y_y_m256	failing	SEM-FMA-FMSUB
+VFMSUB213PD_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W1.AA/x.r	VFMSUB213PD	FMA	1	2	1	0xAA	x	reg	1	1	0	0	ymm,ymm,ymm	0	-	vfmsub213pd.y_y_y	failing	SEM-FMA-FMSUB
+VFMSUB213PS_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W0.AA/x.m	VFMSUB213PS	FMA	1	2	1	0xAA	x	mem	0	0	0	0	xmm,xmm,m128	16	r	vfmsub213ps.x_x_m128	failing	SEM-FMA-FMSUB
+VFMSUB213PS_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W0.AA/x.r	VFMSUB213PS	FMA	1	2	1	0xAA	x	reg	0	0	0	0	xmm,xmm,xmm	0	-	vfmsub213ps.x_x_x	failing	SEM-FMA-FMSUB
+VFMSUB213PS_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W0.AA/x.m	VFMSUB213PS	FMA	1	2	1	0xAA	x	mem	0	1	0	0	ymm,ymm,m256	32	r	vfmsub213ps.y_y_m256	failing	SEM-FMA-FMSUB
+VFMSUB213PS_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W0.AA/x.r	VFMSUB213PS	FMA	1	2	1	0xAA	x	reg	0	1	0	0	ymm,ymm,ymm	0	-	vfmsub213ps.y_y_y	failing	SEM-FMA-FMSUB
+VFMSUB213SD_XMMdq_XMMq_MEMq@VEX.LIG.66.0F38.W1.AB/x.m	VFMSUB213SD	FMA	1	2	1	0xAB	x	mem	1	x	0	0	xmm,xmm,m64	8	r	vfmsub213sd.x_x_m64	failing	SEM-FMA-FMSUB
+VFMSUB213SD_XMMdq_XMMq_XMMq@VEX.LIG.66.0F38.W1.AB/x.r	VFMSUB213SD	FMA	1	2	1	0xAB	x	reg	1	x	0	0	xmm,xmm,xmm	0	-	vfmsub213sd.x_x_x	failing	SEM-FMA-FMSUB
+VFMSUB213SS_XMMdq_XMMd_MEMd@VEX.LIG.66.0F38.W0.AB/x.m	VFMSUB213SS	FMA	1	2	1	0xAB	x	mem	0	x	0	0	xmm,xmm,m32	4	r	vfmsub213ss.x_x_m32	failing	SEM-FMA-FMSUB
+VFMSUB213SS_XMMdq_XMMd_XMMd@VEX.LIG.66.0F38.W0.AB/x.r	VFMSUB213SS	FMA	1	2	1	0xAB	x	reg	0	x	0	0	xmm,xmm,xmm	0	-	vfmsub213ss.x_x_x	failing	SEM-FMA-FMSUB
+VFMSUB231PD_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W1.BA/x.m	VFMSUB231PD	FMA	1	2	1	0xBA	x	mem	1	0	0	0	xmm,xmm,m128	16	r	vfmsub231pd.x_x_m128	failing	SEM-FMA-FMSUB
+VFMSUB231PD_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W1.BA/x.r	VFMSUB231PD	FMA	1	2	1	0xBA	x	reg	1	0	0	0	xmm,xmm,xmm	0	-	vfmsub231pd.x_x_x	failing	SEM-FMA-FMSUB
+VFMSUB231PD_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W1.BA/x.m	VFMSUB231PD	FMA	1	2	1	0xBA	x	mem	1	1	0	0	ymm,ymm,m256	32	r	vfmsub231pd.y_y_m256	failing	SEM-FMA-FMSUB
+VFMSUB231PD_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W1.BA/x.r	VFMSUB231PD	FMA	1	2	1	0xBA	x	reg	1	1	0	0	ymm,ymm,ymm	0	-	vfmsub231pd.y_y_y	failing	SEM-FMA-FMSUB
+VFMSUB231PS_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W0.BA/x.m	VFMSUB231PS	FMA	1	2	1	0xBA	x	mem	0	0	0	0	xmm,xmm,m128	16	r	vfmsub231ps.x_x_m128	failing	SEM-FMA-FMSUB
+VFMSUB231PS_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W0.BA/x.r	VFMSUB231PS	FMA	1	2	1	0xBA	x	reg	0	0	0	0	xmm,xmm,xmm	0	-	vfmsub231ps.x_x_x	failing	SEM-FMA-FMSUB
+VFMSUB231PS_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W0.BA/x.m	VFMSUB231PS	FMA	1	2	1	0xBA	x	mem	0	1	0	0	ymm,ymm,m256	32	r	vfmsub231ps.y_y_m256	failing	SEM-FMA-FMSUB
+VFMSUB231PS_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W0.BA/x.r	VFMSUB231PS	FMA	1	2	1	0xBA	x	reg	0	1	0	0	ymm,ymm,ymm	0	-	vfmsub231ps.y_y_y	failing	SEM-FMA-FMSUB
+VFMSUB231SD_XMMdq_XMMq_MEMq@VEX.LIG.66.0F38.W1.BB/x.m	VFMSUB231SD	FMA	1	2	1	0xBB	x	mem	1	x	0	0	xmm,xmm,m64	8	r	vfmsub231sd.x_x_m64	failing	SEM-FMA-FMSUB
+VFMSUB231SD_XMMdq_XMMq_XMMq@VEX.LIG.66.0F38.W1.BB/x.r	VFMSUB231SD	FMA	1	2	1	0xBB	x	reg	1	x	0	0	xmm,xmm,xmm	0	-	vfmsub231sd.x_x_x	failing	SEM-FMA-FMSUB
+VFMSUB231SS_XMMdq_XMMd_MEMd@VEX.LIG.66.0F38.W0.BB/x.m	VFMSUB231SS	FMA	1	2	1	0xBB	x	mem	0	x	0	0	xmm,xmm,m32	4	r	vfmsub231ss.x_x_m32	failing	SEM-FMA-FMSUB
+VFMSUB231SS_XMMdq_XMMd_XMMd@VEX.LIG.66.0F38.W0.BB/x.r	VFMSUB231SS	FMA	1	2	1	0xBB	x	reg	0	x	0	0	xmm,xmm,xmm	0	-	vfmsub231ss.x_x_x	failing	SEM-FMA-FMSUB
+VFMSUBADD132PD_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W1.97/x.m	VFMSUBADD132PD	FMA	1	2	1	0x97	x	mem	1	0	0	0	xmm,xmm,m128	16	r	vfmsubadd132pd.x_x_m128	refused	FMA3 addsub/subadd variants are not implemented
+VFMSUBADD132PD_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W1.97/x.r	VFMSUBADD132PD	FMA	1	2	1	0x97	x	reg	1	0	0	0	xmm,xmm,xmm	0	-	vfmsubadd132pd.x_x_x	refused	FMA3 addsub/subadd variants are not implemented
+VFMSUBADD132PD_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W1.97/x.m	VFMSUBADD132PD	FMA	1	2	1	0x97	x	mem	1	1	0	0	ymm,ymm,m256	32	r	vfmsubadd132pd.y_y_m256	refused	FMA3 addsub/subadd variants are not implemented
+VFMSUBADD132PD_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W1.97/x.r	VFMSUBADD132PD	FMA	1	2	1	0x97	x	reg	1	1	0	0	ymm,ymm,ymm	0	-	vfmsubadd132pd.y_y_y	refused	FMA3 addsub/subadd variants are not implemented
+VFMSUBADD132PS_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W0.97/x.m	VFMSUBADD132PS	FMA	1	2	1	0x97	x	mem	0	0	0	0	xmm,xmm,m128	16	r	vfmsubadd132ps.x_x_m128	refused	FMA3 addsub/subadd variants are not implemented
+VFMSUBADD132PS_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W0.97/x.r	VFMSUBADD132PS	FMA	1	2	1	0x97	x	reg	0	0	0	0	xmm,xmm,xmm	0	-	vfmsubadd132ps.x_x_x	refused	FMA3 addsub/subadd variants are not implemented
+VFMSUBADD132PS_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W0.97/x.m	VFMSUBADD132PS	FMA	1	2	1	0x97	x	mem	0	1	0	0	ymm,ymm,m256	32	r	vfmsubadd132ps.y_y_m256	refused	FMA3 addsub/subadd variants are not implemented
+VFMSUBADD132PS_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W0.97/x.r	VFMSUBADD132PS	FMA	1	2	1	0x97	x	reg	0	1	0	0	ymm,ymm,ymm	0	-	vfmsubadd132ps.y_y_y	refused	FMA3 addsub/subadd variants are not implemented
+VFMSUBADD213PD_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W1.A7/x.m	VFMSUBADD213PD	FMA	1	2	1	0xA7	x	mem	1	0	0	0	xmm,xmm,m128	16	r	vfmsubadd213pd.x_x_m128	refused	FMA3 addsub/subadd variants are not implemented
+VFMSUBADD213PD_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W1.A7/x.r	VFMSUBADD213PD	FMA	1	2	1	0xA7	x	reg	1	0	0	0	xmm,xmm,xmm	0	-	vfmsubadd213pd.x_x_x	refused	FMA3 addsub/subadd variants are not implemented
+VFMSUBADD213PD_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W1.A7/x.m	VFMSUBADD213PD	FMA	1	2	1	0xA7	x	mem	1	1	0	0	ymm,ymm,m256	32	r	vfmsubadd213pd.y_y_m256	refused	FMA3 addsub/subadd variants are not implemented
+VFMSUBADD213PD_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W1.A7/x.r	VFMSUBADD213PD	FMA	1	2	1	0xA7	x	reg	1	1	0	0	ymm,ymm,ymm	0	-	vfmsubadd213pd.y_y_y	refused	FMA3 addsub/subadd variants are not implemented
+VFMSUBADD213PS_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W0.A7/x.m	VFMSUBADD213PS	FMA	1	2	1	0xA7	x	mem	0	0	0	0	xmm,xmm,m128	16	r	vfmsubadd213ps.x_x_m128	refused	FMA3 addsub/subadd variants are not implemented
+VFMSUBADD213PS_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W0.A7/x.r	VFMSUBADD213PS	FMA	1	2	1	0xA7	x	reg	0	0	0	0	xmm,xmm,xmm	0	-	vfmsubadd213ps.x_x_x	refused	FMA3 addsub/subadd variants are not implemented
+VFMSUBADD213PS_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W0.A7/x.m	VFMSUBADD213PS	FMA	1	2	1	0xA7	x	mem	0	1	0	0	ymm,ymm,m256	32	r	vfmsubadd213ps.y_y_m256	refused	FMA3 addsub/subadd variants are not implemented
+VFMSUBADD213PS_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W0.A7/x.r	VFMSUBADD213PS	FMA	1	2	1	0xA7	x	reg	0	1	0	0	ymm,ymm,ymm	0	-	vfmsubadd213ps.y_y_y	refused	FMA3 addsub/subadd variants are not implemented
+VFMSUBADD231PD_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W1.B7/x.m	VFMSUBADD231PD	FMA	1	2	1	0xB7	x	mem	1	0	0	0	xmm,xmm,m128	16	r	vfmsubadd231pd.x_x_m128	refused	FMA3 addsub/subadd variants are not implemented
+VFMSUBADD231PD_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W1.B7/x.r	VFMSUBADD231PD	FMA	1	2	1	0xB7	x	reg	1	0	0	0	xmm,xmm,xmm	0	-	vfmsubadd231pd.x_x_x	refused	FMA3 addsub/subadd variants are not implemented
+VFMSUBADD231PD_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W1.B7/x.m	VFMSUBADD231PD	FMA	1	2	1	0xB7	x	mem	1	1	0	0	ymm,ymm,m256	32	r	vfmsubadd231pd.y_y_m256	refused	FMA3 addsub/subadd variants are not implemented
+VFMSUBADD231PD_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W1.B7/x.r	VFMSUBADD231PD	FMA	1	2	1	0xB7	x	reg	1	1	0	0	ymm,ymm,ymm	0	-	vfmsubadd231pd.y_y_y	refused	FMA3 addsub/subadd variants are not implemented
+VFMSUBADD231PS_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W0.B7/x.m	VFMSUBADD231PS	FMA	1	2	1	0xB7	x	mem	0	0	0	0	xmm,xmm,m128	16	r	vfmsubadd231ps.x_x_m128	refused	FMA3 addsub/subadd variants are not implemented
+VFMSUBADD231PS_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W0.B7/x.r	VFMSUBADD231PS	FMA	1	2	1	0xB7	x	reg	0	0	0	0	xmm,xmm,xmm	0	-	vfmsubadd231ps.x_x_x	refused	FMA3 addsub/subadd variants are not implemented
+VFMSUBADD231PS_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W0.B7/x.m	VFMSUBADD231PS	FMA	1	2	1	0xB7	x	mem	0	1	0	0	ymm,ymm,m256	32	r	vfmsubadd231ps.y_y_m256	refused	FMA3 addsub/subadd variants are not implemented
+VFMSUBADD231PS_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W0.B7/x.r	VFMSUBADD231PS	FMA	1	2	1	0xB7	x	reg	0	1	0	0	ymm,ymm,ymm	0	-	vfmsubadd231ps.y_y_y	refused	FMA3 addsub/subadd variants are not implemented
+VFNMADD132PD_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W1.9C/x.m	VFNMADD132PD	FMA	1	2	1	0x9C	x	mem	1	0	0	0	xmm,xmm,m128	16	r	vfnmadd132pd.x_x_m128	failing	SEM-FMA-FNMADD
+VFNMADD132PD_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W1.9C/x.r	VFNMADD132PD	FMA	1	2	1	0x9C	x	reg	1	0	0	0	xmm,xmm,xmm	0	-	vfnmadd132pd.x_x_x	failing	SEM-FMA-FNMADD
+VFNMADD132PD_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W1.9C/x.m	VFNMADD132PD	FMA	1	2	1	0x9C	x	mem	1	1	0	0	ymm,ymm,m256	32	r	vfnmadd132pd.y_y_m256	failing	SEM-FMA-FNMADD
+VFNMADD132PD_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W1.9C/x.r	VFNMADD132PD	FMA	1	2	1	0x9C	x	reg	1	1	0	0	ymm,ymm,ymm	0	-	vfnmadd132pd.y_y_y	failing	SEM-FMA-FNMADD
+VFNMADD132PS_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W0.9C/x.m	VFNMADD132PS	FMA	1	2	1	0x9C	x	mem	0	0	0	0	xmm,xmm,m128	16	r	vfnmadd132ps.x_x_m128	failing	SEM-FMA-FNMADD
+VFNMADD132PS_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W0.9C/x.r	VFNMADD132PS	FMA	1	2	1	0x9C	x	reg	0	0	0	0	xmm,xmm,xmm	0	-	vfnmadd132ps.x_x_x	failing	SEM-FMA-FNMADD
+VFNMADD132PS_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W0.9C/x.m	VFNMADD132PS	FMA	1	2	1	0x9C	x	mem	0	1	0	0	ymm,ymm,m256	32	r	vfnmadd132ps.y_y_m256	failing	SEM-FMA-FNMADD
+VFNMADD132PS_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W0.9C/x.r	VFNMADD132PS	FMA	1	2	1	0x9C	x	reg	0	1	0	0	ymm,ymm,ymm	0	-	vfnmadd132ps.y_y_y	failing	SEM-FMA-FNMADD
+VFNMADD132SD_XMMdq_XMMq_MEMq@VEX.LIG.66.0F38.W1.9D/x.m	VFNMADD132SD	FMA	1	2	1	0x9D	x	mem	1	x	0	0	xmm,xmm,m64	8	r	vfnmadd132sd.x_x_m64	failing	SEM-FMA-FNMADD
+VFNMADD132SD_XMMdq_XMMq_XMMq@VEX.LIG.66.0F38.W1.9D/x.r	VFNMADD132SD	FMA	1	2	1	0x9D	x	reg	1	x	0	0	xmm,xmm,xmm	0	-	vfnmadd132sd.x_x_x	failing	SEM-FMA-FNMADD
+VFNMADD132SS_XMMdq_XMMd_MEMd@VEX.LIG.66.0F38.W0.9D/x.m	VFNMADD132SS	FMA	1	2	1	0x9D	x	mem	0	x	0	0	xmm,xmm,m32	4	r	vfnmadd132ss.x_x_m32	failing	SEM-FMA-FNMADD
+VFNMADD132SS_XMMdq_XMMd_XMMd@VEX.LIG.66.0F38.W0.9D/x.r	VFNMADD132SS	FMA	1	2	1	0x9D	x	reg	0	x	0	0	xmm,xmm,xmm	0	-	vfnmadd132ss.x_x_x	failing	SEM-FMA-FNMADD
+VFNMADD213PD_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W1.AC/x.m	VFNMADD213PD	FMA	1	2	1	0xAC	x	mem	1	0	0	0	xmm,xmm,m128	16	r	vfnmadd213pd.x_x_m128	failing	SEM-FMA-FNMADD
+VFNMADD213PD_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W1.AC/x.r	VFNMADD213PD	FMA	1	2	1	0xAC	x	reg	1	0	0	0	xmm,xmm,xmm	0	-	vfnmadd213pd.x_x_x	failing	SEM-FMA-FNMADD
+VFNMADD213PD_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W1.AC/x.m	VFNMADD213PD	FMA	1	2	1	0xAC	x	mem	1	1	0	0	ymm,ymm,m256	32	r	vfnmadd213pd.y_y_m256	failing	SEM-FMA-FNMADD
+VFNMADD213PD_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W1.AC/x.r	VFNMADD213PD	FMA	1	2	1	0xAC	x	reg	1	1	0	0	ymm,ymm,ymm	0	-	vfnmadd213pd.y_y_y	failing	SEM-FMA-FNMADD
+VFNMADD213PS_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W0.AC/x.m	VFNMADD213PS	FMA	1	2	1	0xAC	x	mem	0	0	0	0	xmm,xmm,m128	16	r	vfnmadd213ps.x_x_m128	failing	SEM-FMA-FNMADD
+VFNMADD213PS_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W0.AC/x.r	VFNMADD213PS	FMA	1	2	1	0xAC	x	reg	0	0	0	0	xmm,xmm,xmm	0	-	vfnmadd213ps.x_x_x	failing	SEM-FMA-FNMADD
+VFNMADD213PS_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W0.AC/x.m	VFNMADD213PS	FMA	1	2	1	0xAC	x	mem	0	1	0	0	ymm,ymm,m256	32	r	vfnmadd213ps.y_y_m256	failing	SEM-FMA-FNMADD
+VFNMADD213PS_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W0.AC/x.r	VFNMADD213PS	FMA	1	2	1	0xAC	x	reg	0	1	0	0	ymm,ymm,ymm	0	-	vfnmadd213ps.y_y_y	failing	SEM-FMA-FNMADD
+VFNMADD213SD_XMMdq_XMMq_MEMq@VEX.LIG.66.0F38.W1.AD/x.m	VFNMADD213SD	FMA	1	2	1	0xAD	x	mem	1	x	0	0	xmm,xmm,m64	8	r	vfnmadd213sd.x_x_m64	failing	SEM-FMA-FNMADD
+VFNMADD213SD_XMMdq_XMMq_XMMq@VEX.LIG.66.0F38.W1.AD/x.r	VFNMADD213SD	FMA	1	2	1	0xAD	x	reg	1	x	0	0	xmm,xmm,xmm	0	-	vfnmadd213sd.x_x_x	failing	SEM-FMA-FNMADD
+VFNMADD213SS_XMMdq_XMMd_MEMd@VEX.LIG.66.0F38.W0.AD/x.m	VFNMADD213SS	FMA	1	2	1	0xAD	x	mem	0	x	0	0	xmm,xmm,m32	4	r	vfnmadd213ss.x_x_m32	failing	SEM-FMA-FNMADD
+VFNMADD213SS_XMMdq_XMMd_XMMd@VEX.LIG.66.0F38.W0.AD/x.r	VFNMADD213SS	FMA	1	2	1	0xAD	x	reg	0	x	0	0	xmm,xmm,xmm	0	-	vfnmadd213ss.x_x_x	failing	SEM-FMA-FNMADD
+VFNMADD231PD_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W1.BC/x.m	VFNMADD231PD	FMA	1	2	1	0xBC	x	mem	1	0	0	0	xmm,xmm,m128	16	r	vfnmadd231pd.x_x_m128	failing	SEM-FMA-FNMADD
+VFNMADD231PD_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W1.BC/x.r	VFNMADD231PD	FMA	1	2	1	0xBC	x	reg	1	0	0	0	xmm,xmm,xmm	0	-	vfnmadd231pd.x_x_x	failing	SEM-FMA-FNMADD
+VFNMADD231PD_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W1.BC/x.m	VFNMADD231PD	FMA	1	2	1	0xBC	x	mem	1	1	0	0	ymm,ymm,m256	32	r	vfnmadd231pd.y_y_m256	failing	SEM-FMA-FNMADD
+VFNMADD231PD_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W1.BC/x.r	VFNMADD231PD	FMA	1	2	1	0xBC	x	reg	1	1	0	0	ymm,ymm,ymm	0	-	vfnmadd231pd.y_y_y	failing	SEM-FMA-FNMADD
+VFNMADD231PS_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W0.BC/x.m	VFNMADD231PS	FMA	1	2	1	0xBC	x	mem	0	0	0	0	xmm,xmm,m128	16	r	vfnmadd231ps.x_x_m128	failing	SEM-FMA-FNMADD
+VFNMADD231PS_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W0.BC/x.r	VFNMADD231PS	FMA	1	2	1	0xBC	x	reg	0	0	0	0	xmm,xmm,xmm	0	-	vfnmadd231ps.x_x_x	failing	SEM-FMA-FNMADD
+VFNMADD231PS_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W0.BC/x.m	VFNMADD231PS	FMA	1	2	1	0xBC	x	mem	0	1	0	0	ymm,ymm,m256	32	r	vfnmadd231ps.y_y_m256	failing	SEM-FMA-FNMADD
+VFNMADD231PS_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W0.BC/x.r	VFNMADD231PS	FMA	1	2	1	0xBC	x	reg	0	1	0	0	ymm,ymm,ymm	0	-	vfnmadd231ps.y_y_y	failing	SEM-FMA-FNMADD
+VFNMADD231SD_XMMdq_XMMq_MEMq@VEX.LIG.66.0F38.W1.BD/x.m	VFNMADD231SD	FMA	1	2	1	0xBD	x	mem	1	x	0	0	xmm,xmm,m64	8	r	vfnmadd231sd.x_x_m64	failing	SEM-FMA-FNMADD
+VFNMADD231SD_XMMdq_XMMq_XMMq@VEX.LIG.66.0F38.W1.BD/x.r	VFNMADD231SD	FMA	1	2	1	0xBD	x	reg	1	x	0	0	xmm,xmm,xmm	0	-	vfnmadd231sd.x_x_x	failing	SEM-FMA-FNMADD
+VFNMADD231SS_XMMdq_XMMd_MEMd@VEX.LIG.66.0F38.W0.BD/x.m	VFNMADD231SS	FMA	1	2	1	0xBD	x	mem	0	x	0	0	xmm,xmm,m32	4	r	vfnmadd231ss.x_x_m32	failing	SEM-FMA-FNMADD
+VFNMADD231SS_XMMdq_XMMd_XMMd@VEX.LIG.66.0F38.W0.BD/x.r	VFNMADD231SS	FMA	1	2	1	0xBD	x	reg	0	x	0	0	xmm,xmm,xmm	0	-	vfnmadd231ss.x_x_x	failing	SEM-FMA-FNMADD
+VFNMSUB132PD_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W1.9E/x.m	VFNMSUB132PD	FMA	1	2	1	0x9E	x	mem	1	0	0	0	xmm,xmm,m128	16	r	vfnmsub132pd.x_x_m128	failing	SEM-FMA-FNMSUB
+VFNMSUB132PD_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W1.9E/x.r	VFNMSUB132PD	FMA	1	2	1	0x9E	x	reg	1	0	0	0	xmm,xmm,xmm	0	-	vfnmsub132pd.x_x_x	failing	SEM-FMA-FNMSUB
+VFNMSUB132PD_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W1.9E/x.m	VFNMSUB132PD	FMA	1	2	1	0x9E	x	mem	1	1	0	0	ymm,ymm,m256	32	r	vfnmsub132pd.y_y_m256	failing	SEM-FMA-FNMSUB
+VFNMSUB132PD_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W1.9E/x.r	VFNMSUB132PD	FMA	1	2	1	0x9E	x	reg	1	1	0	0	ymm,ymm,ymm	0	-	vfnmsub132pd.y_y_y	failing	SEM-FMA-FNMSUB
+VFNMSUB132PS_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W0.9E/x.m	VFNMSUB132PS	FMA	1	2	1	0x9E	x	mem	0	0	0	0	xmm,xmm,m128	16	r	vfnmsub132ps.x_x_m128	failing	SEM-FMA-FNMSUB
+VFNMSUB132PS_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W0.9E/x.r	VFNMSUB132PS	FMA	1	2	1	0x9E	x	reg	0	0	0	0	xmm,xmm,xmm	0	-	vfnmsub132ps.x_x_x	failing	SEM-FMA-FNMSUB
+VFNMSUB132PS_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W0.9E/x.m	VFNMSUB132PS	FMA	1	2	1	0x9E	x	mem	0	1	0	0	ymm,ymm,m256	32	r	vfnmsub132ps.y_y_m256	failing	SEM-FMA-FNMSUB
+VFNMSUB132PS_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W0.9E/x.r	VFNMSUB132PS	FMA	1	2	1	0x9E	x	reg	0	1	0	0	ymm,ymm,ymm	0	-	vfnmsub132ps.y_y_y	failing	SEM-FMA-FNMSUB
+VFNMSUB132SD_XMMdq_XMMq_MEMq@VEX.LIG.66.0F38.W1.9F/x.m	VFNMSUB132SD	FMA	1	2	1	0x9F	x	mem	1	x	0	0	xmm,xmm,m64	8	r	vfnmsub132sd.x_x_m64	failing	SEM-FMA-FNMSUB
+VFNMSUB132SD_XMMdq_XMMq_XMMq@VEX.LIG.66.0F38.W1.9F/x.r	VFNMSUB132SD	FMA	1	2	1	0x9F	x	reg	1	x	0	0	xmm,xmm,xmm	0	-	vfnmsub132sd.x_x_x	failing	SEM-FMA-FNMSUB
+VFNMSUB132SS_XMMdq_XMMd_MEMd@VEX.LIG.66.0F38.W0.9F/x.m	VFNMSUB132SS	FMA	1	2	1	0x9F	x	mem	0	x	0	0	xmm,xmm,m32	4	r	vfnmsub132ss.x_x_m32	failing	SEM-FMA-FNMSUB
+VFNMSUB132SS_XMMdq_XMMd_XMMd@VEX.LIG.66.0F38.W0.9F/x.r	VFNMSUB132SS	FMA	1	2	1	0x9F	x	reg	0	x	0	0	xmm,xmm,xmm	0	-	vfnmsub132ss.x_x_x	failing	SEM-FMA-FNMSUB
+VFNMSUB213PD_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W1.AE/x.m	VFNMSUB213PD	FMA	1	2	1	0xAE	x	mem	1	0	0	0	xmm,xmm,m128	16	r	vfnmsub213pd.x_x_m128	failing	SEM-FMA-FNMSUB
+VFNMSUB213PD_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W1.AE/x.r	VFNMSUB213PD	FMA	1	2	1	0xAE	x	reg	1	0	0	0	xmm,xmm,xmm	0	-	vfnmsub213pd.x_x_x	failing	SEM-FMA-FNMSUB
+VFNMSUB213PD_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W1.AE/x.m	VFNMSUB213PD	FMA	1	2	1	0xAE	x	mem	1	1	0	0	ymm,ymm,m256	32	r	vfnmsub213pd.y_y_m256	failing	SEM-FMA-FNMSUB
+VFNMSUB213PD_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W1.AE/x.r	VFNMSUB213PD	FMA	1	2	1	0xAE	x	reg	1	1	0	0	ymm,ymm,ymm	0	-	vfnmsub213pd.y_y_y	failing	SEM-FMA-FNMSUB
+VFNMSUB213PS_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W0.AE/x.m	VFNMSUB213PS	FMA	1	2	1	0xAE	x	mem	0	0	0	0	xmm,xmm,m128	16	r	vfnmsub213ps.x_x_m128	failing	SEM-FMA-FNMSUB
+VFNMSUB213PS_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W0.AE/x.r	VFNMSUB213PS	FMA	1	2	1	0xAE	x	reg	0	0	0	0	xmm,xmm,xmm	0	-	vfnmsub213ps.x_x_x	failing	SEM-FMA-FNMSUB
+VFNMSUB213PS_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W0.AE/x.m	VFNMSUB213PS	FMA	1	2	1	0xAE	x	mem	0	1	0	0	ymm,ymm,m256	32	r	vfnmsub213ps.y_y_m256	failing	SEM-FMA-FNMSUB
+VFNMSUB213PS_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W0.AE/x.r	VFNMSUB213PS	FMA	1	2	1	0xAE	x	reg	0	1	0	0	ymm,ymm,ymm	0	-	vfnmsub213ps.y_y_y	failing	SEM-FMA-FNMSUB
+VFNMSUB213SD_XMMdq_XMMq_MEMq@VEX.LIG.66.0F38.W1.AF/x.m	VFNMSUB213SD	FMA	1	2	1	0xAF	x	mem	1	x	0	0	xmm,xmm,m64	8	r	vfnmsub213sd.x_x_m64	failing	SEM-FMA-FNMSUB
+VFNMSUB213SD_XMMdq_XMMq_XMMq@VEX.LIG.66.0F38.W1.AF/x.r	VFNMSUB213SD	FMA	1	2	1	0xAF	x	reg	1	x	0	0	xmm,xmm,xmm	0	-	vfnmsub213sd.x_x_x	failing	SEM-FMA-FNMSUB
+VFNMSUB213SS_XMMdq_XMMd_MEMd@VEX.LIG.66.0F38.W0.AF/x.m	VFNMSUB213SS	FMA	1	2	1	0xAF	x	mem	0	x	0	0	xmm,xmm,m32	4	r	vfnmsub213ss.x_x_m32	failing	SEM-FMA-FNMSUB
+VFNMSUB213SS_XMMdq_XMMd_XMMd@VEX.LIG.66.0F38.W0.AF/x.r	VFNMSUB213SS	FMA	1	2	1	0xAF	x	reg	0	x	0	0	xmm,xmm,xmm	0	-	vfnmsub213ss.x_x_x	failing	SEM-FMA-FNMSUB
+VFNMSUB231PD_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W1.BE/x.m	VFNMSUB231PD	FMA	1	2	1	0xBE	x	mem	1	0	0	0	xmm,xmm,m128	16	r	vfnmsub231pd.x_x_m128	failing	SEM-FMA-FNMSUB
+VFNMSUB231PD_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W1.BE/x.r	VFNMSUB231PD	FMA	1	2	1	0xBE	x	reg	1	0	0	0	xmm,xmm,xmm	0	-	vfnmsub231pd.x_x_x	failing	SEM-FMA-FNMSUB
+VFNMSUB231PD_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W1.BE/x.m	VFNMSUB231PD	FMA	1	2	1	0xBE	x	mem	1	1	0	0	ymm,ymm,m256	32	r	vfnmsub231pd.y_y_m256	failing	SEM-FMA-FNMSUB
+VFNMSUB231PD_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W1.BE/x.r	VFNMSUB231PD	FMA	1	2	1	0xBE	x	reg	1	1	0	0	ymm,ymm,ymm	0	-	vfnmsub231pd.y_y_y	failing	SEM-FMA-FNMSUB
+VFNMSUB231PS_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W0.BE/x.m	VFNMSUB231PS	FMA	1	2	1	0xBE	x	mem	0	0	0	0	xmm,xmm,m128	16	r	vfnmsub231ps.x_x_m128	failing	SEM-FMA-FNMSUB
+VFNMSUB231PS_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W0.BE/x.r	VFNMSUB231PS	FMA	1	2	1	0xBE	x	reg	0	0	0	0	xmm,xmm,xmm	0	-	vfnmsub231ps.x_x_x	failing	SEM-FMA-FNMSUB
+VFNMSUB231PS_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W0.BE/x.m	VFNMSUB231PS	FMA	1	2	1	0xBE	x	mem	0	1	0	0	ymm,ymm,m256	32	r	vfnmsub231ps.y_y_m256	failing	SEM-FMA-FNMSUB
+VFNMSUB231PS_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W0.BE/x.r	VFNMSUB231PS	FMA	1	2	1	0xBE	x	reg	0	1	0	0	ymm,ymm,ymm	0	-	vfnmsub231ps.y_y_y	failing	SEM-FMA-FNMSUB
+VFNMSUB231SD_XMMdq_XMMq_MEMq@VEX.LIG.66.0F38.W1.BF/x.m	VFNMSUB231SD	FMA	1	2	1	0xBF	x	mem	1	x	0	0	xmm,xmm,m64	8	r	vfnmsub231sd.x_x_m64	failing	SEM-FMA-FNMSUB
+VFNMSUB231SD_XMMdq_XMMq_XMMq@VEX.LIG.66.0F38.W1.BF/x.r	VFNMSUB231SD	FMA	1	2	1	0xBF	x	reg	1	x	0	0	xmm,xmm,xmm	0	-	vfnmsub231sd.x_x_x	failing	SEM-FMA-FNMSUB
+VFNMSUB231SS_XMMdq_XMMd_MEMd@VEX.LIG.66.0F38.W0.BF/x.m	VFNMSUB231SS	FMA	1	2	1	0xBF	x	mem	0	x	0	0	xmm,xmm,m32	4	r	vfnmsub231ss.x_x_m32	failing	SEM-FMA-FNMSUB
+VFNMSUB231SS_XMMdq_XMMd_XMMd@VEX.LIG.66.0F38.W0.BF/x.r	VFNMSUB231SS	FMA	1	2	1	0xBF	x	reg	0	x	0	0	xmm,xmm,xmm	0	-	vfnmsub231ss.x_x_x	failing	SEM-FMA-FNMSUB
+VGATHERDPD_XMMf64_MEMf64_XMMi64_VL128@VEX.128.66.0F38.W1.92/2.m	VGATHERDPD	AVX2GATHER	1	2	1	0x92	2	mem	1	0	0	0	xmm,m64,xmm	8	r	vgatherdpd.x_m64_x	refused	gathers are not emulated (VSIB); the SIGILL handler chains on
+VGATHERDPD_YMMf64_MEMf64_YMMi64_VL256@VEX.256.66.0F38.W1.92/2.m	VGATHERDPD	AVX2GATHER	1	2	1	0x92	2	mem	1	1	0	0	ymm,m64,ymm	8	r	vgatherdpd.y_m64_y	refused	gathers are not emulated (VSIB); the SIGILL handler chains on
+VGATHERDPS_XMMf32_MEMf32_XMMi32_VL128@VEX.128.66.0F38.W0.92/2.m	VGATHERDPS	AVX2GATHER	1	2	1	0x92	2	mem	0	0	0	0	xmm,m32,xmm	4	r	vgatherdps.x_m32_x	refused	gathers are not emulated (VSIB); the SIGILL handler chains on
+VGATHERDPS_YMMf32_MEMf32_YMMi32_VL256@VEX.256.66.0F38.W0.92/2.m	VGATHERDPS	AVX2GATHER	1	2	1	0x92	2	mem	0	1	0	0	ymm,m32,ymm	4	r	vgatherdps.y_m32_y	refused	gathers are not emulated (VSIB); the SIGILL handler chains on
+VGATHERQPD_XMMf64_MEMf64_XMMi64_VL128@VEX.128.66.0F38.W1.93/2.m	VGATHERQPD	AVX2GATHER	1	2	1	0x93	2	mem	1	0	0	0	xmm,m64,xmm	8	r	vgatherqpd.x_m64_x	refused	gathers are not emulated (VSIB); the SIGILL handler chains on
+VGATHERQPD_YMMf64_MEMf64_YMMi64_VL256@VEX.256.66.0F38.W1.93/2.m	VGATHERQPD	AVX2GATHER	1	2	1	0x93	2	mem	1	1	0	0	ymm,m64,ymm	8	r	vgatherqpd.y_m64_y	refused	gathers are not emulated (VSIB); the SIGILL handler chains on
+VGATHERQPS_XMMf32_MEMf32_XMMi32_VL128@VEX.128.66.0F38.W0.93/2.m	VGATHERQPS	AVX2GATHER	1	2	1	0x93	2	mem	0	0	0	0	xmm,m32,xmm	4	r	vgatherqps.x_m32_x.w0	refused	gathers are not emulated (VSIB); the SIGILL handler chains on
+VGATHERQPS_XMMf32_MEMf32_XMMi32_VL256@VEX.256.66.0F38.W0.93/2.m	VGATHERQPS	AVX2GATHER	1	2	1	0x93	2	mem	0	1	0	0	xmm,m32,xmm	4	r	vgatherqps.x_m32_x.2	refused	gathers are not emulated (VSIB); the SIGILL handler chains on
+VINSERTI128_YMMqq_YMMqq_MEMdq_IMMb@VEX.256.66.0F3A.W0.38/x.m	VINSERTI128	AVX2	1	3	1	0x38	x	mem	0	1	1	0	ymm,ymm,m128,imm8	16	r	vinserti128.y_y_m128_i	tested	
+VINSERTI128_YMMqq_YMMqq_XMMdq_IMMb@VEX.256.66.0F3A.W0.38/x.r	VINSERTI128	AVX2	1	3	1	0x38	x	reg	0	1	1	0	ymm,ymm,xmm,imm8	0	-	vinserti128.y_y_x_i	tested	
+VMOVNTDQA_YMMqq_MEMqq@VEX.256.66.0F38.Wx.2A/x.m	VMOVNTDQA	AVX2	1	2	1	0x2A	x	mem	x	1	0	0	ymm,m256	32	r	vmovntdqa.y_m256	refused	ymm non-temporal load is AVX2 and not decoded
+VMPSADBW_YMMqq_YMMqq_MEMqq_IMMb@VEX.256.66.0F3A.Wx.42/x.m	VMPSADBW	AVX2	1	3	1	0x42	x	mem	x	1	1	0	ymm,ymm,m256,imm8	32	r	vmpsadbw.y_y_m256_i	refused	not implemented
+VMPSADBW_YMMqq_YMMqq_YMMqq_IMMb@VEX.256.66.0F3A.Wx.42/x.r	VMPSADBW	AVX2	1	3	1	0x42	x	reg	x	1	1	0	ymm,ymm,ymm,imm8	0	-	vmpsadbw.y_y_y_i	refused	not implemented
+VPABSB_YMMqq_MEMqq@VEX.256.66.0F38.Wx.1C/x.m	VPABSB	AVX2	1	2	1	0x1C	x	mem	x	1	0	0	ymm,m256	32	r	vpabsb.y_m256	tested	
+VPABSB_YMMqq_YMMqq@VEX.256.66.0F38.Wx.1C/x.r	VPABSB	AVX2	1	2	1	0x1C	x	reg	x	1	0	0	ymm,ymm	0	-	vpabsb.y_y	tested	
+VPABSD_YMMqq_MEMqq@VEX.256.66.0F38.Wx.1E/x.m	VPABSD	AVX2	1	2	1	0x1E	x	mem	x	1	0	0	ymm,m256	32	r	vpabsd.y_m256	tested	
+VPABSD_YMMqq_YMMqq@VEX.256.66.0F38.Wx.1E/x.r	VPABSD	AVX2	1	2	1	0x1E	x	reg	x	1	0	0	ymm,ymm	0	-	vpabsd.y_y	tested	
+VPABSW_YMMqq_MEMqq@VEX.256.66.0F38.Wx.1D/x.m	VPABSW	AVX2	1	2	1	0x1D	x	mem	x	1	0	0	ymm,m256	32	r	vpabsw.y_m256	tested	
+VPABSW_YMMqq_YMMqq@VEX.256.66.0F38.Wx.1D/x.r	VPABSW	AVX2	1	2	1	0x1D	x	reg	x	1	0	0	ymm,ymm	0	-	vpabsw.y_y	tested	
+VPACKSSDW_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.6B/x.m	VPACKSSDW	AVX2	1	1	1	0x6B	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpackssdw.y_y_m256	tested	
+VPACKSSDW_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.6B/x.r	VPACKSSDW	AVX2	1	1	1	0x6B	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpackssdw.y_y_y	tested	
+VPACKSSWB_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.63/x.m	VPACKSSWB	AVX2	1	1	1	0x63	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpacksswb.y_y_m256	tested	
+VPACKSSWB_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.63/x.r	VPACKSSWB	AVX2	1	1	1	0x63	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpacksswb.y_y_y	tested	
+VPACKUSDW_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.Wx.2B/x.m	VPACKUSDW	AVX2	1	2	1	0x2B	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpackusdw.y_y_m256	tested	
+VPACKUSDW_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.Wx.2B/x.r	VPACKUSDW	AVX2	1	2	1	0x2B	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpackusdw.y_y_y	tested	
+VPACKUSWB_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.67/x.m	VPACKUSWB	AVX2	1	1	1	0x67	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpackuswb.y_y_m256	tested	
+VPACKUSWB_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.67/x.r	VPACKUSWB	AVX2	1	1	1	0x67	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpackuswb.y_y_y	tested	
+VPADDB_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.FC/x.m	VPADDB	AVX2	1	1	1	0xFC	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpaddb.y_y_m256	tested	
+VPADDB_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.FC/x.r	VPADDB	AVX2	1	1	1	0xFC	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpaddb.y_y_y	tested	
+VPADDD_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.FE/x.m	VPADDD	AVX2	1	1	1	0xFE	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpaddd.y_y_m256	tested	
+VPADDD_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.FE/x.r	VPADDD	AVX2	1	1	1	0xFE	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpaddd.y_y_y	tested	
+VPADDQ_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.D4/x.m	VPADDQ	AVX2	1	1	1	0xD4	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpaddq.y_y_m256	tested	
+VPADDQ_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.D4/x.r	VPADDQ	AVX2	1	1	1	0xD4	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpaddq.y_y_y	tested	
+VPADDSB_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.EC/x.m	VPADDSB	AVX2	1	1	1	0xEC	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpaddsb.y_y_m256	tested	
+VPADDSB_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.EC/x.r	VPADDSB	AVX2	1	1	1	0xEC	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpaddsb.y_y_y	tested	
+VPADDSW_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.ED/x.m	VPADDSW	AVX2	1	1	1	0xED	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpaddsw.y_y_m256	tested	
+VPADDSW_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.ED/x.r	VPADDSW	AVX2	1	1	1	0xED	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpaddsw.y_y_y	tested	
+VPADDUSB_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.DC/x.m	VPADDUSB	AVX2	1	1	1	0xDC	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpaddusb.y_y_m256	tested	
+VPADDUSB_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.DC/x.r	VPADDUSB	AVX2	1	1	1	0xDC	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpaddusb.y_y_y	tested	
+VPADDUSW_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.DD/x.m	VPADDUSW	AVX2	1	1	1	0xDD	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpaddusw.y_y_m256	tested	
+VPADDUSW_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.DD/x.r	VPADDUSW	AVX2	1	1	1	0xDD	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpaddusw.y_y_y	tested	
+VPADDW_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.FD/x.m	VPADDW	AVX2	1	1	1	0xFD	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpaddw.y_y_m256	tested	
+VPADDW_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.FD/x.r	VPADDW	AVX2	1	1	1	0xFD	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpaddw.y_y_y	tested	
+VPALIGNR_YMMqq_YMMqq_MEMqq_IMMb@VEX.256.66.0F3A.Wx.0F/x.m	VPALIGNR	AVX2	1	3	1	0x0F	x	mem	x	1	1	0	ymm,ymm,m256,imm8	32	r	vpalignr.y_y_m256_i	tested	
+VPALIGNR_YMMqq_YMMqq_YMMqq_IMMb@VEX.256.66.0F3A.Wx.0F/x.r	VPALIGNR	AVX2	1	3	1	0x0F	x	reg	x	1	1	0	ymm,ymm,ymm,imm8	0	-	vpalignr.y_y_y_i	tested	
+VPAND_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.DB/x.m	VPAND	AVX2	1	1	1	0xDB	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpand.y_y_m256	tested	
+VPAND_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.DB/x.r	VPAND	AVX2	1	1	1	0xDB	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpand.y_y_y	tested	
+VPANDN_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.DF/x.m	VPANDN	AVX2	1	1	1	0xDF	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpandn.y_y_m256	tested	
+VPANDN_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.DF/x.r	VPANDN	AVX2	1	1	1	0xDF	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpandn.y_y_y	tested	
+VPAVGB_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.E0/x.m	VPAVGB	AVX2	1	1	1	0xE0	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpavgb.y_y_m256	tested	
+VPAVGB_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.E0/x.r	VPAVGB	AVX2	1	1	1	0xE0	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpavgb.y_y_y	tested	
+VPAVGW_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.E3/x.m	VPAVGW	AVX2	1	1	1	0xE3	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpavgw.y_y_m256	tested	
+VPAVGW_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.E3/x.r	VPAVGW	AVX2	1	1	1	0xE3	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpavgw.y_y_y	tested	
+VPBLENDD_XMMdq_XMMdq_MEMdq_IMMb@VEX.128.66.0F3A.W0.02/x.m	VPBLENDD	AVX2	1	3	1	0x02	x	mem	0	0	1	0	xmm,xmm,m128,imm8	16	r	vpblendd.x_x_m128_i	tested	
+VPBLENDD_XMMdq_XMMdq_XMMdq_IMMb@VEX.128.66.0F3A.W0.02/x.r	VPBLENDD	AVX2	1	3	1	0x02	x	reg	0	0	1	0	xmm,xmm,xmm,imm8	0	-	vpblendd.x_x_x_i	tested	
+VPBLENDD_YMMqq_YMMqq_MEMqq_IMMb@VEX.256.66.0F3A.W0.02/x.m	VPBLENDD	AVX2	1	3	1	0x02	x	mem	0	1	1	0	ymm,ymm,m256,imm8	32	r	vpblendd.y_y_m256_i	tested	
+VPBLENDD_YMMqq_YMMqq_YMMqq_IMMb@VEX.256.66.0F3A.W0.02/x.r	VPBLENDD	AVX2	1	3	1	0x02	x	reg	0	1	1	0	ymm,ymm,ymm,imm8	0	-	vpblendd.y_y_y_i	tested	
+VPBLENDVB_YMMqq_YMMqq_MEMqq_YMMqq@VEX.256.66.0F3A.W0.4C/x.m	VPBLENDVB	AVX2	1	3	1	0x4C	x	mem	0	1	1	0	ymm,ymm,m256,ymm	32	r	vpblendvb.y_y_m256_y	tested	
+VPBLENDVB_YMMqq_YMMqq_YMMqq_YMMqq@VEX.256.66.0F3A.W0.4C/x.r	VPBLENDVB	AVX2	1	3	1	0x4C	x	reg	0	1	1	0	ymm,ymm,ymm,ymm	0	-	vpblendvb.y_y_y_y	tested	
+VPBLENDW_YMMqq_YMMqq_MEMqq_IMMb@VEX.256.66.0F3A.Wx.0E/x.m	VPBLENDW	AVX2	1	3	1	0x0E	x	mem	x	1	1	0	ymm,ymm,m256,imm8	32	r	vpblendw.y_y_m256_i	tested	
+VPBLENDW_YMMqq_YMMqq_YMMqq_IMMb@VEX.256.66.0F3A.Wx.0E/x.r	VPBLENDW	AVX2	1	3	1	0x0E	x	reg	x	1	1	0	ymm,ymm,ymm,imm8	0	-	vpblendw.y_y_y_i	tested	
+VPBROADCASTB_XMMdq_MEMb@VEX.128.66.0F38.W0.78/x.m	VPBROADCASTB	AVX2	1	2	1	0x78	x	mem	0	0	0	0	xmm,m8	1	r	vpbroadcastb.x_m8	tested	
+VPBROADCASTB_XMMdq_XMMb@VEX.128.66.0F38.W0.78/x.r	VPBROADCASTB	AVX2	1	2	1	0x78	x	reg	0	0	0	0	xmm,xmm	0	-	vpbroadcastb.x_x	tested	
+VPBROADCASTB_YMMqq_MEMb@VEX.256.66.0F38.W0.78/x.m	VPBROADCASTB	AVX2	1	2	1	0x78	x	mem	0	1	0	0	ymm,m8	1	r	vpbroadcastb.y_m8	tested	
+VPBROADCASTB_YMMqq_XMMb@VEX.256.66.0F38.W0.78/x.r	VPBROADCASTB	AVX2	1	2	1	0x78	x	reg	0	1	0	0	ymm,xmm	0	-	vpbroadcastb.y_x	tested	
+VPBROADCASTD_XMMdq_MEMd@VEX.128.66.0F38.W0.58/x.m	VPBROADCASTD	AVX2	1	2	1	0x58	x	mem	0	0	0	0	xmm,m32	4	r	vpbroadcastd.x_m32	tested	
+VPBROADCASTD_XMMdq_XMMd@VEX.128.66.0F38.W0.58/x.r	VPBROADCASTD	AVX2	1	2	1	0x58	x	reg	0	0	0	0	xmm,xmm	0	-	vpbroadcastd.x_x	tested	
+VPBROADCASTD_YMMqq_MEMd@VEX.256.66.0F38.W0.58/x.m	VPBROADCASTD	AVX2	1	2	1	0x58	x	mem	0	1	0	0	ymm,m32	4	r	vpbroadcastd.y_m32	tested	
+VPBROADCASTD_YMMqq_XMMd@VEX.256.66.0F38.W0.58/x.r	VPBROADCASTD	AVX2	1	2	1	0x58	x	reg	0	1	0	0	ymm,xmm	0	-	vpbroadcastd.y_x	tested	
+VPBROADCASTQ_XMMdq_MEMq@VEX.128.66.0F38.W0.59/x.m	VPBROADCASTQ	AVX2	1	2	1	0x59	x	mem	0	0	0	0	xmm,m64	8	r	vpbroadcastq.x_m64	tested	
+VPBROADCASTQ_XMMdq_XMMq@VEX.128.66.0F38.W0.59/x.r	VPBROADCASTQ	AVX2	1	2	1	0x59	x	reg	0	0	0	0	xmm,xmm	0	-	vpbroadcastq.x_x	tested	
+VPBROADCASTQ_YMMqq_MEMq@VEX.256.66.0F38.W0.59/x.m	VPBROADCASTQ	AVX2	1	2	1	0x59	x	mem	0	1	0	0	ymm,m64	8	r	vpbroadcastq.y_m64	tested	
+VPBROADCASTQ_YMMqq_XMMq@VEX.256.66.0F38.W0.59/x.r	VPBROADCASTQ	AVX2	1	2	1	0x59	x	reg	0	1	0	0	ymm,xmm	0	-	vpbroadcastq.y_x	tested	
+VPBROADCASTW_XMMdq_MEMw@VEX.128.66.0F38.W0.79/x.m	VPBROADCASTW	AVX2	1	2	1	0x79	x	mem	0	0	0	0	xmm,m16	2	r	vpbroadcastw.x_m16	tested	
+VPBROADCASTW_XMMdq_XMMw@VEX.128.66.0F38.W0.79/x.r	VPBROADCASTW	AVX2	1	2	1	0x79	x	reg	0	0	0	0	xmm,xmm	0	-	vpbroadcastw.x_x	tested	
+VPBROADCASTW_YMMqq_MEMw@VEX.256.66.0F38.W0.79/x.m	VPBROADCASTW	AVX2	1	2	1	0x79	x	mem	0	1	0	0	ymm,m16	2	r	vpbroadcastw.y_m16	tested	
+VPBROADCASTW_YMMqq_XMMw@VEX.256.66.0F38.W0.79/x.r	VPBROADCASTW	AVX2	1	2	1	0x79	x	reg	0	1	0	0	ymm,xmm	0	-	vpbroadcastw.y_x	tested	
+VPCMPEQB_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.74/x.m	VPCMPEQB	AVX2	1	1	1	0x74	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpcmpeqb.y_y_m256	tested	
+VPCMPEQB_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.74/x.r	VPCMPEQB	AVX2	1	1	1	0x74	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpcmpeqb.y_y_y	tested	
+VPCMPEQD_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.76/x.m	VPCMPEQD	AVX2	1	1	1	0x76	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpcmpeqd.y_y_m256	tested	
+VPCMPEQD_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.76/x.r	VPCMPEQD	AVX2	1	1	1	0x76	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpcmpeqd.y_y_y	tested	
+VPCMPEQQ_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.Wx.29/x.m	VPCMPEQQ	AVX2	1	2	1	0x29	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpcmpeqq.y_y_m256	tested	
+VPCMPEQQ_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.Wx.29/x.r	VPCMPEQQ	AVX2	1	2	1	0x29	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpcmpeqq.y_y_y	tested	
+VPCMPEQW_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.75/x.m	VPCMPEQW	AVX2	1	1	1	0x75	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpcmpeqw.y_y_m256	tested	
+VPCMPEQW_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.75/x.r	VPCMPEQW	AVX2	1	1	1	0x75	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpcmpeqw.y_y_y	tested	
+VPCMPGTB_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.64/x.m	VPCMPGTB	AVX2	1	1	1	0x64	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpcmpgtb.y_y_m256	tested	
+VPCMPGTB_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.64/x.r	VPCMPGTB	AVX2	1	1	1	0x64	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpcmpgtb.y_y_y	tested	
+VPCMPGTD_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.66/x.m	VPCMPGTD	AVX2	1	1	1	0x66	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpcmpgtd.y_y_m256	tested	
+VPCMPGTD_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.66/x.r	VPCMPGTD	AVX2	1	1	1	0x66	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpcmpgtd.y_y_y	tested	
+VPCMPGTQ_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.Wx.37/x.m	VPCMPGTQ	AVX2	1	2	1	0x37	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpcmpgtq.y_y_m256	tested	
+VPCMPGTQ_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.Wx.37/x.r	VPCMPGTQ	AVX2	1	2	1	0x37	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpcmpgtq.y_y_y	tested	
+VPCMPGTW_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.65/x.m	VPCMPGTW	AVX2	1	1	1	0x65	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpcmpgtw.y_y_m256	tested	
+VPCMPGTW_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.65/x.r	VPCMPGTW	AVX2	1	1	1	0x65	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpcmpgtw.y_y_y	tested	
+VPERM2I128_YMMqq_YMMqq_MEMqq_IMMb@VEX.256.66.0F3A.W0.46/x.m	VPERM2I128	AVX2	1	3	1	0x46	x	mem	0	1	1	0	ymm,ymm,m256,imm8	32	r	vperm2i128.y_y_m256_i	tested	
+VPERM2I128_YMMqq_YMMqq_YMMqq_IMMb@VEX.256.66.0F3A.W0.46/x.r	VPERM2I128	AVX2	1	3	1	0x46	x	reg	0	1	1	0	ymm,ymm,ymm,imm8	0	-	vperm2i128.y_y_y_i	tested	
+VPERMD_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W0.36/x.m	VPERMD	AVX2	1	2	1	0x36	x	mem	0	1	0	0	ymm,ymm,m256	32	r	vpermd.y_y_m256	tested	
+VPERMD_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W0.36/x.r	VPERMD	AVX2	1	2	1	0x36	x	reg	0	1	0	0	ymm,ymm,ymm	0	-	vpermd.y_y_y	tested	
+VPERMPD_YMMqq_MEMqq_IMMb@VEX.256.66.0F3A.W1.01/x.m	VPERMPD	AVX2	1	3	1	0x01	x	mem	1	1	1	0	ymm,m256,imm8	32	r	vpermpd.y_m256_i	tested	
+VPERMPD_YMMqq_YMMqq_IMMb@VEX.256.66.0F3A.W1.01/x.r	VPERMPD	AVX2	1	3	1	0x01	x	reg	1	1	1	0	ymm,ymm,imm8	0	-	vpermpd.y_y_i	tested	
+VPERMPS_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W0.16/x.m	VPERMPS	AVX2	1	2	1	0x16	x	mem	0	1	0	0	ymm,ymm,m256	32	r	vpermps.y_y_m256	tested	
+VPERMPS_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W0.16/x.r	VPERMPS	AVX2	1	2	1	0x16	x	reg	0	1	0	0	ymm,ymm,ymm	0	-	vpermps.y_y_y	tested	
+VPERMQ_YMMqq_MEMqq_IMMb@VEX.256.66.0F3A.W1.00/x.m	VPERMQ	AVX2	1	3	1	0x00	x	mem	1	1	1	0	ymm,m256,imm8	32	r	vpermq.y_m256_i	tested	
+VPERMQ_YMMqq_YMMqq_IMMb@VEX.256.66.0F3A.W1.00/x.r	VPERMQ	AVX2	1	3	1	0x00	x	reg	1	1	1	0	ymm,ymm,imm8	0	-	vpermq.y_y_i	tested	
+VPGATHERDD_XMMu32_MEMd_XMMi32_VL128@VEX.128.66.0F38.W0.90/2.m	VPGATHERDD	AVX2GATHER	1	2	1	0x90	2	mem	0	0	0	0	xmm,m32,xmm	4	r	vpgatherdd.x_m32_x	refused	gathers are not emulated (VSIB); the SIGILL handler chains on
+VPGATHERDD_YMMu32_MEMd_YMMi32_VL256@VEX.256.66.0F38.W0.90/2.m	VPGATHERDD	AVX2GATHER	1	2	1	0x90	2	mem	0	1	0	0	ymm,m32,ymm	4	r	vpgatherdd.y_m32_y	refused	gathers are not emulated (VSIB); the SIGILL handler chains on
+VPGATHERDQ_XMMu64_MEMq_XMMi64_VL128@VEX.128.66.0F38.W1.90/2.m	VPGATHERDQ	AVX2GATHER	1	2	1	0x90	2	mem	1	0	0	0	xmm,m64,xmm	8	r	vpgatherdq.x_m64_x	refused	gathers are not emulated (VSIB); the SIGILL handler chains on
+VPGATHERDQ_YMMu64_MEMq_YMMi64_VL256@VEX.256.66.0F38.W1.90/2.m	VPGATHERDQ	AVX2GATHER	1	2	1	0x90	2	mem	1	1	0	0	ymm,m64,ymm	8	r	vpgatherdq.y_m64_y	refused	gathers are not emulated (VSIB); the SIGILL handler chains on
+VPGATHERQD_XMMu32_MEMd_XMMi32_VL128@VEX.128.66.0F38.W0.91/2.m	VPGATHERQD	AVX2GATHER	1	2	1	0x91	2	mem	0	0	0	0	xmm,m32,xmm	4	r	vpgatherqd.x_m32_x.w0	refused	gathers are not emulated (VSIB); the SIGILL handler chains on
+VPGATHERQD_XMMu32_MEMd_XMMi32_VL256@VEX.256.66.0F38.W0.91/2.m	VPGATHERQD	AVX2GATHER	1	2	1	0x91	2	mem	0	1	0	0	xmm,m32,xmm	4	r	vpgatherqd.x_m32_x.2	refused	gathers are not emulated (VSIB); the SIGILL handler chains on
+VPGATHERQQ_XMMu64_MEMq_XMMi64_VL128@VEX.128.66.0F38.W1.91/2.m	VPGATHERQQ	AVX2GATHER	1	2	1	0x91	2	mem	1	0	0	0	xmm,m64,xmm	8	r	vpgatherqq.x_m64_x	refused	gathers are not emulated (VSIB); the SIGILL handler chains on
+VPGATHERQQ_YMMu64_MEMq_YMMi64_VL256@VEX.256.66.0F38.W1.91/2.m	VPGATHERQQ	AVX2GATHER	1	2	1	0x91	2	mem	1	1	0	0	ymm,m64,ymm	8	r	vpgatherqq.y_m64_y	refused	gathers are not emulated (VSIB); the SIGILL handler chains on
+VPHADDD_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.Wx.02/x.m	VPHADDD	AVX2	1	2	1	0x02	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vphaddd.y_y_m256	tested	
+VPHADDD_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.Wx.02/x.r	VPHADDD	AVX2	1	2	1	0x02	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vphaddd.y_y_y	tested	
+VPHADDSW_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.Wx.03/x.m	VPHADDSW	AVX2	1	2	1	0x03	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vphaddsw.y_y_m256	refused	only vphaddd is implemented; the word and saturating forms and ymm vphadd/vphsub are not
+VPHADDSW_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.Wx.03/x.r	VPHADDSW	AVX2	1	2	1	0x03	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vphaddsw.y_y_y	refused	only vphaddd is implemented; the word and saturating forms and ymm vphadd/vphsub are not
+VPHADDW_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.Wx.01/x.m	VPHADDW	AVX2	1	2	1	0x01	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vphaddw.y_y_m256	refused	only vphaddd is implemented; the word and saturating forms and ymm vphadd/vphsub are not
+VPHADDW_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.Wx.01/x.r	VPHADDW	AVX2	1	2	1	0x01	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vphaddw.y_y_y	refused	only vphaddd is implemented; the word and saturating forms and ymm vphadd/vphsub are not
+VPHSUBD_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.Wx.06/x.m	VPHSUBD	AVX2	1	2	1	0x06	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vphsubd.y_y_m256	refused	only vphaddd is implemented; the word and saturating forms and ymm vphadd/vphsub are not
+VPHSUBD_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.Wx.06/x.r	VPHSUBD	AVX2	1	2	1	0x06	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vphsubd.y_y_y	refused	only vphaddd is implemented; the word and saturating forms and ymm vphadd/vphsub are not
+VPHSUBSW_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.Wx.07/x.m	VPHSUBSW	AVX2	1	2	1	0x07	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vphsubsw.y_y_m256	refused	only vphaddd is implemented; the word and saturating forms and ymm vphadd/vphsub are not
+VPHSUBSW_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.Wx.07/x.r	VPHSUBSW	AVX2	1	2	1	0x07	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vphsubsw.y_y_y	refused	only vphaddd is implemented; the word and saturating forms and ymm vphadd/vphsub are not
+VPHSUBW_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.Wx.05/x.m	VPHSUBW	AVX2	1	2	1	0x05	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vphsubw.y_y_m256	refused	only vphaddd is implemented; the word and saturating forms and ymm vphadd/vphsub are not
+VPHSUBW_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.Wx.05/x.r	VPHSUBW	AVX2	1	2	1	0x05	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vphsubw.y_y_y	refused	only vphaddd is implemented; the word and saturating forms and ymm vphadd/vphsub are not
+VPMADDUBSW_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.Wx.04/x.m	VPMADDUBSW	AVX2	1	2	1	0x04	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpmaddubsw.y_y_m256	tested	
+VPMADDUBSW_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.Wx.04/x.r	VPMADDUBSW	AVX2	1	2	1	0x04	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpmaddubsw.y_y_y	tested	
+VPMADDWD_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.F5/x.m	VPMADDWD	AVX2	1	1	1	0xF5	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpmaddwd.y_y_m256	tested	
+VPMADDWD_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.F5/x.r	VPMADDWD	AVX2	1	1	1	0xF5	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpmaddwd.y_y_y	tested	
+VPMASKMOVD_MEMdq_XMMdq_XMMdq@VEX.128.66.0F38.W0.8E/x.m	VPMASKMOVD	AVX2	1	2	1	0x8E	x	mem	0	0	0	0	m128,xmm,xmm	16	w	vpmaskmovd.m128_x_x	failing	SEM-PARTIAL-STORE-MASKMOV
+VPMASKMOVD_MEMqq_YMMqq_YMMqq@VEX.256.66.0F38.W0.8E/x.m	VPMASKMOVD	AVX2	1	2	1	0x8E	x	mem	0	1	0	0	m256,ymm,ymm	32	w	vpmaskmovd.m256_y_y	failing	SEM-PARTIAL-STORE-MASKMOV
+VPMASKMOVD_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W0.8C/x.m	VPMASKMOVD	AVX2	1	2	1	0x8C	x	mem	0	0	0	0	xmm,xmm,m128	16	r	vpmaskmovd.x_x_m128	tested	
+VPMASKMOVD_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W0.8C/x.m	VPMASKMOVD	AVX2	1	2	1	0x8C	x	mem	0	1	0	0	ymm,ymm,m256	32	r	vpmaskmovd.y_y_m256	tested	
+VPMASKMOVQ_MEMdq_XMMdq_XMMdq@VEX.128.66.0F38.W1.8E/x.m	VPMASKMOVQ	AVX2	1	2	1	0x8E	x	mem	1	0	0	0	m128,xmm,xmm	16	w	vpmaskmovq.m128_x_x	failing	SEM-PARTIAL-STORE-MASKMOV
+VPMASKMOVQ_MEMqq_YMMqq_YMMqq@VEX.256.66.0F38.W1.8E/x.m	VPMASKMOVQ	AVX2	1	2	1	0x8E	x	mem	1	1	0	0	m256,ymm,ymm	32	w	vpmaskmovq.m256_y_y	failing	SEM-PARTIAL-STORE-MASKMOV
+VPMASKMOVQ_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W1.8C/x.m	VPMASKMOVQ	AVX2	1	2	1	0x8C	x	mem	1	0	0	0	xmm,xmm,m128	16	r	vpmaskmovq.x_x_m128	tested	
+VPMASKMOVQ_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W1.8C/x.m	VPMASKMOVQ	AVX2	1	2	1	0x8C	x	mem	1	1	0	0	ymm,ymm,m256	32	r	vpmaskmovq.y_y_m256	tested	
+VPMAXSB_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.Wx.3C/x.m	VPMAXSB	AVX2	1	2	1	0x3C	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpmaxsb.y_y_m256	tested	
+VPMAXSB_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.Wx.3C/x.r	VPMAXSB	AVX2	1	2	1	0x3C	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpmaxsb.y_y_y	tested	
+VPMAXSD_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.Wx.3D/x.m	VPMAXSD	AVX2	1	2	1	0x3D	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpmaxsd.y_y_m256	tested	
+VPMAXSD_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.Wx.3D/x.r	VPMAXSD	AVX2	1	2	1	0x3D	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpmaxsd.y_y_y	tested	
+VPMAXSW_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.EE/x.m	VPMAXSW	AVX2	1	1	1	0xEE	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpmaxsw.y_y_m256	tested	
+VPMAXSW_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.EE/x.r	VPMAXSW	AVX2	1	1	1	0xEE	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpmaxsw.y_y_y	tested	
+VPMAXUB_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.DE/x.m	VPMAXUB	AVX2	1	1	1	0xDE	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpmaxub.y_y_m256	tested	
+VPMAXUB_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.DE/x.r	VPMAXUB	AVX2	1	1	1	0xDE	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpmaxub.y_y_y	tested	
+VPMAXUD_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.Wx.3F/x.m	VPMAXUD	AVX2	1	2	1	0x3F	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpmaxud.y_y_m256	tested	
+VPMAXUD_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.Wx.3F/x.r	VPMAXUD	AVX2	1	2	1	0x3F	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpmaxud.y_y_y	tested	
+VPMAXUW_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.Wx.3E/x.m	VPMAXUW	AVX2	1	2	1	0x3E	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpmaxuw.y_y_m256	tested	
+VPMAXUW_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.Wx.3E/x.r	VPMAXUW	AVX2	1	2	1	0x3E	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpmaxuw.y_y_y	tested	
+VPMINSB_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.Wx.38/x.m	VPMINSB	AVX2	1	2	1	0x38	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpminsb.y_y_m256	tested	
+VPMINSB_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.Wx.38/x.r	VPMINSB	AVX2	1	2	1	0x38	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpminsb.y_y_y	tested	
+VPMINSD_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.Wx.39/x.m	VPMINSD	AVX2	1	2	1	0x39	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpminsd.y_y_m256	tested	
+VPMINSD_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.Wx.39/x.r	VPMINSD	AVX2	1	2	1	0x39	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpminsd.y_y_y	tested	
+VPMINSW_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.EA/x.m	VPMINSW	AVX2	1	1	1	0xEA	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpminsw.y_y_m256	tested	
+VPMINSW_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.EA/x.r	VPMINSW	AVX2	1	1	1	0xEA	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpminsw.y_y_y	tested	
+VPMINUB_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.DA/x.m	VPMINUB	AVX2	1	1	1	0xDA	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpminub.y_y_m256	tested	
+VPMINUB_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.DA/x.r	VPMINUB	AVX2	1	1	1	0xDA	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpminub.y_y_y	tested	
+VPMINUD_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.Wx.3B/x.m	VPMINUD	AVX2	1	2	1	0x3B	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpminud.y_y_m256	tested	
+VPMINUD_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.Wx.3B/x.r	VPMINUD	AVX2	1	2	1	0x3B	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpminud.y_y_y	tested	
+VPMINUW_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.Wx.3A/x.m	VPMINUW	AVX2	1	2	1	0x3A	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpminuw.y_y_m256	tested	
+VPMINUW_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.Wx.3A/x.r	VPMINUW	AVX2	1	2	1	0x3A	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpminuw.y_y_y	tested	
+VPMOVMSKB_GPR32d_YMMqq@VEX.256.66.0F.Wx.D7/x.r	VPMOVMSKB	AVX2	1	1	1	0xD7	x	reg	x	1	0	0	gpr,ymm	0	-	vpmovmskb.g_y	tested	
+VPMOVSXBD_YMMqq_MEMq@VEX.256.66.0F38.Wx.21/x.m	VPMOVSXBD	AVX2	1	2	1	0x21	x	mem	x	1	0	0	ymm,m64	8	r	vpmovsxbd.y_m64	tested	
+VPMOVSXBD_YMMqq_XMMq@VEX.256.66.0F38.Wx.21/x.r	VPMOVSXBD	AVX2	1	2	1	0x21	x	reg	x	1	0	0	ymm,xmm	0	-	vpmovsxbd.y_x	tested	
+VPMOVSXBQ_YMMqq_MEMd@VEX.256.66.0F38.Wx.22/x.m	VPMOVSXBQ	AVX2	1	2	1	0x22	x	mem	x	1	0	0	ymm,m32	4	r	vpmovsxbq.y_m32	tested	
+VPMOVSXBQ_YMMqq_XMMd@VEX.256.66.0F38.Wx.22/x.r	VPMOVSXBQ	AVX2	1	2	1	0x22	x	reg	x	1	0	0	ymm,xmm	0	-	vpmovsxbq.y_x	tested	
+VPMOVSXBW_YMMqq_MEMdq@VEX.256.66.0F38.Wx.20/x.m	VPMOVSXBW	AVX2	1	2	1	0x20	x	mem	x	1	0	0	ymm,m128	16	r	vpmovsxbw.y_m128	tested	
+VPMOVSXBW_YMMqq_XMMdq@VEX.256.66.0F38.Wx.20/x.r	VPMOVSXBW	AVX2	1	2	1	0x20	x	reg	x	1	0	0	ymm,xmm	0	-	vpmovsxbw.y_x	tested	
+VPMOVSXDQ_YMMqq_MEMdq@VEX.256.66.0F38.Wx.25/x.m	VPMOVSXDQ	AVX2	1	2	1	0x25	x	mem	x	1	0	0	ymm,m128	16	r	vpmovsxdq.y_m128	tested	
+VPMOVSXDQ_YMMqq_XMMdq@VEX.256.66.0F38.Wx.25/x.r	VPMOVSXDQ	AVX2	1	2	1	0x25	x	reg	x	1	0	0	ymm,xmm	0	-	vpmovsxdq.y_x	tested	
+VPMOVSXWD_YMMqq_MEMdq@VEX.256.66.0F38.Wx.23/x.m	VPMOVSXWD	AVX2	1	2	1	0x23	x	mem	x	1	0	0	ymm,m128	16	r	vpmovsxwd.y_m128	tested	
+VPMOVSXWD_YMMqq_XMMdq@VEX.256.66.0F38.Wx.23/x.r	VPMOVSXWD	AVX2	1	2	1	0x23	x	reg	x	1	0	0	ymm,xmm	0	-	vpmovsxwd.y_x	tested	
+VPMOVSXWQ_YMMqq_MEMq@VEX.256.66.0F38.Wx.24/x.m	VPMOVSXWQ	AVX2	1	2	1	0x24	x	mem	x	1	0	0	ymm,m64	8	r	vpmovsxwq.y_m64	tested	
+VPMOVSXWQ_YMMqq_XMMq@VEX.256.66.0F38.Wx.24/x.r	VPMOVSXWQ	AVX2	1	2	1	0x24	x	reg	x	1	0	0	ymm,xmm	0	-	vpmovsxwq.y_x	tested	
+VPMOVZXBD_YMMqq_MEMq@VEX.256.66.0F38.Wx.31/x.m	VPMOVZXBD	AVX2	1	2	1	0x31	x	mem	x	1	0	0	ymm,m64	8	r	vpmovzxbd.y_m64	tested	
+VPMOVZXBD_YMMqq_XMMq@VEX.256.66.0F38.Wx.31/x.r	VPMOVZXBD	AVX2	1	2	1	0x31	x	reg	x	1	0	0	ymm,xmm	0	-	vpmovzxbd.y_x	tested	
+VPMOVZXBQ_YMMqq_MEMd@VEX.256.66.0F38.Wx.32/x.m	VPMOVZXBQ	AVX2	1	2	1	0x32	x	mem	x	1	0	0	ymm,m32	4	r	vpmovzxbq.y_m32	tested	
+VPMOVZXBQ_YMMqq_XMMd@VEX.256.66.0F38.Wx.32/x.r	VPMOVZXBQ	AVX2	1	2	1	0x32	x	reg	x	1	0	0	ymm,xmm	0	-	vpmovzxbq.y_x	tested	
+VPMOVZXBW_YMMqq_MEMdq@VEX.256.66.0F38.Wx.30/x.m	VPMOVZXBW	AVX2	1	2	1	0x30	x	mem	x	1	0	0	ymm,m128	16	r	vpmovzxbw.y_m128	tested	
+VPMOVZXBW_YMMqq_XMMdq@VEX.256.66.0F38.Wx.30/x.r	VPMOVZXBW	AVX2	1	2	1	0x30	x	reg	x	1	0	0	ymm,xmm	0	-	vpmovzxbw.y_x	tested	
+VPMOVZXDQ_YMMqq_MEMdq@VEX.256.66.0F38.Wx.35/x.m	VPMOVZXDQ	AVX2	1	2	1	0x35	x	mem	x	1	0	0	ymm,m128	16	r	vpmovzxdq.y_m128	tested	
+VPMOVZXDQ_YMMqq_XMMdq@VEX.256.66.0F38.Wx.35/x.r	VPMOVZXDQ	AVX2	1	2	1	0x35	x	reg	x	1	0	0	ymm,xmm	0	-	vpmovzxdq.y_x	tested	
+VPMOVZXWD_YMMqq_MEMdq@VEX.256.66.0F38.Wx.33/x.m	VPMOVZXWD	AVX2	1	2	1	0x33	x	mem	x	1	0	0	ymm,m128	16	r	vpmovzxwd.y_m128	tested	
+VPMOVZXWD_YMMqq_XMMdq@VEX.256.66.0F38.Wx.33/x.r	VPMOVZXWD	AVX2	1	2	1	0x33	x	reg	x	1	0	0	ymm,xmm	0	-	vpmovzxwd.y_x	tested	
+VPMOVZXWQ_YMMqq_MEMq@VEX.256.66.0F38.Wx.34/x.m	VPMOVZXWQ	AVX2	1	2	1	0x34	x	mem	x	1	0	0	ymm,m64	8	r	vpmovzxwq.y_m64	tested	
+VPMOVZXWQ_YMMqq_XMMq@VEX.256.66.0F38.Wx.34/x.r	VPMOVZXWQ	AVX2	1	2	1	0x34	x	reg	x	1	0	0	ymm,xmm	0	-	vpmovzxwq.y_x	tested	
+VPMULDQ_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.Wx.28/x.m	VPMULDQ	AVX2	1	2	1	0x28	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpmuldq.y_y_m256	tested	
+VPMULDQ_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.Wx.28/x.r	VPMULDQ	AVX2	1	2	1	0x28	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpmuldq.y_y_y	tested	
+VPMULHRSW_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.Wx.0B/x.m	VPMULHRSW	AVX2	1	2	1	0x0B	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpmulhrsw.y_y_m256	tested	
+VPMULHRSW_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.Wx.0B/x.r	VPMULHRSW	AVX2	1	2	1	0x0B	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpmulhrsw.y_y_y	tested	
+VPMULHUW_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.E4/x.m	VPMULHUW	AVX2	1	1	1	0xE4	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpmulhuw.y_y_m256	tested	
+VPMULHUW_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.E4/x.r	VPMULHUW	AVX2	1	1	1	0xE4	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpmulhuw.y_y_y	tested	
+VPMULHW_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.E5/x.m	VPMULHW	AVX2	1	1	1	0xE5	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpmulhw.y_y_m256	tested	
+VPMULHW_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.E5/x.r	VPMULHW	AVX2	1	1	1	0xE5	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpmulhw.y_y_y	tested	
+VPMULLD_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.Wx.40/x.m	VPMULLD	AVX2	1	2	1	0x40	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpmulld.y_y_m256	tested	
+VPMULLD_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.Wx.40/x.r	VPMULLD	AVX2	1	2	1	0x40	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpmulld.y_y_y	tested	
+VPMULLW_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.D5/x.m	VPMULLW	AVX2	1	1	1	0xD5	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpmullw.y_y_m256	tested	
+VPMULLW_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.D5/x.r	VPMULLW	AVX2	1	1	1	0xD5	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpmullw.y_y_y	tested	
+VPMULUDQ_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.F4/x.m	VPMULUDQ	AVX2	1	1	1	0xF4	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpmuludq.y_y_m256	tested	
+VPMULUDQ_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.F4/x.r	VPMULUDQ	AVX2	1	1	1	0xF4	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpmuludq.y_y_y	tested	
+VPOR_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.EB/x.m	VPOR	AVX2	1	1	1	0xEB	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpor.y_y_m256	tested	
+VPOR_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.EB/x.r	VPOR	AVX2	1	1	1	0xEB	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpor.y_y_y	tested	
+VPSADBW_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.F6/x.m	VPSADBW	AVX2	1	1	1	0xF6	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpsadbw.y_y_m256	tested	
+VPSADBW_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.F6/x.r	VPSADBW	AVX2	1	1	1	0xF6	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpsadbw.y_y_y	tested	
+VPSHUFB_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.Wx.00/x.m	VPSHUFB	AVX2	1	2	1	0x00	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpshufb.y_y_m256	tested	
+VPSHUFB_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.Wx.00/x.r	VPSHUFB	AVX2	1	2	1	0x00	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpshufb.y_y_y	tested	
+VPSHUFD_YMMqq_MEMqq_IMMb@VEX.256.66.0F.Wx.70/x.m	VPSHUFD	AVX2	1	1	1	0x70	x	mem	x	1	1	0	ymm,m256,imm8	32	r	vpshufd.y_m256_i	tested	
+VPSHUFD_YMMqq_YMMqq_IMMb@VEX.256.66.0F.Wx.70/x.r	VPSHUFD	AVX2	1	1	1	0x70	x	reg	x	1	1	0	ymm,ymm,imm8	0	-	vpshufd.y_y_i	tested	
+VPSHUFHW_YMMqq_MEMqq_IMMb@VEX.256.F3.0F.Wx.70/x.m	VPSHUFHW	AVX2	1	1	2	0x70	x	mem	x	1	1	0	ymm,m256,imm8	32	r	vpshufhw.y_m256_i	tested	
+VPSHUFHW_YMMqq_YMMqq_IMMb@VEX.256.F3.0F.Wx.70/x.r	VPSHUFHW	AVX2	1	1	2	0x70	x	reg	x	1	1	0	ymm,ymm,imm8	0	-	vpshufhw.y_y_i	tested	
+VPSHUFLW_YMMqq_MEMqq_IMMb@VEX.256.F2.0F.Wx.70/x.m	VPSHUFLW	AVX2	1	1	3	0x70	x	mem	x	1	1	0	ymm,m256,imm8	32	r	vpshuflw.y_m256_i	tested	
+VPSHUFLW_YMMqq_YMMqq_IMMb@VEX.256.F2.0F.Wx.70/x.r	VPSHUFLW	AVX2	1	1	3	0x70	x	reg	x	1	1	0	ymm,ymm,imm8	0	-	vpshuflw.y_y_i	tested	
+VPSIGNB_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.Wx.08/x.m	VPSIGNB	AVX2	1	2	1	0x08	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpsignb.y_y_m256	tested	
+VPSIGNB_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.Wx.08/x.r	VPSIGNB	AVX2	1	2	1	0x08	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpsignb.y_y_y	tested	
+VPSIGND_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.Wx.0A/x.m	VPSIGND	AVX2	1	2	1	0x0A	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpsignd.y_y_m256	tested	
+VPSIGND_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.Wx.0A/x.r	VPSIGND	AVX2	1	2	1	0x0A	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpsignd.y_y_y	tested	
+VPSIGNW_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.Wx.09/x.m	VPSIGNW	AVX2	1	2	1	0x09	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpsignw.y_y_m256	tested	
+VPSIGNW_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.Wx.09/x.r	VPSIGNW	AVX2	1	2	1	0x09	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpsignw.y_y_y	tested	
+VPSLLD_YMMqq_YMMqq_IMMb@VEX.256.66.0F.Wx.72/6.r	VPSLLD	AVX2	1	1	1	0x72	6	reg	x	1	1	0	ymm,ymm,imm8	0	-	vpslld.y_y_i	tested	
+VPSLLD_YMMqq_YMMqq_MEMdq@VEX.256.66.0F.Wx.F2/x.m	VPSLLD	AVX2	1	1	1	0xF2	x	mem	x	1	0	0	ymm,ymm,m128	16	r	vpslld.y_y_m128	tested	
+VPSLLD_YMMqq_YMMqq_XMMq@VEX.256.66.0F.Wx.F2/x.r	VPSLLD	AVX2	1	1	1	0xF2	x	reg	x	1	0	0	ymm,ymm,xmm	0	-	vpslld.y_y_x	tested	
+VPSLLDQ_YMMqq_YMMqq_IMMb@VEX.256.66.0F.Wx.73/7.r	VPSLLDQ	AVX2	1	1	1	0x73	7	reg	x	1	1	0	ymm,ymm,imm8	0	-	vpslldq.y_y_i	tested	
+VPSLLQ_YMMqq_YMMqq_IMMb@VEX.256.66.0F.Wx.73/6.r	VPSLLQ	AVX2	1	1	1	0x73	6	reg	x	1	1	0	ymm,ymm,imm8	0	-	vpsllq.y_y_i	tested	
+VPSLLQ_YMMqq_YMMqq_MEMdq@VEX.256.66.0F.Wx.F3/x.m	VPSLLQ	AVX2	1	1	1	0xF3	x	mem	x	1	0	0	ymm,ymm,m128	16	r	vpsllq.y_y_m128	tested	
+VPSLLQ_YMMqq_YMMqq_XMMq@VEX.256.66.0F.Wx.F3/x.r	VPSLLQ	AVX2	1	1	1	0xF3	x	reg	x	1	0	0	ymm,ymm,xmm	0	-	vpsllq.y_y_x	tested	
+VPSLLVD_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W0.47/x.m	VPSLLVD	AVX2	1	2	1	0x47	x	mem	0	0	0	0	xmm,xmm,m128	16	r	vpsllvd.x_x_m128	tested	
+VPSLLVD_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W0.47/x.r	VPSLLVD	AVX2	1	2	1	0x47	x	reg	0	0	0	0	xmm,xmm,xmm	0	-	vpsllvd.x_x_x	tested	
+VPSLLVD_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W0.47/x.m	VPSLLVD	AVX2	1	2	1	0x47	x	mem	0	1	0	0	ymm,ymm,m256	32	r	vpsllvd.y_y_m256	tested	
+VPSLLVD_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W0.47/x.r	VPSLLVD	AVX2	1	2	1	0x47	x	reg	0	1	0	0	ymm,ymm,ymm	0	-	vpsllvd.y_y_y	tested	
+VPSLLVQ_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W1.47/x.m	VPSLLVQ	AVX2	1	2	1	0x47	x	mem	1	0	0	0	xmm,xmm,m128	16	r	vpsllvq.x_x_m128	tested	
+VPSLLVQ_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W1.47/x.r	VPSLLVQ	AVX2	1	2	1	0x47	x	reg	1	0	0	0	xmm,xmm,xmm	0	-	vpsllvq.x_x_x	tested	
+VPSLLVQ_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W1.47/x.m	VPSLLVQ	AVX2	1	2	1	0x47	x	mem	1	1	0	0	ymm,ymm,m256	32	r	vpsllvq.y_y_m256	tested	
+VPSLLVQ_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W1.47/x.r	VPSLLVQ	AVX2	1	2	1	0x47	x	reg	1	1	0	0	ymm,ymm,ymm	0	-	vpsllvq.y_y_y	tested	
+VPSLLW_YMMqq_YMMqq_IMMb@VEX.256.66.0F.Wx.71/6.r	VPSLLW	AVX2	1	1	1	0x71	6	reg	x	1	1	0	ymm,ymm,imm8	0	-	vpsllw.y_y_i	tested	
+VPSLLW_YMMqq_YMMqq_MEMdq@VEX.256.66.0F.Wx.F1/x.m	VPSLLW	AVX2	1	1	1	0xF1	x	mem	x	1	0	0	ymm,ymm,m128	16	r	vpsllw.y_y_m128	tested	
+VPSLLW_YMMqq_YMMqq_XMMq@VEX.256.66.0F.Wx.F1/x.r	VPSLLW	AVX2	1	1	1	0xF1	x	reg	x	1	0	0	ymm,ymm,xmm	0	-	vpsllw.y_y_x	tested	
+VPSRAD_YMMqq_YMMqq_IMMb@VEX.256.66.0F.Wx.72/4.r	VPSRAD	AVX2	1	1	1	0x72	4	reg	x	1	1	0	ymm,ymm,imm8	0	-	vpsrad.y_y_i	tested	
+VPSRAD_YMMqq_YMMqq_MEMdq@VEX.256.66.0F.Wx.E2/x.m	VPSRAD	AVX2	1	1	1	0xE2	x	mem	x	1	0	0	ymm,ymm,m128	16	r	vpsrad.y_y_m128	tested	
+VPSRAD_YMMqq_YMMqq_XMMq@VEX.256.66.0F.Wx.E2/x.r	VPSRAD	AVX2	1	1	1	0xE2	x	reg	x	1	0	0	ymm,ymm,xmm	0	-	vpsrad.y_y_x	tested	
+VPSRAVD_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W0.46/x.m	VPSRAVD	AVX2	1	2	1	0x46	x	mem	0	0	0	0	xmm,xmm,m128	16	r	vpsravd.x_x_m128	tested	
+VPSRAVD_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W0.46/x.r	VPSRAVD	AVX2	1	2	1	0x46	x	reg	0	0	0	0	xmm,xmm,xmm	0	-	vpsravd.x_x_x	tested	
+VPSRAVD_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W0.46/x.m	VPSRAVD	AVX2	1	2	1	0x46	x	mem	0	1	0	0	ymm,ymm,m256	32	r	vpsravd.y_y_m256	tested	
+VPSRAVD_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W0.46/x.r	VPSRAVD	AVX2	1	2	1	0x46	x	reg	0	1	0	0	ymm,ymm,ymm	0	-	vpsravd.y_y_y	tested	
+VPSRAW_YMMqq_YMMqq_IMMb@VEX.256.66.0F.Wx.71/4.r	VPSRAW	AVX2	1	1	1	0x71	4	reg	x	1	1	0	ymm,ymm,imm8	0	-	vpsraw.y_y_i	tested	
+VPSRAW_YMMqq_YMMqq_MEMdq@VEX.256.66.0F.Wx.E1/x.m	VPSRAW	AVX2	1	1	1	0xE1	x	mem	x	1	0	0	ymm,ymm,m128	16	r	vpsraw.y_y_m128	tested	
+VPSRAW_YMMqq_YMMqq_XMMq@VEX.256.66.0F.Wx.E1/x.r	VPSRAW	AVX2	1	1	1	0xE1	x	reg	x	1	0	0	ymm,ymm,xmm	0	-	vpsraw.y_y_x	tested	
+VPSRLD_YMMqq_YMMqq_IMMb@VEX.256.66.0F.Wx.72/2.r	VPSRLD	AVX2	1	1	1	0x72	2	reg	x	1	1	0	ymm,ymm,imm8	0	-	vpsrld.y_y_i	tested	
+VPSRLD_YMMqq_YMMqq_MEMdq@VEX.256.66.0F.Wx.D2/x.m	VPSRLD	AVX2	1	1	1	0xD2	x	mem	x	1	0	0	ymm,ymm,m128	16	r	vpsrld.y_y_m128	tested	
+VPSRLD_YMMqq_YMMqq_XMMq@VEX.256.66.0F.Wx.D2/x.r	VPSRLD	AVX2	1	1	1	0xD2	x	reg	x	1	0	0	ymm,ymm,xmm	0	-	vpsrld.y_y_x	tested	
+VPSRLDQ_YMMqq_YMMqq_IMMb@VEX.256.66.0F.Wx.73/3.r	VPSRLDQ	AVX2	1	1	1	0x73	3	reg	x	1	1	0	ymm,ymm,imm8	0	-	vpsrldq.y_y_i	tested	
+VPSRLQ_YMMqq_YMMqq_IMMb@VEX.256.66.0F.Wx.73/2.r	VPSRLQ	AVX2	1	1	1	0x73	2	reg	x	1	1	0	ymm,ymm,imm8	0	-	vpsrlq.y_y_i	tested	
+VPSRLQ_YMMqq_YMMqq_MEMdq@VEX.256.66.0F.Wx.D3/x.m	VPSRLQ	AVX2	1	1	1	0xD3	x	mem	x	1	0	0	ymm,ymm,m128	16	r	vpsrlq.y_y_m128	tested	
+VPSRLQ_YMMqq_YMMqq_XMMq@VEX.256.66.0F.Wx.D3/x.r	VPSRLQ	AVX2	1	1	1	0xD3	x	reg	x	1	0	0	ymm,ymm,xmm	0	-	vpsrlq.y_y_x	tested	
+VPSRLVD_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W0.45/x.m	VPSRLVD	AVX2	1	2	1	0x45	x	mem	0	0	0	0	xmm,xmm,m128	16	r	vpsrlvd.x_x_m128	tested	
+VPSRLVD_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W0.45/x.r	VPSRLVD	AVX2	1	2	1	0x45	x	reg	0	0	0	0	xmm,xmm,xmm	0	-	vpsrlvd.x_x_x	tested	
+VPSRLVD_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W0.45/x.m	VPSRLVD	AVX2	1	2	1	0x45	x	mem	0	1	0	0	ymm,ymm,m256	32	r	vpsrlvd.y_y_m256	tested	
+VPSRLVD_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W0.45/x.r	VPSRLVD	AVX2	1	2	1	0x45	x	reg	0	1	0	0	ymm,ymm,ymm	0	-	vpsrlvd.y_y_y	tested	
+VPSRLVQ_XMMdq_XMMdq_MEMdq@VEX.128.66.0F38.W1.45/x.m	VPSRLVQ	AVX2	1	2	1	0x45	x	mem	1	0	0	0	xmm,xmm,m128	16	r	vpsrlvq.x_x_m128	tested	
+VPSRLVQ_XMMdq_XMMdq_XMMdq@VEX.128.66.0F38.W1.45/x.r	VPSRLVQ	AVX2	1	2	1	0x45	x	reg	1	0	0	0	xmm,xmm,xmm	0	-	vpsrlvq.x_x_x	tested	
+VPSRLVQ_YMMqq_YMMqq_MEMqq@VEX.256.66.0F38.W1.45/x.m	VPSRLVQ	AVX2	1	2	1	0x45	x	mem	1	1	0	0	ymm,ymm,m256	32	r	vpsrlvq.y_y_m256	tested	
+VPSRLVQ_YMMqq_YMMqq_YMMqq@VEX.256.66.0F38.W1.45/x.r	VPSRLVQ	AVX2	1	2	1	0x45	x	reg	1	1	0	0	ymm,ymm,ymm	0	-	vpsrlvq.y_y_y	tested	
+VPSRLW_YMMqq_YMMqq_IMMb@VEX.256.66.0F.Wx.71/2.r	VPSRLW	AVX2	1	1	1	0x71	2	reg	x	1	1	0	ymm,ymm,imm8	0	-	vpsrlw.y_y_i	tested	
+VPSRLW_YMMqq_YMMqq_MEMdq@VEX.256.66.0F.Wx.D1/x.m	VPSRLW	AVX2	1	1	1	0xD1	x	mem	x	1	0	0	ymm,ymm,m128	16	r	vpsrlw.y_y_m128	tested	
+VPSRLW_YMMqq_YMMqq_XMMq@VEX.256.66.0F.Wx.D1/x.r	VPSRLW	AVX2	1	1	1	0xD1	x	reg	x	1	0	0	ymm,ymm,xmm	0	-	vpsrlw.y_y_x	tested	
+VPSUBB_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.F8/x.m	VPSUBB	AVX2	1	1	1	0xF8	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpsubb.y_y_m256	tested	
+VPSUBB_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.F8/x.r	VPSUBB	AVX2	1	1	1	0xF8	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpsubb.y_y_y	tested	
+VPSUBD_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.FA/x.m	VPSUBD	AVX2	1	1	1	0xFA	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpsubd.y_y_m256	tested	
+VPSUBD_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.FA/x.r	VPSUBD	AVX2	1	1	1	0xFA	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpsubd.y_y_y	tested	
+VPSUBQ_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.FB/x.m	VPSUBQ	AVX2	1	1	1	0xFB	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpsubq.y_y_m256	tested	
+VPSUBQ_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.FB/x.r	VPSUBQ	AVX2	1	1	1	0xFB	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpsubq.y_y_y	tested	
+VPSUBSB_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.E8/x.m	VPSUBSB	AVX2	1	1	1	0xE8	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpsubsb.y_y_m256	tested	
+VPSUBSB_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.E8/x.r	VPSUBSB	AVX2	1	1	1	0xE8	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpsubsb.y_y_y	tested	
+VPSUBSW_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.E9/x.m	VPSUBSW	AVX2	1	1	1	0xE9	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpsubsw.y_y_m256	tested	
+VPSUBSW_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.E9/x.r	VPSUBSW	AVX2	1	1	1	0xE9	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpsubsw.y_y_y	tested	
+VPSUBUSB_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.D8/x.m	VPSUBUSB	AVX2	1	1	1	0xD8	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpsubusb.y_y_m256	tested	
+VPSUBUSB_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.D8/x.r	VPSUBUSB	AVX2	1	1	1	0xD8	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpsubusb.y_y_y	tested	
+VPSUBUSW_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.D9/x.m	VPSUBUSW	AVX2	1	1	1	0xD9	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpsubusw.y_y_m256	tested	
+VPSUBUSW_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.D9/x.r	VPSUBUSW	AVX2	1	1	1	0xD9	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpsubusw.y_y_y	tested	
+VPSUBW_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.F9/x.m	VPSUBW	AVX2	1	1	1	0xF9	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpsubw.y_y_m256	tested	
+VPSUBW_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.F9/x.r	VPSUBW	AVX2	1	1	1	0xF9	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpsubw.y_y_y	tested	
+VPUNPCKHBW_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.68/x.m	VPUNPCKHBW	AVX2	1	1	1	0x68	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpunpckhbw.y_y_m256	tested	
+VPUNPCKHBW_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.68/x.r	VPUNPCKHBW	AVX2	1	1	1	0x68	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpunpckhbw.y_y_y	tested	
+VPUNPCKHDQ_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.6A/x.m	VPUNPCKHDQ	AVX2	1	1	1	0x6A	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpunpckhdq.y_y_m256	tested	
+VPUNPCKHDQ_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.6A/x.r	VPUNPCKHDQ	AVX2	1	1	1	0x6A	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpunpckhdq.y_y_y	tested	
+VPUNPCKHQDQ_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.6D/x.m	VPUNPCKHQDQ	AVX2	1	1	1	0x6D	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpunpckhqdq.y_y_m256	tested	
+VPUNPCKHQDQ_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.6D/x.r	VPUNPCKHQDQ	AVX2	1	1	1	0x6D	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpunpckhqdq.y_y_y	tested	
+VPUNPCKHWD_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.69/x.m	VPUNPCKHWD	AVX2	1	1	1	0x69	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpunpckhwd.y_y_m256	tested	
+VPUNPCKHWD_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.69/x.r	VPUNPCKHWD	AVX2	1	1	1	0x69	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpunpckhwd.y_y_y	tested	
+VPUNPCKLBW_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.60/x.m	VPUNPCKLBW	AVX2	1	1	1	0x60	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpunpcklbw.y_y_m256	tested	
+VPUNPCKLBW_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.60/x.r	VPUNPCKLBW	AVX2	1	1	1	0x60	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpunpcklbw.y_y_y	tested	
+VPUNPCKLDQ_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.62/x.m	VPUNPCKLDQ	AVX2	1	1	1	0x62	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpunpckldq.y_y_m256	tested	
+VPUNPCKLDQ_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.62/x.r	VPUNPCKLDQ	AVX2	1	1	1	0x62	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpunpckldq.y_y_y	tested	
+VPUNPCKLQDQ_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.6C/x.m	VPUNPCKLQDQ	AVX2	1	1	1	0x6C	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpunpcklqdq.y_y_m256	tested	
+VPUNPCKLQDQ_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.6C/x.r	VPUNPCKLQDQ	AVX2	1	1	1	0x6C	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpunpcklqdq.y_y_y	tested	
+VPUNPCKLWD_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.61/x.m	VPUNPCKLWD	AVX2	1	1	1	0x61	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpunpcklwd.y_y_m256	tested	
+VPUNPCKLWD_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.61/x.r	VPUNPCKLWD	AVX2	1	1	1	0x61	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpunpcklwd.y_y_y	tested	
+VPXOR_YMMqq_YMMqq_MEMqq@VEX.256.66.0F.Wx.EF/x.m	VPXOR	AVX2	1	1	1	0xEF	x	mem	x	1	0	0	ymm,ymm,m256	32	r	vpxor.y_y_m256	tested	
+VPXOR_YMMqq_YMMqq_YMMqq@VEX.256.66.0F.Wx.EF/x.r	VPXOR	AVX2	1	1	1	0xEF	x	reg	x	1	0	0	ymm,ymm,ymm	0	-	vpxor.y_y_y	tested	

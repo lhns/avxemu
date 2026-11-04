@@ -473,6 +473,10 @@ set_tests_properties(claude-hardware claude-trampoline PROPERTIES LABELS "claude
 
 endif()
 
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  include(spec/spec.cmake)
+endif()
+
 set(_replay_objs $<TARGET_OBJECTS:t_refdigest>)
 foreach(p IN LISTS AVXEMU_REPLAY_PROGRAMS)
   list(APPEND _replay_objs $<TARGET_OBJECTS:${p}_driver>)

@@ -18,5 +18,7 @@ void          ref_emu(struct ref_op *o, const void *p, size_t n);
 void          ref_case(struct ref_op *o, int live_ok);
 int           ref_report(const struct ref_op *ops, int n);
 int           ref_finish(void);
+int           ref_put(const char *name, unsigned long cases, uint64_t digest);   /* record mode */
+int           ref_get(const char *name, unsigned long *cases, uint64_t *digest); /* check mode; marks the line seen */
 
 #endif
