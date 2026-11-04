@@ -84,6 +84,8 @@ def main():
     ap.add_argument("--record", default="", help="run natively only and write that TSV (use on an AVX2 host)")
     a = ap.parse_args()
     remote = os.environ.get("AVXEMU_APPS_REMOTE", "")
+    if a.lib and not remote and not os.path.exists(a.lib):      # a missing preload only warns, and every run would pass natively
+        sys.exit(f"apps: --lib {a.lib} does not exist")
     known = []
     if a.known:
         for line in open(a.known):

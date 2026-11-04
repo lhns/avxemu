@@ -130,7 +130,13 @@ that is not listed, and a listed entry whose cases all pass, both fail the run. 
 recorded on AVX2 silicon: run the `record-references` workflow and commit its artifact. QEMU TCG
 (`ctest -L tcg`) is only a stand-in oracle; it mishandles NaN payloads, fault suppression and FMA flags.
 
-**Re-recording a reference:** see INGREDIENTS.md, "Releasing".
+Run a stage with `ctest --test-dir "$AVXEMU_BUILD_DIR" -L spec` (likewise `decoder`, `semantics`, `apps`;
+`-L semantics-full` is the full-size replay, `-L silicon` the live comparison on an AVX2 host).
+The default `-L 'hermetic|replay'` run takes about a minute. `semtest record` refuses non-AVX2 CPUs and QEMU.
+
+**Re-recording a reference:** `oracle`, `bmi_oracle`, `patchtest`, `bmimem`: see INGREDIENTS.md, "Releasing".
+`semantics.ref` and `apps/expected.tsv`: run the `record-references` workflow (manual, or on a PR; it
+has a read-only token and no secrets) on its AVX2 runner and commit the artifact it uploads.
 
 ## Mavericks CI
 

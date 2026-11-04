@@ -315,6 +315,17 @@ static int have_hw(void) {
     return avx2 && bmi1 && bmi2 && fma && movbe && f16c && ((cc >> 5) & 1);
 }
 
+/* A reference must come from silicon: QEMU TCG passes have_hw() but mishandles NaNs and FMA flags. */
+static int emulated_cpu(void) {
+    char name[49] = "";
+    for (unsigned i = 0; i < 3; i++) {
+        unsigned r[4];
+        __asm__ volatile("cpuid" : "=a"(r[0]), "=b"(r[1]), "=c"(r[2]), "=d"(r[3]) : "a"(0x80000002 + i), "c"(0));
+        memcpy(name + 16 * i, r, 16);
+    }
+    return strstr(name, "QEMU") != NULL;
+}
+
 static uint64_t flags_mask(const specform *f) {
     static const struct { const char *ic; uint64_t m; } t[] = {
         {"ANDN", 0x8C1}, {"BLSI", 0x8C1}, {"BLSMSK", 0x8C1}, {"BLSR", 0x8C1}, {"BZHI", 0x8C1},
@@ -346,6 +357,8 @@ int main(int argc, char **argv) {
     specform *forms; int nf = spec_load(argv[1], &forms);
     if (nf < 0 || known_load(argv[2]) < 0) return 1;
     if (live && !have_hw()) { printf("SKIP: needs AVX2, FMA, BMI1/2, LZCNT, F16C and MOVBE (%s)\n", mode); return 77; }
+    if (record && emulated_cpu()) { printf("refusing to record: this CPU is QEMU, not silicon
+"); return 1; }
     if (map_arena() < 0) { perror("arena"); return 1; }
     install_handlers();
     avxemu_page_size();
