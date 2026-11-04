@@ -26,6 +26,9 @@ scan() {
       if (m ~ /^\(bad\)$/) bad = "undecodable"
       else if ((m == "rep" || m == "repz") && $3 ~ /^(bsf|bsr)/) bad = "rep bsf/bsr (tzcnt/lzcnt)"
       else if (m ~ /^(lzcnt|tzcnt|movbe|andn|bextr|blsi|blsr|blsmsk|bzhi|mulx|pdep|pext|rorx|sarx|shlx|shrx|adcx|adox|rdseed)[bwlq]?$/) bad = "BMI/LZCNT/MOVBE/ADX"
+      else if (ops ~ /%zmm|%k[0-7]/) bad = "AVX-512"
+      else if (m ~ /^v?(ld|st)mxcsr$/) bad = "live MXCSR (contract: passed by value)"
+      else if (m ~ /^v?(add|sub|mul|div|sqrt|min|max|rcp|rsqrt|round|dp|hadd|hsub|addsub|cvt|ucomi|comi|cmp)[a-z0-9]*(ss|sd|ps|pd|si|dq)2?[a-z0-9]*$/ && m !~ /^v?cmp[bwlq]$/) bad = "FP arithmetic (reads live MXCSR, can raise #XM)"
       else if (m ~ /^vfn?m/) bad = "FMA"
       else if (m ~ /^vcvt(ph2ps|ps2ph)$/) bad = "F16C"
       else if (m ~ /^vp?gather/) bad = "gather"
@@ -35,7 +38,7 @@ scan() {
       else if (m ~ /^vpmaskmov/) bad = "AVX2 masked move"
       else if (m ~ /^vp(sllv|srlv|srav)/) bad = "AVX2 variable shift"
       else if (m ~ /^vbroadcast(ss|sd)$/ && ops ~ /^%[xy]mm/) bad = "register-source broadcast (AVX2)"
-      else if (m == "vmovntdqa" && ops ~ /%ymm/) bad = "ymm vmovntdqa (AVX2)"
+      else if ((m == "vmovntdqa" || m == "vmpsadbw") && ops ~ /%ymm/) bad = "AVX2 on ymm"
       else if (m ~ /^vp/ && ops ~ /%ymm/ && m !~ /^(vptest|vpermil|vperm2f128)/) bad = "AVX2 integer op on ymm"
       if (bad != "") print member ": " $0 "   <- " bad
     }'
@@ -97,6 +100,18 @@ vbroadcastss %xmm0, %ymm1
 vbroadcastsd %xmm0, %ymm1
 vpaddb %ymm0, %ymm1, %ymm2
 vpcmpeqb %ymm0, %ymm1, %ymm2
+vmpsadbw $1, %ymm0, %ymm1, %ymm2
+vmovntdqa (%rax), %ymm0
+vpaddd %zmm0, %zmm1, %zmm2
+ldmxcsr (%rax)
+vstmxcsr (%rax)
+addss %xmm0, %xmm1
+vmulpd %ymm0, %ymm1, %ymm2
+vdivsd %xmm0, %xmm1, %xmm2
+vcvtsi2sd %rax, %xmm0, %xmm1
+vcvttss2si %xmm0, %rax
+vucomisd %xmm0, %xmm1
+vcmpltps %ymm0, %ymm1, %ymm2
 call __udivti3
 EOF
   cat > "$dir/ok.S" <<'EOF'
@@ -109,6 +124,12 @@ f:
 	vbroadcastss (%rax), %ymm0
 	vmovdqu %ymm0, (%rax)
 	vandnps %ymm0, %ymm1, %ymm2
+	vmovss (%rax), %xmm0
+	vmovsd %xmm0, (%rax)
+	vmovaps %ymm0, %ymm1
+	cmpb $0, (%rax)
+	cmpq %rax, %rbx
+	vshufps $1, %ymm0, %ymm1, %ymm2
 	vzeroupper
 	bsf %rax, %rbx
 	bsr %rax, %rbx
