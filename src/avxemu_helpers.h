@@ -10,7 +10,7 @@
  *   - It touches no memory except its arguments, and it never faults.
  *   - Return 1: handled, results written. Return 0: op not implemented here, nothing written.
  *
- * vec_exec / fma_exec (vex_op and operand order as in vexops.h)
+ * vec_exec (vex_op and operand order as in vexops.h; FMA ops included)
  *   - *mxcsr is the guest MXCSR, passed in and out; it must be non-NULL. Rounding mode, FTZ, DAZ
  *     and the exception masks are read from it; the exception flags an op raises (bits 0-5) are
  *     ORed into it. Only FMA and VCVTPH2PS read or write it; every other op leaves it alone.
@@ -22,7 +22,8 @@
  *
  * bmi_exec
  *   - No MXCSR. src1/src2 follow each op's Intel operand order; opsize is 16, 32 or 64.
- *   - *dst gets the result, zero-extended to 64 bits (MULX also writes *dst2, the high half).
+ *   - *dst gets the result, zero-extended to 64 bits (MULX also writes *dst2, the high half). A
+ *     16-bit op writes only the destination's low word on hardware: the caller merges it.
  *   - *flags is RFLAGS in and out. ANDN, BLSI, BLSR, BLSMSK, BZHI, BEXTR, TZCNT and LZCNT replace
  *     CF (bit 0), ZF (6), SF (7) and OF (11) and keep every other bit; no op touches PF or AF.
  *     All other ops leave *flags unchanged, so the caller may always store it back.
