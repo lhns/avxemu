@@ -130,6 +130,10 @@ int avxemu_emulate(const decoded *d, avxemu_regfile *rf) {
     else if (d->b_src >= 0)   memcpy(B.b, rf->ymm[d->b_src], 32);
     if (d->c_src >= 0)        memcpy(C.b, rf->ymm[d->c_src], 32);
     if (d->shift_imm) { memset(B.b,0,32); B.b[0] = d->imm; }
+    /* A VEX.128 FMA must not compute, or raise flags for, the stale upper lanes. */
+    if (!d->wide && d->op >= VFMADD132 && d->op <= VFNMSUB231) {
+        memset(A.b + 16, 0, 16); memset(B.b + 16, 0, 16); memset(C.b + 16, 0, 16);
+    }
 
     if (!vec_exec(d->op, d->type, &A, &B, &C, d->imm, &OUT, &gpr_out)) return 0;
 
