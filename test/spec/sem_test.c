@@ -80,6 +80,28 @@ static void collect(sem_out *o) {
     o->mem_hash = fnv(g_data, 2 * PAGE, REF_FNV_OFFSET);
 }
 
+/* debug (SEM_DUMP=file): one line per case of what the CPU did, to name the inputs behind a digest
+ * that differs between two machines. Rflags are raw, so undefined flags show here but not in digests. */
+static void dump_hex(FILE *d, const uint8_t *p, int n) { for (int b = n - 1; b >= 0; b--) fprintf(d, "%02x", p[b]); }
+static void dump_case(FILE *d, const specform *f, const sem_case *c, const sem_out *o) {
+    fprintf(d, "%s\t%d\t", f->name, c->idx);
+    for (int b = 0; b < c->len; b++) fprintf(d, "%02x", c->code[b]);
+    fprintf(d, "\t%x\t%llx\tdst=%d,vvvv=%d,rm=%d", c->in.mxcsr, (unsigned long long)c->in.rflags, c->reg, c->vvvv, c->rm);
+    int rg[3] = {c->reg, c->vvvv, c->rm};
+    for (int q = 0; q < 3; q++) { fprintf(d, ",y%d=", rg[q] & 15); dump_hex(d, c->in.ymm[rg[q] & 15], 32); }
+    long off = f->mem ? (long)(c->ea - (uintptr_t)g_data) : -1;
+    int mn = off < 0 || off >= 2 * PAGE ? 0 : off + 32 <= 2 * PAGE ? 32 : 2 * PAGE - off;
+    if (mn) { fprintf(d, ",mem="); dump_hex(d, c->mem + off, mn); }
+    fprintf(d, "\t%d\t%llx\t%llx\t%llx\t%x\t%llx\t", o->kind, (unsigned long long)o->fault_page, (unsigned long long)(o->st.rflags & FLAGS_MASK),
+            (unsigned long long)o->st.rflags, o->st.mxcsr, (unsigned long long)o->mem_hash);
+    if (mn && memcmp(g_data + off, c->mem + off, mn)) { fprintf(d, "mem="); dump_hex(d, g_data + off, mn); fputc(' ', d); }
+    if (o->kind == K_OK) {
+        for (int r = 0; r < 16; r++) if (memcmp(o->st.ymm[r], c->in.ymm[r], 32)) { fprintf(d, "y%d=", r); dump_hex(d, o->st.ymm[r], 32); fputc(' ', d); }
+        for (int r = 0; r < 16; r++) if (o->st.gpr[r] != c->in.gpr[r]) fprintf(d, "g%d=%llx ", r, (unsigned long long)o->st.gpr[r]);
+    }
+    fputc('\n', d);
+}
+
 /* ---------------------------------------------------------------- runners */
 static void run_hw(const sem_case *c, sem_out *o) {
     memset(o, 0, sizeof *o);
@@ -315,7 +337,8 @@ static int have_hw(void) {
     return avx2 && bmi1 && bmi2 && fma && movbe && f16c && ((cc >> 5) & 1);
 }
 
-/* A reference must come from silicon: QEMU TCG passes have_hw() but mishandles NaNs and FMA flags. */
+/* A reference must come from silicon: QEMU TCG passes have_hw() but mishandles NaNs and FMA flags.
+ * A KVM guest of QEMU can carry the same name yet runs these instructions on the host CPU. */
 static int emulated_cpu(void) {
     char name[49] = "";
     for (unsigned i = 0; i < 3; i++) {
@@ -323,7 +346,9 @@ static int emulated_cpu(void) {
         __asm__ volatile("cpuid" : "=a"(r[0]), "=b"(r[1]), "=c"(r[2]), "=d"(r[3]) : "a"(0x80000002 + i), "c"(0));
         memcpy(name + 16 * i, r, 16);
     }
-    return strstr(name, "QEMU") != NULL;
+    unsigned r[4];
+    __asm__ volatile("cpuid" : "=a"(r[0]), "=b"(r[1]), "=c"(r[2]), "=d"(r[3]) : "a"(0x40000000), "c"(0));
+    return strstr(name, "QEMU") != NULL && memcmp(&r[1], "KVMKVMKVM\0\0\0", 12) != 0;
 }
 
 static uint64_t flags_mask(const specform *f) {
@@ -366,6 +391,7 @@ int main(int argc, char **argv) {
         return 1;
     }
     sem_runner emu = run_emu;
+    FILE *dump = live && getenv("SEM_DUMP") ? fopen(getenv("SEM_DUMP"), "w") : NULL;
     long ncases = 0, nforms = 0; int deterministic_bad = 0;
     for (int i = 0; i < nf; i++) {
         const specform *f = &forms[i];
@@ -394,6 +420,7 @@ int main(int argc, char **argv) {
             if (live) {
                 run_hw(&c, &ho);
                 size_t nh = pack(&ho, ph);
+                if (dump) dump_case(dump, f, &c, &ho);
                 dh_f = fnv(ph, nh, dh_f); if (smoke) dh_s = fnv(ph, nh, dh_s);
                 if ((nh != ne || memcmp(ph, pe, ne)) && getenv("SEM_DIFFMAX") && diffs++ < atoi(getenv("SEM_DIFFMAX"))) {
                     /* debug: every differing case with its inputs and both outcomes, beyond the first repro */
@@ -453,5 +480,6 @@ int main(int argc, char **argv) {
     int rc = known_finish("semantics");
     if (deterministic_bad) { printf("emulator results are not deterministic across two passes\n"); rc++; }
     if (refpath) rc += ref_finish();
+    if (dump) fclose(dump);
     return rc != 0;
 }
