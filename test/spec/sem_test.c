@@ -6,6 +6,7 @@
  *   semtest self   [smoke|full]            emulator only: decodes, runs, is deterministic
  *   semtest check  REF [smoke|full]        emulator only, digests against REF (recorded on silicon)
  *   semtest record REF                     needs the instruction set: real CPU vs emulator, writes REF
+ *   semtest fault                          the fault handlers catch a write to a guard page
  *   semtest live   [smoke|full]            real CPU vs emulator, no file (silicon, or QEMU TCG as a stand-in)
  * common options: MANIFEST KNOWN as the first two arguments.
  *
@@ -54,14 +55,34 @@ typedef void (*sem_runner)(const sem_case *c, sem_out *o);
 static sigjmp_buf g_jb; static volatile int g_sig; static volatile uintptr_t g_addr;
 static void on_fault(int sig, siginfo_t *si, void *uc) { (void)uc; g_sig = sig; g_addr = (uintptr_t)si->si_addr; siglongjmp(g_jb, 1); }
 
-/* Known gap: the platform loader interposes sigaction(), so a static link (no RTLD_NEXT to the libc
- * original) loses these handlers and a faulting case kills the run. A fix needs a raw rt_sigaction. */
+/* The loader interposes sigaction(), and a static link has no RTLD_NEXT original behind it, so
+ * install through the kernel directly (x86-64 Linux needs an explicit sigreturn restorer). */
+#if defined(__linux__) && defined(__x86_64__)
+#include <sys/syscall.h>
+#include <unistd.h>
+__asm__(".text
+.type sem_restorer,@function
+sem_restorer:
+	movl $15,%eax
+	syscall
+.size sem_restorer,.-sem_restorer
+");
+void sem_restorer(void);
+static void set_handler(int sig, const struct sigaction *sa) {
+    struct { void *h; unsigned long flags; void *restorer; uint64_t mask; } ks;
+    ks.h = (void *)sa->sa_sigaction; ks.flags = (unsigned long)sa->sa_flags | 0x04000000UL /* SA_RESTORER */;
+    ks.restorer = (void *)sem_restorer; ks.mask = 0;
+    syscall(SYS_rt_sigaction, sig, &ks, 0, 8);
+}
+#else
+static void set_handler(int sig, const struct sigaction *sa) { sigaction(sig, sa, 0); }
+#endif
 static void install_handlers(void) {
     static uint8_t stack[65536];
     stack_t ss = {.ss_sp = stack, .ss_size = sizeof stack}; sigaltstack(&ss, 0);
     struct sigaction sa; memset(&sa, 0, sizeof sa);
     sa.sa_sigaction = on_fault; sa.sa_flags = SA_SIGINFO | SA_ONSTACK | SA_NODEFER; sigemptyset(&sa.sa_mask);
-    sigaction(SIGSEGV, &sa, 0); sigaction(SIGBUS, &sa, 0); sigaction(SIGFPE, &sa, 0);
+    set_handler(SIGSEGV, &sa); set_handler(SIGBUS, &sa); set_handler(SIGFPE, &sa);
 }
 
 static int map_arena(void) {
@@ -394,6 +415,12 @@ int main(int argc, char **argv) {
     if (record && emulated_cpu()) { printf("refusing to record: this CPU is QEMU, not silicon\n"); return 1; }
     if (map_arena() < 0) { perror("arena"); return 1; }
     install_handlers();
+    if (!strcmp(mode, "fault")) {     /* the handlers must catch a real fault, also in a static link */
+        if (sigsetjmp(g_jb, 1) == 0) { *(volatile uint8_t *)g_gl = 1; puts("fault: no fault raised"); return 1; }
+        printf("fault: caught signal %d at %p
+", g_sig, (void *)g_addr);
+        return g_sig == SIGSEGV && g_addr == (uintptr_t)g_gl ? 0 : 1;
+    }
     avxemu_page_size();
     if (refpath && ref_begin(record ? REF_RECORD : REF_CHECK, "semantics", refpath) != 0) {
         if (check) { printf("SKIP: no reference at %s (record one on AVX2 hardware: .github/workflows/record-references.yml)\n", refpath); return 77; }

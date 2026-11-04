@@ -60,6 +60,17 @@ target_compile_options(semtest PRIVATE "$<$<COMPILE_LANGUAGE:C>:${AVXEMU_CORE_FL
 target_compile_definitions(semtest PRIVATE SEM_MANIFEST="${SPEC_DIR}/manifest.tsv" SEM_KNOWN="${KNOWN_FAILURES}")
 target_include_directories(semtest PRIVATE "${SPEC_DIR}" "${PROJECT_SOURCE_DIR}/src" "${CMAKE_CURRENT_SOURCE_DIR}")
 set_target_properties(semtest PROPERTIES LINKER_LANGUAGE C)
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  # Static link: the interposed sigaction() has no libc original, so the fault handlers must not use it.
+  add_executable(semtest-static spec/sem_test.c spec/sem_hw.S $<TARGET_OBJECTS:t_spec> $<TARGET_OBJECTS:t_refdigest>
+    $<TARGET_OBJECTS:avxemu_core> $<TARGET_OBJECTS:avxemu_asm> ${AVXEMU_PLATFORM_OBJECTS})
+  target_compile_options(semtest-static PRIVATE "$<$<COMPILE_LANGUAGE:C>:${AVXEMU_CORE_FLAGS}>" -UNDEBUG)
+  target_compile_definitions(semtest-static PRIVATE SEM_MANIFEST="${SPEC_DIR}/manifest.tsv" SEM_KNOWN="${KNOWN_FAILURES}")
+  target_include_directories(semtest-static PRIVATE "${SPEC_DIR}" "${PROJECT_SOURCE_DIR}/src" "${CMAKE_CURRENT_SOURCE_DIR}")
+  target_link_options(semtest-static PRIVATE -static)
+  set_target_properties(semtest-static PROPERTIES LINKER_LANGUAGE C)
+  add_test(NAME semantics-static-fault COMMAND semtest-static fault)
+endif()
 set(SEM_REF "${CMAKE_CURRENT_SOURCE_DIR}/reference/semantics.ref")
 set(SEM_ARGS "${SPEC_DIR}/manifest.tsv" "${KNOWN_FAILURES}")
 add_test(NAME semantics-self COMMAND semtest ${SEM_ARGS} self smoke)
