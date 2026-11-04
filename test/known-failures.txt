@@ -2,7 +2,6 @@
 #   id  case-glob  forms-glob|-  reason
 # The case name is <suite>/<form name>/<variant>. A failing case must match a line; a line whose
 # cases ran and all passed fails the run ("XPASS"), so delete the line when the bug is fixed.
-DEC-ADDR32	decoder/*/addr32	-	decode() treats 0x67 as padding, but it is the address-size override: a memory operand's address is computed in 32 bits (and rip-relative becomes eip-relative) on hardware, 64 bits here
 DEC-MEMW-CVTPH2PS	decoder/vcvtph2ps.x_m64/memw	vcvtph2ps.x_m64	vcvtph2ps xmm, m64 reads 8 bytes; mem_bytes is 16
 DEC-MOVBE-FORMS	decoder-neg/invalid.leg.*.2.f[01]/legacy	-	movbe accepted with a register operand (mod=3 is #UD) and with F2/F3 prefixes (not movbe)
 DEC-MOVBE-SOUP	decoder-soup/0f38f[01]/accept	-	same: 0F 38 F0/F1 with a register modrm decodes as movbe

@@ -136,7 +136,7 @@ static int positive(const specform *f) {
             fail[1] = ndr != x.nreg || memcmp(dr, x.reg, ndr * sizeof(int)) != 0;
             if (f->mem) {
                 int hm = d.has_mem && (d.a_src == OPND_MEM || d.b_src == OPND_MEM || d.dst_kind == DST_MEM);
-                fail[8] = p67 && f->mem;      /* 0x67 truncates the address; decoded cannot say so */
+                fail[8] = p67 && f->mem && !d.addr32;      /* 0x67 truncates the address; decode() must say so */
                 if (!p67) fail[2] = !hm || d.base != (x.base < 0 ? OPND_NONE : x.base) || d.index != (x.index < 0 ? OPND_NONE : x.index) ||
                           (x.index >= 0 && d.scale != x.scale) || d.disp != (int32_t)x.disp || d.rip_rel != x.rip;
                 fail[3] = d.mem_bytes != x.memw;
