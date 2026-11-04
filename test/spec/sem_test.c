@@ -61,6 +61,7 @@ static void on_fault(int sig, siginfo_t *si, void *uc) { (void)uc; g_sig = sig; 
 #include <sys/syscall.h>
 #include <unistd.h>
 __asm__(".text\n"
+        ".globl sem_restorer\n"
         ".type sem_restorer,@function\n"
         "sem_restorer:\n"
         "\tmovl $15,%eax\n"
