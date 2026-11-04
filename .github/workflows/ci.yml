@@ -1,4 +1,3 @@
-# The fork's CI: release.yml also runs macOS jobs and publishes, which need upstream's secrets.
 name: ci
 
 on:
