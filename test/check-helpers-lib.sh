@@ -3,15 +3,19 @@
 #   usage: check-helpers-lib.sh LIB.a      fail unless the library is plain AVX1 code that needs
 #                                          nothing from libc but memcpy/memset/memmove
 #          check-helpers-lib.sh --selftest prove the checks fire on deliberately bad objects
-# The CI CPU runs AVX2/BMI/FMA happily and the Ivy Bridge target does not, so only this guard
-# stops such an instruction from entering libavxemu_helpers.a.
+#          The CI CPU runs AVX2/BMI/FMA happily and the Ivy Bridge target does not, so only this
+#          guard stops such an instruction from entering libavxemu_helpers.a.
 set -eu
 NM=${NM:-nm}
 OBJDUMP=${OBJDUMP:-objdump}
 
-# Prints one line per violation; nothing when the object or archive is clean.
 scan() {
-  "$NM" -u "$1" | awk '$1 == "U" && $2 !~ /^(memcpy|memset|memmove)$/ { print "undefined symbol: " $2 }'
+  # platform: nm -u on an archive lists symbols another member defines, so subtract those
+  defined=$("$NM" --defined-only "$1" | awk 'NF == 3 { print $3 }')
+  "$NM" -u "$1" | awk '$1 == "U" { print $2 }' | sort -u | while read -r sym; do
+    case "$sym" in memcpy|memset|memmove) continue ;; esac
+    printf '%s\n' "$defined" | grep -qx -- "$sym" || echo "undefined symbol: $sym"
+  done
   "$OBJDUMP" -d --no-show-raw-insn "$1" | awk '
     / file format / { member = $1 }
     $1 !~ /^[0-9a-f]+:$/ { next }
@@ -39,10 +43,9 @@ scan() {
 
 selftest() {
   cc=${CC:-cc}
-  dir=$(mktemp -d)
+  dir=$(mktemp -d "${TMPDIR:-/tmp}/helpers-lib.XXXXXX")
   trap 'rm -rf "$dir"' EXIT INT TERM
   n=0
-  # One instruction per object; each must be flagged.
   while IFS= read -r insn; do
     [ -n "$insn" ] || continue
     n=$((n + 1))
@@ -96,7 +99,6 @@ vpaddb %ymm0, %ymm1, %ymm2
 vpcmpeqb %ymm0, %ymm1, %ymm2
 call __udivti3
 EOF
-  # What AVX1 code legitimately uses must pass.
   cat > "$dir/ok.S" <<'EOF'
 .text
 f:
