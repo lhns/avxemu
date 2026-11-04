@@ -40,7 +40,22 @@ static void mem_read(void *dst, uint64_t ea, int n, int seg){
     else
         memcpy(d8 + n0, (const void *)(uintptr_t)b, tail);
 }
+/* Hardware commits nothing when any byte of a store faults, so a store that spans two pages
+ * must find out about the second one before writing the first. An atomic or-with-zero faults
+ * exactly as the store would and changes nothing, whatever other threads do meanwhile. */
+static void probe_w(uint64_t ea, int seg){
+    if (seg == 1)      __asm__ volatile("lock orb $0,%%gs:(%0)"::"r"(ea):"memory","cc");
+    else if (seg == 2) __asm__ volatile("lock orb $0,%%fs:(%0)"::"r"(ea):"memory","cc");
+    else               __asm__ volatile("lock orb $0,(%0)"::"r"(ea):"memory","cc");
+}
+static void probe_store(uint64_t ea, int n, int seg, int always){
+    uint64_t last = ea + (uint64_t)n - 1, page = avxemu_page_size();
+    if (!always && !seg && ea / page == last / page) return;   /* one page: the store is all-or-nothing */
+    probe_w(ea, seg);
+    if (seg || ea / page != last / page) probe_w(last, seg);
+}
 static void mem_write(uint64_t ea, const void *src, int n, int seg){
+    probe_store(ea, n, seg, 0);
     if (seg == 1)      for (int i=0;i<n;i++){ uint8_t v=((const uint8_t*)src)[i]; __asm__ volatile("movb %0,%%gs:(%1)"::"r"(v),"r"(ea+(uint64_t)i)); }
     else if (seg == 2) for (int i=0;i<n;i++){ uint8_t v=((const uint8_t*)src)[i]; __asm__ volatile("movb %0,%%fs:(%1)"::"r"(v),"r"(ea+(uint64_t)i)); }
     else               memcpy((void*)ea, src, n);
@@ -103,6 +118,11 @@ int avxemu_emulate(const decoded *d, avxemu_regfile *rf) {
         uint64_t ea = ea_rf(d, rf, rip_next);
         if (d->dst_kind == DST_MEM) {
             const uint8_t *src = (const uint8_t *)rf->ymm[d->b_src];
+            /* every selected lane is checked before any is written */
+            for (int i = 0; i < lanes; i++) {
+                int sign = (lsz == 8) ? (((const int64_t *)mask)[i] < 0) : (((const int32_t *)mask)[i] < 0);
+                if (sign) probe_store(ea + (uint64_t)i * lsz, lsz, d->seg, 1);
+            }
             for (int i = 0; i < lanes; i++) {
                 int sign = (lsz == 8) ? (((const int64_t *)mask)[i] < 0) : (((const int32_t *)mask)[i] < 0);
                 if (sign) mem_write(ea + (uint64_t)i * lsz, src + i * lsz, lsz, d->seg);
