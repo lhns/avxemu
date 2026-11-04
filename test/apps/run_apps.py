@@ -107,7 +107,7 @@ def main():
         if name == "numpy" and not present("python3 -c 'import numpy'", remote):
             print("SKIP apps/numpy: python numpy missing")
             continue
-        if name == "duckdb-python" and not present("python3 -c 'import duckdb'", remote):
+        if name == "duckdb-python" and not present("python3 -c 'import importlib.metadata as m; m.version(\"duckdb\")'", remote):
             print("SKIP apps/duckdb-python: python duckdb module missing")
             continue
         ref = sh(cmd, remote)
