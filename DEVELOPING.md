@@ -132,11 +132,21 @@ recorded on AVX2 silicon: run the `record-references` workflow and commit its ar
 
 Run a stage with `ctest --test-dir "$AVXEMU_BUILD_DIR" -L spec` (likewise `decoder`, `semantics`, `apps`;
 `-L semantics-full` is the full-size replay, `-L silicon` the live comparison on an AVX2 host).
-The default `-L 'hermetic|replay'` run takes about a minute. `semtest record` refuses non-AVX2 CPUs and QEMU.
+The default `-L 'hermetic|replay'` run takes about a minute. `semtest record` refuses non-AVX2 CPUs and QEMU TCG; a KVM guest named QEMU runs these instructions on the host CPU and may record.
 
 **Re-recording a reference:** `oracle`, `bmi_oracle`, `patchtest`, `bmimem`: see INGREDIENTS.md, "Releasing".
 `semantics.ref` and `apps/expected.tsv`: run the `record-references` workflow (manual, or on a PR; it
 has a read-only token and no secrets) on its AVX2 runner and commit the artifact it uploads.
+
+`semantics.intel.ref` is a second recording, not replayed by any test: `semantics.ref` stays the replay
+contract. It came from an Intel VM whose CPUID hides the model. Intel is measured, not taken from the
+vendor string: its `rcpps`/`rsqrtps` results match Ivy Bridge and two Xeons and differ from AMD, and it has
+no SSE4A. Haswell-class is inferred: AVX2, FMA and BMI run; ADX, SHA, CLFLUSHOPT and RTM are `#UD`.
+It differs from `semantics.ref` in one form, `movbe.m64_g.2` (`66 REX.W 0F 38 F1`): in 36 of 81 cases that
+fault on a page-split store, memory after the fault differs. A Xeon 6975P matches `semantics.ref` there, so
+this is CPU generation, not vendor. `SEM_DUMP=file` writes one line per case, with raw rflags, to compare
+machines; it also shows the BMI/LZCNT/TZCNT flags the SDM leaves undefined, which digests mask and which do
+differ between Intel and AMD.
 
 ## Mavericks CI
 
