@@ -75,11 +75,13 @@ def present(cmd, remote):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--lib", required=True)
+    ap.add_argument("--lib", default="")
     ap.add_argument("--known", default="")
     ap.add_argument("--modes", default=",".join(MODES))
     ap.add_argument("--work", default=".")
     ap.add_argument("--only", default="*")
+    ap.add_argument("--expected", default="", help="TSV of workload, output sha256 recorded natively on an AVX2 host")
+    ap.add_argument("--record", default="", help="run natively only and write that TSV (use on an AVX2 host)")
     a = ap.parse_args()
     remote = os.environ.get("AVXEMU_APPS_REMOTE", "")
     known = []
@@ -89,6 +91,10 @@ def main():
                 c = line.rstrip("\n").split("\t")
                 if c[1].startswith("apps/"):
                     known.append((c[0], c[1]))
+    expected = {}
+    if a.expected and os.path.exists(a.expected):
+        expected = dict(line.rstrip("\n").split("\t")[:2] for line in open(a.expected) if line.strip() and line[0] != "#")
+    recorded = []
     ran = bad = 0
     hits = {k: [0, 0] for k in known}
     os.makedirs(a.work, exist_ok=True)
@@ -105,8 +111,14 @@ def main():
             print("SKIP apps/duckdb-python: python duckdb module missing")
             continue
         ref = sh(cmd, remote)
-        if ref[0] != 0:
-            print(f"SKIP apps/{name}: the native run itself fails ({ref[0]}): {ref[2][-120:]!r}")
+        if a.record:
+            if ref[0] == 0: recorded.append(f"{name}\t{ref[1]}")
+            else: print(f"SKIP apps/{name}: native run fails ({ref[0]})")
+            continue
+        if ref[0] != 0 and name in expected:
+            ref = (0, expected[name], "")        # this CPU cannot run it natively: use the recording from one that can
+        elif ref[0] != 0:
+            print(f"SKIP apps/{name}: the native run itself fails ({ref[0]}) and no recording exists: {ref[2][-120:]!r}")
             continue
         for mode in a.modes.split(","):
             case = f"apps/{name}/{mode}"
@@ -122,6 +134,10 @@ def main():
                 print(f"FAIL {case}: exit {got[0]} (native {ref[0]}), output {'differs' if got[1] != ref[1] else 'same'}; stderr: {got[2][-200:]!r}")
             else:
                 print(f"{'expected-fail' if not ok else 'ok'} {case}")
+    if a.record:
+        open(a.record, "w", newline="\n").write("# apps output hashes recorded natively on an AVX2 host (run_apps.py --record)\n" + "\n".join(recorded) + "\n")
+        print(f"recorded {len(recorded)} workloads to {a.record}")
+        return 0 if recorded else 77
     for k, (r, f) in hits.items():
         if r and not f:
             print(f"XPASS known failure {k[0]} now passes: remove it")

@@ -90,6 +90,6 @@ endif()
 find_package(Python3 COMPONENTS Interpreter)
 if(Python3_FOUND AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
   add_test(NAME apps COMMAND "${Python3_EXECUTABLE}" -I "${CMAKE_CURRENT_SOURCE_DIR}/apps/run_apps.py"
-    --lib $<TARGET_FILE:avxemu> --known "${KNOWN_FAILURES}" --work "${CMAKE_BINARY_DIR}/apps-work")
+    --lib $<TARGET_FILE:avxemu> --known "${KNOWN_FAILURES}" --expected "${CMAKE_CURRENT_SOURCE_DIR}/apps/expected.tsv" --work "${CMAKE_BINARY_DIR}/apps-work")
   set_tests_properties(apps PROPERTIES LABELS apps TIMEOUT 3600 SKIP_RETURN_CODE 77)
 endif()
