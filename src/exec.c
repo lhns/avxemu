@@ -1,8 +1,9 @@
 /*
  * exec.c — SSE-only emulation of the AVX2/F16C vector trap set.
  *
- * COMPILE SSE4.2-ONLY (-msse4.2 -mno-avx). Verified to emit no VEX, so it is
- * safe to run on the target CPU (Sandy/Ivy Bridge: AVX1 + SSE4.2, no AVX2).
+ * The runtime compiles it SSE4.2-ONLY (-msse4.2 -mno-avx), verified to emit no VEX, so it is
+ * safe to run on the target CPU (Sandy/Ivy Bridge: AVX1 + SSE4.2, no AVX2). libavxemu_helpers.a
+ * compiles it with -mavx instead (AVX1 only, guarded by test/check-helpers-lib.sh).
  *
  * Three strategies:
  *   - per-128-bit-lane ops  -> apply the SSE equivalent to low & high halves
@@ -40,7 +41,7 @@ static inline const uint8_t *lane(const ymm256 *v, int l){ return v->b + 16*l; }
 
 int vec_exec(vex_op op, int type,
              const ymm256 *a, const ymm256 *b, const ymm256 *c,
-             uint8_t imm, ymm256 *out, uint64_t *gpr_out)
+             uint8_t imm, ymm256 *out, uint64_t *gpr_out, uint32_t *mxcsr)
 {
     switch (op) {
     /* ---- add / sub (wrap) ---- */
@@ -260,13 +261,14 @@ int vec_exec(vex_op op, int type,
 
     /* ---- F16C: 8 halfs (low 128 of b) -> 8 floats ---- */
     case VCVTPH2PS: {
-        const uint16_t *s=(const uint16_t*)b->b; float *o=(float*)out->b;
+        const uint16_t *s=(const uint16_t*)b->b; float o[8];
         uint32_t fl=0;
         for (int i=0;i<8;i++) {
             o[i]=half_to_float(s[i]);
             if ((s[i]&0x7E00)==0x7C00 && (s[i]&0x3FF)) fl=1;      /* signalling NaN: IE */
         }
-        fp_raise(fl);
+        if (!fp_raise(mxcsr, fl)) return AVXEMU_FP_PENDING;
+        memcpy(out->b, o, 32);
         return 1;
     }
 
@@ -275,7 +277,7 @@ int vec_exec(vex_op op, int type,
     case VFMSUB132: case VFMSUB213: case VFMSUB231:
     case VFNMADD132:case VFNMADD213:case VFNMADD231:
     case VFNMSUB132:case VFNMSUB213:case VFNMSUB231:
-        return fma_exec(op, type, a, b, c, out);
+        return fma_exec(op, type, a, b, c, out, mxcsr);
 
     default:
         return 0;   /* not a vector op (BMI handled elsewhere) or unimplemented */

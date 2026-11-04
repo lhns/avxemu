@@ -308,6 +308,7 @@ Only a native build without AVX2 beats this.
 |---|---|
 | `decode.c`, `lde.c` | instruction decoder; length decoder and recursive-descent scanner |
 | `exec.c`, `exec_bmi.c`, `softfma.c` | the SSE-only emulator core |
+| `avxemu_helpers.h` | contract of `libavxemu_helpers.a`, the same three sources built AVX1-only for other clients (MXCSR passed in and out, never faults); `test/check-helpers-lib.sh` guards the archive, `semantics-replay-vex` runs the suite against it |
 | `tramp.c`, `tramp.S`, `reloc.c` | trampoline scanner, installer and thunk template; runtime relocation of trapping sites |
 | `lcache.c` | the load-time cache: records the load-time passes' result, replays it |
 | `handler.c`, `patch_mem.c` | the constructor, signal handlers, lzcnt/tzcnt patcher |

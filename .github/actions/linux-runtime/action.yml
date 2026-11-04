@@ -40,6 +40,12 @@ runs:
       shell: bash
       run: cmake --build "$BUILD" -j2
 
+    - name: Helper library is AVX1-only and libc-free
+      shell: bash
+      run: |
+        sh test/check-helpers-lib.sh --selftest
+        sh test/check-helpers-lib.sh "$BUILD/libavxemu_helpers.a"
+
     - name: Hermetic and replay registry
       shell: bash
       run: ctest --test-dir "$BUILD" --no-tests=error --output-on-failure -L 'hermetic|replay'

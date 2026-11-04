@@ -79,6 +79,23 @@ set_tests_properties(semantics-live PROPERTIES LABELS "semantics;silicon" TIMEOU
 set_tests_properties(semantics-live-full PROPERTIES LABELS "semantics;silicon;semantics-full" TIMEOUT 3600)
 set_tests_properties(semantics-self semantics-replay semantics-replay-full semantics-live semantics-live-full
   PROPERTIES SKIP_RETURN_CODE 77 ENVIRONMENT "AVXEMU_DISABLE=1")
+# The same suite with the emulation core taken from libavxemu_helpers.a (AVX1 build) instead of
+# the SSE-only objects: replay against the recorded references must give identical answers.
+if(TARGET avxemu_core_vex)
+  add_executable(semtest-vex spec/sem_test.c spec/sem_hw.S $<TARGET_OBJECTS:t_spec> $<TARGET_OBJECTS:t_refdigest>
+    $<TARGET_OBJECTS:avxemu_core_vex> $<TARGET_OBJECTS:avxemu_asm> ${AVXEMU_PLATFORM_OBJECTS})
+  target_compile_options(semtest-vex PRIVATE "$<$<COMPILE_LANGUAGE:C>:${AVXEMU_CORE_FLAGS}>" -UNDEBUG)
+  target_compile_definitions(semtest-vex PRIVATE SEM_MANIFEST="${SPEC_DIR}/manifest.tsv" SEM_KNOWN="${KNOWN_FAILURES}")
+  target_include_directories(semtest-vex PRIVATE "${SPEC_DIR}" "${PROJECT_SOURCE_DIR}/src" "${CMAKE_CURRENT_SOURCE_DIR}")
+  target_link_libraries(semtest-vex PRIVATE avxemu_helpers)
+  set_target_properties(semtest-vex PROPERTIES LINKER_LANGUAGE C)
+  add_test(NAME semantics-replay-vex COMMAND semtest-vex ${SEM_ARGS} check "${SEM_REF}" smoke)
+  add_test(NAME semantics-replay-full-vex COMMAND semtest-vex ${SEM_ARGS} check "${SEM_REF}" full)
+  set_tests_properties(semantics-replay-vex PROPERTIES LABELS "semantics;replay" TIMEOUT 300)
+  set_tests_properties(semantics-replay-full-vex PROPERTIES LABELS "semantics;semantics-full" TIMEOUT 1800)
+  set_tests_properties(semantics-replay-vex semantics-replay-full-vex
+    PROPERTIES SKIP_RETURN_CODE 77 ENVIRONMENT "AVXEMU_DISABLE=1")
+endif()
 # QEMU TCG as a stand-in oracle when there is no AVX2 host: NOT silicon, so never in a default label.
 find_program(QEMU_X86_64 qemu-x86_64)
 if(QEMU_X86_64)

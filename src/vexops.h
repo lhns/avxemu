@@ -92,23 +92,25 @@ typedef enum {
 /* FMA element type. */
 enum { FT_SS = 0, FT_SD = 1, FT_PS = 2, FT_PD = 3 };
 
+/* Return of the executors when an unmasked FP exception stops the op (see avxemu_helpers.h). */
+#define AVXEMU_FP_PENDING (-1)
+
 /*
  * Vector executor: out = op(a, b, c, imm). Returns 1 if handled, 0 if the op
- * is not a vector op / not implemented. gpr_out receives the 32-bit result of
- * VPMOVMSKB (zero-extended). `type` is only consulted for FMA ops.
- *
- * Implemented SSE-only in exec.c (compiled -mno-avx), so it is representative
- * of code that runs on the target CPU.
+ * is not a vector op / not implemented, AVXEMU_FP_PENDING on an unmasked FP
+ * exception. gpr_out receives the 32-bit result of VPMOVMSKB (zero-extended).
+ * `type` is only consulted for FMA ops. *mxcsr is consulted and updated by FMA and
+ * VCVTPH2PS only. The contract is in avxemu_helpers.h.
  */
 int vec_exec(vex_op op, int type,
              const ymm256 *a, const ymm256 *b, const ymm256 *c,
-             uint8_t imm, ymm256 *out, uint64_t *gpr_out);
+             uint8_t imm, ymm256 *out, uint64_t *gpr_out, uint32_t *mxcsr);
 
 /*
- * Scalar (BMI/LZCNT/TZCNT/MOVBE) executor. opsize is 32 or 64.
+ * Scalar (BMI/LZCNT/TZCNT/MOVBE) executor. opsize is 16, 32 or 64.
  *   dst   = primary result
  *   dst2  = MULX high half (else untouched)
- *   flags = updated for the ops that write RFLAGS (CF/ZF/SF/OF/PF), else copied
+ *   flags = RFLAGS in/out; see avxemu_helpers.h for which ops write which bits
  * src1/src2 follow each op's Intel operand order (see exec_bmi.c).
  */
 int bmi_exec(vex_op op, int opsize,

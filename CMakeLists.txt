@@ -96,6 +96,28 @@ else()
 endif()
 avxemu_objects(avxemu_asm ${AVXEMU_ASM_SOURCES})
 
+if(NOT APPLE)
+  # libavxemu_helpers.a: the emulation core alone, for a client that runs without libc on an
+  # AVX1 CPU (contract: src/avxemu_helpers.h). AVX1 is the ceiling; test/check-helpers-lib.sh
+  # verifies the built archive, since the CI CPU would run anything above it.
+  add_library(avxemu_helpers STATIC src/exec.c src/exec_bmi.c src/softfma.c)
+  target_include_directories(avxemu_helpers PRIVATE "${PROJECT_SOURCE_DIR}/src")
+  target_compile_options(avxemu_helpers PRIVATE -O2 -Wall -std=c11
+    -mavx -mno-avx2 -mno-fma -mno-f16c -mno-bmi -mno-bmi2 -mno-lzcnt -mno-movbe
+    -mtune=ivybridge -fPIC -fno-stack-protector -D_FORTIFY_SOURCE=0)
+  set_target_properties(avxemu_helpers PROPERTIES ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
+  include(GNUInstallDirs)
+  install(TARGETS avxemu_helpers ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}")
+  install(FILES src/avxemu_helpers.h src/vexops.h src/ymm.h
+    DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/avxemu")
+
+  # The runtime without those three sources: linked with the archive it must answer the same
+  # (semtest-vex in test/spec/spec.cmake).
+  set(AVXEMU_VEX_SOURCES ${AVXEMU_COMMON_SOURCES})
+  list(REMOVE_ITEM AVXEMU_VEX_SOURCES src/exec.c src/exec_bmi.c src/softfma.c)
+  avxemu_objects(avxemu_core_vex ${AVXEMU_VEX_SOURCES} src/platform/linux/loader.c)
+endif()
+
 if(NOT AVXEMU_BACKEND_TESTS_ONLY)
   add_library(avxemu SHARED $<TARGET_OBJECTS:avxemu_core> $<TARGET_OBJECTS:avxemu_asm> ${AVXEMU_PLATFORM_OBJECTS})
   set_target_properties(avxemu PROPERTIES
