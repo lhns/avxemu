@@ -357,8 +357,7 @@ int main(int argc, char **argv) {
     specform *forms; int nf = spec_load(argv[1], &forms);
     if (nf < 0 || known_load(argv[2]) < 0) return 1;
     if (live && !have_hw()) { printf("SKIP: needs AVX2, FMA, BMI1/2, LZCNT, F16C and MOVBE (%s)\n", mode); return 77; }
-    if (record && emulated_cpu()) { printf("refusing to record: this CPU is QEMU, not silicon
-"); return 1; }
+    if (record && emulated_cpu()) { printf("refusing to record: this CPU is QEMU, not silicon\n"); return 1; }
     if (map_arena() < 0) { perror("arena"); return 1; }
     install_handlers();
     avxemu_page_size();
