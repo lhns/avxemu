@@ -3,12 +3,11 @@
  *
  * The FMA is exact integer arithmetic, not libm fma(): libm's result, NaN choice and flags
  * depend on the host's MXCSR handling, so it cannot match the CPU under every rounding mode,
- * FTZ/DAZ, sticky flag and unmasked exception. The MXCSR in force on entry supplies rounding,
+ * FTZ/DAZ, sticky flag and unmasked exception. The MXCSR value passed in supplies rounding,
  * FTZ, DAZ and the exception masks; the raised flags are ORed into it.
  */
 
 #include "softfma.h"
-#include <xmmintrin.h>
 #include <string.h>
 
 float half_to_float(uint16_t h) {
@@ -171,28 +170,16 @@ static void fma_lanes(ffmt f, int order, int negp, int negc, int n,
     }
 }
 
-/* An unmasked exception is #XM on silicon: no result is written. Provoke the real SSE fault of
- * the same kind (MXCSR still has the application's masks) so the application sees a SIGFPE. */
-static void fma_trap(uint32_t t) {
-    float x, y;
-    if (t & F_IE)      { x = 0.0f;    y = 0.0f;    __asm__ volatile("divss %1, %0" : "+x"(x) : "x"(y)); }
-    else if (t & F_DE) { x = 1e-40f;  y = 0.0f;    __asm__ volatile("addss %1, %0" : "+x"(x) : "x"(y)); }
-    else if (t & F_OE) { x = 3e38f;   y = 3e38f;   __asm__ volatile("mulss %1, %0" : "+x"(x) : "x"(y)); }
-    else if (t & F_UE) { x = 1e-30f;  y = 1e-30f;  __asm__ volatile("mulss %1, %0" : "+x"(x) : "x"(y)); }
-    else               { x = 1.0f;    y = 3.0f;    __asm__ volatile("divss %1, %0" : "+x"(x) : "x"(y)); }
-}
-
-int fp_raise(uint32_t fl) {
-    uint32_t csr = _mm_getcsr();
+int fp_raise(uint32_t *mxcsr, uint32_t fl) {
     if (!fl) return 1;
-    _mm_setcsr(csr | fl);
-    uint32_t trap = fl & ~(csr >> 7) & 0x3F;
-    if (trap) { fma_trap(trap); return 0; }
-    return 1;
+    uint32_t csr = *mxcsr;
+    *mxcsr = csr | fl;
+    return !(fl & ~(csr >> 7) & 0x3F);
 }
 
 int fma_exec(vex_op op, int type,
-             const ymm256 *a, const ymm256 *b, const ymm256 *c, ymm256 *out) {
+             const ymm256 *a, const ymm256 *b, const ymm256 *c, ymm256 *out,
+             uint32_t *mxcsr) {
     int order, negp, negc;
     switch (op) {
     case VFMADD132: order=0; negp=0; negc=0; break;
@@ -211,11 +198,12 @@ int fma_exec(vex_op op, int type,
     }
     int scalar = type == FT_SD || type == FT_SS, dbl = type == FT_SD || type == FT_PD;
     int n = scalar ? 1 : dbl ? 4 : 8, fl = 0;
-    uint32_t csr = _mm_getcsr();
+    uint32_t csr = *mxcsr;
     ymm256 tmp;
     if (scalar) { memcpy(tmp.b, c->b, 16); memset(tmp.b + 16, 0, 16); }   /* keep dst's upper bits, zero 255:128 */
     else memset(tmp.b, 0, 32);
     fma_lanes(dbl ? FD : FS, order, negp, negc, n, a->b, b->b, c->b, tmp.b, csr, &fl);
-    if (fp_raise((uint32_t)fl)) *out = tmp;
+    if (!fp_raise(mxcsr, (uint32_t)fl)) return AVXEMU_FP_PENDING;
+    *out = tmp;
     return 1;
 }

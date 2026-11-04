@@ -21,6 +21,7 @@
 /* ---------- PRNG ---------- */
 static uint64_t rng = 0x9e3779b97f4a7c15ull;
 static uint64_t xs(void){ uint64_t x=rng; x^=x<<13; x^=x>>7; x^=x<<17; return rng=x; }
+static uint32_t mx_ = 0x1F80;   /* vec_exec takes MXCSR by value: default, all exceptions masked */
 static void fill(ymm256*v){ uint64_t*q=(uint64_t*)v->b; for(int i=0;i<4;i++)q[i]=xs(); }
 
 /* ---------- compare helpers ---------- */
@@ -122,7 +123,7 @@ static int run_simple(int rec) {
             if (cat == CAT_SHIFT) { memset(b.b, 0, 32); ((uint64_t *)b.b)[0] = xs() % 72; }
             if (cat == CAT_VSHIFT) { for (int k = 0; k < 8; k++) ((uint32_t *)b.b)[k] = (uint32_t)(xs() % 72); }
             memset(&got, 0xCC, 32);
-            vec_exec(op, 0, &a, &b, &c, 0, &got, &ggot);
+            vec_exec(op, 0, &a, &b, &c, 0, &got, &ggot, &mx_);
             int ok = 1;
             if (rec) {
                 memset(&ref, 0, 32);
@@ -162,7 +163,7 @@ static int run_imm(int rec) {
             for (int k = 0; k < 13; k++) {
                 ymm256 got, ref; uint64_t g;
                 memset(&got, 0xCC, 32);
-                vec_exec(imm_ops[k], 0, &a, &b, &c, imm, &got, &g);
+                vec_exec(imm_ops[k], 0, &a, &b, &c, imm, &got, &g, &mx_);
                 int ok = 1;
                 if (rec) { oracle_hw_imm(k, imm, &a, &b, &ref); ok = eq32(&ref, &got); ref_hw(&ops[k], ref.b, 32); }
                 ref_emu(&ops[k], got.b, 32);
@@ -195,7 +196,7 @@ static int run_fma(int rec) {
             const ymm256 *abc[3] = {&a, &b, &c};
             int ok;
             /* pd */
-            memset(&got, 0xCC, 32); vec_exec(op, FT_PD, &a, &b, &c, 0, &got, &g); ok = 1;
+            memset(&got, 0xCC, 32); vec_exec(op, FT_PD, &a, &b, &c, 0, &got, &g, &mx_); ok = 1;
             if (rec) {
                 double *o = (double *)ref.b;
                 for (int k = 0; k < 4; k++)
@@ -205,7 +206,7 @@ static int run_fma(int rec) {
             }
             x = canon_pd(&got); ref_emu(&ops[i*4 + 0], x.b, 32); ref_case(&ops[i*4 + 0], ok);
             /* ps */
-            memset(&got, 0xCC, 32); vec_exec(op, FT_PS, &a, &b, &c, 0, &got, &g); ok = 1;
+            memset(&got, 0xCC, 32); vec_exec(op, FT_PS, &a, &b, &c, 0, &got, &g, &mx_); ok = 1;
             if (rec) {
                 float *o = (float *)ref.b;
                 for (int k = 0; k < 8; k++)
@@ -215,7 +216,7 @@ static int run_fma(int rec) {
             }
             x = canon_ps(&got); ref_emu(&ops[i*4 + 1], x.b, 32); ref_case(&ops[i*4 + 1], ok);
             /* sd: low element computed, upper 64 from c, 255:128 zero */
-            memset(&got, 0xCC, 32); vec_exec(op, FT_SD, &a, &b, &c, 0, &got, &g); ok = 1;
+            memset(&got, 0xCC, 32); vec_exec(op, FT_SD, &a, &b, &c, 0, &got, &g, &mx_); ok = 1;
             if (rec) {
                 memcpy(ref.b, c.b, 16); memset(ref.b + 16, 0, 16);
                 ((double *)ref.b)[0] = oracle_hw_fma_d(variant, ((const double *)abc[m1i]->b)[0],
@@ -224,7 +225,7 @@ static int run_fma(int rec) {
             }
             x = canon_scalar(&got, 1); ref_emu(&ops[i*4 + 2], x.b, 32); ref_case(&ops[i*4 + 2], ok);
             /* ss */
-            memset(&got, 0xCC, 32); vec_exec(op, FT_SS, &a, &b, &c, 0, &got, &g); ok = 1;
+            memset(&got, 0xCC, 32); vec_exec(op, FT_SS, &a, &b, &c, 0, &got, &g, &mx_); ok = 1;
             if (rec) {
                 memcpy(ref.b, c.b, 16); memset(ref.b + 16, 0, 16);
                 ((float *)ref.b)[0] = oracle_hw_fma_f(variant, ((const float *)abc[m1i]->b)[0],
@@ -259,7 +260,7 @@ static int run_fma_edge(int rec) {
             ymm256 a, b, c, got, ref, v; uint64_t g;
             for (int k = 0; k < 4; k++) { ((double *)a.b)[k] = X; ((double *)b.b)[k] = Y; ((double *)c.b)[k] = Z; }
             const ymm256 *abc[3] = {&a, &b, &c};
-            memset(&got, 0xCC, 32); vec_exec(op, FT_PD, &a, &b, &c, 0, &got, &g);
+            memset(&got, 0xCC, 32); vec_exec(op, FT_PD, &a, &b, &c, 0, &got, &g, &mx_);
             int ok = 1;
             if (rec) {
                 for (int k = 0; k < 4; k++)

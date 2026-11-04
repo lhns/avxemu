@@ -1,9 +1,21 @@
 #include <stdint.h>
 #include <string.h>
+#include <xmmintrin.h>
 #include "decode.h"
 #include "regs.h"
 #include "regfile.h"
 #include "platform/memory.h"
+
+/* An unmasked exception is #XM on silicon: no result is written. Provoke the real SSE fault of
+ * the same kind (MXCSR still has the application's masks) so the application sees a SIGFPE. */
+static void fp_fault(uint32_t t) {
+    float x, y;
+    if (t & 1)        { x = 0.0f;    y = 0.0f;    __asm__ volatile("divss %1, %0" : "+x"(x) : "x"(y)); }   /* IE */
+    else if (t & 2)   { x = 1e-40f;  y = 0.0f;    __asm__ volatile("addss %1, %0" : "+x"(x) : "x"(y)); }   /* DE */
+    else if (t & 8)   { x = 3e38f;   y = 3e38f;   __asm__ volatile("mulss %1, %0" : "+x"(x) : "x"(y)); }   /* OE */
+    else if (t & 16)  { x = 1e-30f;  y = 1e-30f;  __asm__ volatile("mulss %1, %0" : "+x"(x) : "x"(y)); }   /* UE */
+    else              { x = 1.0f;    y = 3.0f;    __asm__ volatile("divss %1, %0" : "+x"(x) : "x"(y)); }   /* ZE, PE */
+}
 
 /*
  * Emulated memory access. `seg` selects a segment override (1=gs, 2=fs): the
@@ -156,7 +168,14 @@ int avxemu_emulate(const decoded *d, avxemu_regfile *rf) {
     }
     if (!d->wide && d->op == VCVTPH2PS) memset(B.b + 8, 0, 24);   /* xmm form: 4 halves only */
 
-    if (!vec_exec(d->op, d->type, &A, &B, &C, d->imm, &OUT, &gpr_out)) return 0;
+    /* The helpers never fault: they take MXCSR by value and report an unmasked exception as
+     * FP_PENDING. Run them with the sticky bits clear so `raised` is exactly this op's flags. */
+    uint32_t csr = _mm_getcsr(), mx = csr & ~0x3Fu;
+    int ran = vec_exec(d->op, d->type, &A, &B, &C, d->imm, &OUT, &gpr_out, &mx);
+    if (!ran) return 0;
+    uint32_t raised = mx & 0x3Fu;
+    if (raised) _mm_setcsr(csr | raised);
+    if (ran == AVXEMU_FP_PENDING) { fp_fault(raised & ~(csr >> 7)); return 0; }
 
     if (d->dst_kind == DST_GPR) {
         /* VPMOVMSKB r32, xmm (VEX.128) yields a 16-bit mask with the upper bits
