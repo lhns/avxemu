@@ -57,10 +57,16 @@ Checked 2026-09-27 on Mac OS X 10.9 with `Apple LLVM version 6.0 (clang-600.0.57
 - Release `20260908.1` is cross-built in CI with the runner's Xcode clang (shipyard's
   toolchain sets the SDK, not the compiler), so its bytes differ again. Its behaviour is
   checked by the hermetic and replay tests, which pass on both builds, and by a run of the
-  shipped dylib on Mac OS X 10.9 before release (INGREDIENTS.md, "Releasing").
+  shipped dylib on Mac OS X 10.9 before release (the release process is in git history).
 
 ## Earlier extraction
 
 An extraction of 2026-08-14 lived in this checkout, local only and never pushed. It stopped
 before the linked-load rebind and Wowfunhappy's last commit, and carried none of the
 fixes above. This history supersedes it.
+
+## This fork
+
+lhns/avxemu keeps the emulation core and the test suite and drops the preload mechanism and the
+macOS port, which stay in git history (everything up to `fc34cc8`). The history above, the
+authorship of every commit and the CC0 licence are unchanged.

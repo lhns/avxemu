@@ -82,35 +82,13 @@ static void on_ill(int sig, siginfo_t *si, void *uc) {
 }
 static void on_fault(int sig, siginfo_t *si, void *uc) { capture_ymm(uc); g_sig = sig; g_addr = (uintptr_t)si->si_addr; siglongjmp(g_jb, 1); }
 
-/* The loader interposes sigaction(), and a static link has no RTLD_NEXT original behind it, so
- * install through the kernel directly (x86-64 Linux needs an explicit sigreturn restorer). */
-#if defined(__linux__) && defined(__x86_64__)
-#include <sys/syscall.h>
-#include <unistd.h>
-__asm__(".text\n"
-        ".globl sem_restorer\n"
-        ".type sem_restorer,@function\n"
-        "sem_restorer:\n"
-        "\tmovl $15,%eax\n"
-        "\tsyscall\n"
-        ".size sem_restorer,.-sem_restorer\n");
-void sem_restorer(void);
-static void set_handler(int sig, const struct sigaction *sa) {
-    struct { void *h; unsigned long flags; void *restorer; uint64_t mask; } ks;
-    ks.h = (void *)sa->sa_sigaction; ks.flags = (unsigned long)sa->sa_flags | 0x04000000UL /* SA_RESTORER */;
-    ks.restorer = (void *)sem_restorer; ks.mask = 0;
-    syscall(SYS_rt_sigaction, sig, &ks, 0, 8);
-}
-#else
-static void set_handler(int sig, const struct sigaction *sa) { sigaction(sig, sa, 0); }
-#endif
 static void install_handlers(void) {
     static uint8_t stack[65536];
     stack_t ss = {.ss_sp = stack, .ss_size = sizeof stack}; sigaltstack(&ss, 0);
     struct sigaction sa; memset(&sa, 0, sizeof sa);
     sa.sa_sigaction = on_fault; sa.sa_flags = SA_SIGINFO | SA_ONSTACK | SA_NODEFER; sigemptyset(&sa.sa_mask);
-    set_handler(SIGSEGV, &sa); set_handler(SIGBUS, &sa); set_handler(SIGFPE, &sa);
-    sa.sa_sigaction = on_ill; set_handler(SIGILL, &sa);
+    sigaction(SIGSEGV, &sa, 0); sigaction(SIGBUS, &sa, 0); sigaction(SIGFPE, &sa, 0);
+    sa.sa_sigaction = on_ill; sigaction(SIGILL, &sa, 0);
 }
 
 static int map_arena(void) {

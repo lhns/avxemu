@@ -52,7 +52,7 @@ typedef struct {
 /*
  * Decode one instruction at p (length-limited to <=15). Returns the
  * instruction length on success, or 0 if it is not an instruction this
- * emulator handles (the handler then chains to the next SIGILL handler).
+ * emulator handles.
  */
 int decode(const uint8_t *p, decoded *d);
 

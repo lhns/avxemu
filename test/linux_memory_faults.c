@@ -13,16 +13,11 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-enum { NORMAL, OPEN_ERROR, READ_ERROR, EMPTY, TRUNCATED, MALFORMED, WRONG_ADDRESS,
-       READ_UNAVAILABLE, READ_DENIED };
+enum { NORMAL, OPEN_ERROR, READ_ERROR, EMPTY, TRUNCATED, MALFORMED, READ_UNAVAILABLE, READ_DENIED };
 static int mode, maps_fd = -1, synthetic_eof;
-static void *unexpected;
-static int cleaned;
 
 int __real_open(const char *, int, ...);
 ssize_t __real_read(int, void *, size_t);
-void *__real_mmap(void *, size_t, int, int, int, off_t);
-int __real_munmap(void *, size_t);
 long __real_syscall(long, ...);
 
 int __wrap_open(const char *path, int flags, ...) {
@@ -54,30 +49,6 @@ ssize_t __wrap_read(int fd, void *dst, size_t size) {
     return __real_read(fd, dst, size);
 }
 
-void *__wrap_mmap(void *address, size_t size, int prot, int flags, int fd, off_t offset) {
-    if (mode == WRONG_ADDRESS) {
-        assert(!(flags & MAP_FIXED));
-        size_t page = avxemu_page_size();
-        unsigned char *p = __real_mmap(NULL, size + page, prot, MAP_PRIVATE | MAP_ANON, -1, 0);
-        assert(p != MAP_FAILED);
-        if (p == address) {
-            assert(!__real_munmap(p, page));
-            unexpected = p + page;
-        } else {
-            assert(!__real_munmap(p + size, page));
-            unexpected = p;
-        }
-        assert(unexpected != address);
-        return unexpected;
-    }
-    return __real_mmap(address, size, prot, flags, fd, offset);
-}
-
-int __wrap_munmap(void *address, size_t size) {
-    if (mode == WRONG_ADDRESS && address == unexpected) cleaned++;
-    return __real_munmap(address, size);
-}
-
 long __wrap_syscall(long number, ...) {
     assert(number == SYS_process_vm_readv);
     if (mode == READ_UNAVAILABLE || mode == READ_DENIED) {
@@ -106,18 +77,9 @@ static void failures(void) {
         avxemu_mapping mapping = {11, 22, 33}, original = mapping;
         assert(avxemu_memory_query((uintptr_t)p, &mapping) == -1);
         assert(!memcmp(&mapping, &original, sizeof mapping));
-        assert(!avxemu_memory_map_gap((uintptr_t)p + page, page));
-        assert(!avxemu_memory_patch_begin((uintptr_t)p, 1, &mapping));
-        assert(!memcmp(&mapping, &original, sizeof mapping));
     }
-    mode = WRONG_ADDRESS;
-    assert(!avxemu_memory_map_gap((uintptr_t)p + page, page));
-    assert(cleaned == 1);
-    assert(!avxemu_memory_alloc_near((uintptr_t)p, page));
-    assert(cleaned > 1);
     mode = NORMAL;
     avxemu_mapping mapping;
-    assert(avxemu_memory_query((uintptr_t)unexpected, &mapping) == 0);
     assert(avxemu_memory_query((uintptr_t)p + page, &mapping) == 0);
     for (mode = READ_UNAVAILABLE; mode <= READ_DENIED; mode++) {
         unsigned char dst[8];
