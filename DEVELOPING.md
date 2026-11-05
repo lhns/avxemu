@@ -270,7 +270,9 @@ Measured by disassembling Claude Code 2.1.166 (15,380,168 instructions):
 
 Two facts keep this tractable:
 
-- **No gathers:** `vpgather*` appears zero times.
+- **Gathers are rare:** `vpgather*` appears zero times in that binary. They are emulated anyway (`emulate.c`, VSIB, `d->vsib_index`),
+  element by element into the register file, so a fault leaves the architectural partial state. They touch memory, so they
+  are not in the helper archive: a client that only links `libavxemu_helpers.a` has to expand them itself.
 - **The 256-bit moves are AVX1:** `vmovups`, `vmovdqu` and `vmovaps` (~155k) run natively.
 
 ## Performance

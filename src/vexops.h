@@ -86,6 +86,9 @@ typedef enum {
     BMI_MULX, BMI_PDEP, BMI_PEXT, BMI_RORX, BMI_SARX, BMI_SHLX, BMI_SHRX,
     BMI_TZCNT, BMI_LZCNT, BMI_MOVBE,
 
+    /* ---- AVX2 gathers (VSIB; memory-level, handled in emulate.c) ---- */
+    VGATHER,
+
     VEX_OP_COUNT
 } vex_op;
 

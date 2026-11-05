@@ -79,6 +79,7 @@ static int decode_inner(const uint8_t *p, decoded *d) {
     memset(d, 0, sizeof *d);
     d->a_src = d->b_src = d->c_src = OPND_NONE;
     d->dst = OPND_NONE; d->bmi_dst2 = OPND_NONE; d->base = OPND_NONE; d->index = OPND_NONE;
+    d->vsib_index = OPND_NONE;
 
     /* ---- legacy-encoded: tzcnt / lzcnt (F3 0F BC/BD), movbe (0F38 F0/F1) ---- */
     {
@@ -253,6 +254,16 @@ static int decode_inner(const uint8_t *p, decoded *d) {
                    d->a_src=vvvv; d->b_src=(rm<0)?OPND_MEM:rm; d->mem_bytes=L?32:16; handled=1; break;
         case 0x8E: d->op = W?VPMASKMOVQ:VPMASKMOVD; d->dst=OPND_MEM; d->dst_kind=DST_MEM;
                    d->a_src=vvvv; d->b_src=reg; d->mem_bytes=L?32:16; handled=1; break;
+        /* AVX2 gathers: 90 vpgatherd[dq], 91 vpgatherq[dq], 92 vgatherd[ps|pd], 93 vgatherq[ps|pd].
+         * Memory form with a SIB is mandatory; dst, mask (vvvv) and the index register must differ. */
+        case 0x90: case 0x91: case 0x92: case 0x93: {
+            int ix = ((q[2]>>3)&7) + (rexX?8:0);
+            if (!d->has_mem || d->rip_rel || (q[1]&7) != 4) return 0;
+            if (reg == vvvv || reg == ix || vvvv == ix) return 0;
+            d->op = VGATHER; d->dst=reg; d->dst_kind=DST_YMM; d->a_src=vvvv; d->b_src=OPND_NONE;
+            d->vsib_index = ix; d->index = OPND_NONE; d->vsib_bytes = (opcode&1) ? 8 : 4;
+            d->mem_bytes = W ? 8 : 4; handled=1; break;
+        }
         default:
             /* FMA: 96-9F / A6-AF / B6-BF */
             if ((opcode>=0x96&&opcode<=0x9F)||(opcode>=0xA6&&opcode<=0xAF)||(opcode>=0xB6&&opcode<=0xBF)) {
