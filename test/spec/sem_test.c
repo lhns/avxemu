@@ -227,12 +227,17 @@ static void run_case(sem_runner run, const sem_case *c, sem_out *o, int *rbad) {
     run(&r, &ro); run(c, &uo);
     guards(PROT_NONE);
     memcpy(o->rymm, ro.st.ymm, sizeof o->rymm); o->rkind = ro.kind;
-    /* What the mask holds in its not yet processed elements at the fault differs by vendor (Intel
-     * normalises them to all ones / zero as the SDM pseudocode says, AMD leaves them), and software cannot
-     * tell: only the MSB selects. Compare that, not the low bits. docs/vendor-differences.md. */
+    /* Intel and AMD differ in what a faulted gather has done so far to what it overwrites or zeroes on
+     * completion: the mask elements not yet processed (Intel normalises them to all ones or zero as the
+     * SDM pseudocode says, AMD leaves them), the bits of dst and mask above the gathered elements (Intel
+     * zeroes the upper half of a VEX.128 form and the unused part up front, AMD at completion), and the
+     * upper mask elements of a ymm-index form. Software cannot tell: only the MSB selects. Compare the
+     * gathered dst elements and the MSB of the mask elements; docs/vendor-differences.md. */
     int elem, idxsz, count; gather_shape(c->f, &elem, &idxsz, &count);
     uint8_t *mk = o->fymm[c->vvvv & 15];
     for (int i = 0; i < count; i++) memset(mk + i * elem, (mk[i * elem + elem - 1] & 0x80) ? 0xFF : 0, elem);
+    memset(mk + count * elem, 0, 32 - count * elem);
+    memset(o->fymm[c->reg & 15] + count * elem, 0, 32 - count * elem);
     if (ro.kind != uo.kind || ro.mem_hash != uo.mem_hash || memcmp(ro.st.ymm, uo.st.ymm, sizeof ro.st.ymm)) *rbad = 1;
 }
 
