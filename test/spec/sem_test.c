@@ -23,6 +23,7 @@
 #include <setjmp.h>
 #include <signal.h>
 #include <ucontext.h>
+#include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -73,6 +74,13 @@ static void capture_ymm(const void *ucv) {
     }
     g_fymm_ok = 1;
 }
+/* A #UD on the real CPU means the harness generated an invalid encoding; name it instead of dying silently. */
+static char g_curcase[160];
+static void on_ill(int sig, siginfo_t *si, void *uc) {
+    (void)si; (void)uc; (void)sig;
+    fprintf(stderr, "SIGILL on the real CPU: %s
+", g_curcase); fflush(stdout); _exit(3);
+}
 static void on_fault(int sig, siginfo_t *si, void *uc) { capture_ymm(uc); g_sig = sig; g_addr = (uintptr_t)si->si_addr; siglongjmp(g_jb, 1); }
 
 /* The loader interposes sigaction(), and a static link has no RTLD_NEXT original behind it, so
@@ -103,6 +111,7 @@ static void install_handlers(void) {
     struct sigaction sa; memset(&sa, 0, sizeof sa);
     sa.sa_sigaction = on_fault; sa.sa_flags = SA_SIGINFO | SA_ONSTACK | SA_NODEFER; sigemptyset(&sa.sa_mask);
     set_handler(SIGSEGV, &sa); set_handler(SIGBUS, &sa); set_handler(SIGFPE, &sa);
+    sa.sa_sigaction = on_ill; set_handler(SIGILL, &sa);
 }
 
 static int map_arena(void) {
@@ -153,6 +162,7 @@ static void run_hw(const sem_case *c, sem_out *o) {
     g_code[c->len] = 0xFF; g_code[c->len + 1] = 0x25; memset(g_code + c->len + 2, 0, 4);
     uintptr_t after = (uintptr_t)sem_hw_after; memcpy(g_code + c->len + 6, &after, 8);
     o->st = c->in;
+    { int n = snprintf(g_curcase, sizeof g_curcase, "%s case %d: ", c->f->name, c->idx); for (int b = 0; b < c->len && n < (int)sizeof g_curcase - 3; b++) n += snprintf(g_curcase + n, sizeof g_curcase - n, "%02x", c->code[b]); }
     g_sig = 0;
     if (!sigsetjmp(g_jb, 1)) sem_hw_call(&o->st, g_code);
     else {
