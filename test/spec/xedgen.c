@@ -128,7 +128,8 @@ int main(void) {
         const char *Ws = w0 && w1 ? "x" : w1 ? "1" : "0";
         const char *Ls = !f->vex ? "-" : l0 && l1 ? "x" : l1 ? "1" : "0";
         char ext[8], enc[160];
-        if (f->extmask == 0xFF) strcpy(ext, "x");
+        /* A gather needs dst, mask and index to differ, so the probe never accepts every modrm.reg: not an opcode extension. */
+        if (f->extmask == 0xFF || !strcmp(f->isa, "AVX2GATHER")) strcpy(ext, "x");
         else snprintf(ext, sizeof ext, "%d", __builtin_ctz(f->extmask));
         snprintf(enc, sizeof enc, "%s.%s.%s.%s.W%s.%02X/%s.%s%s",
                  f->vex ? "VEX" : "LEG", f->vex ? (Ls[0] == 'x' ? "LIG" : Ls[0] == '1' ? "256" : "128") : "-",
