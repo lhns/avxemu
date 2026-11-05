@@ -128,9 +128,9 @@ int avxemu_emulate(const decoded *d, avxemu_regfile *rf) {
 
     /* AVX2 gather (SDM VPGATHERDD etc.). Written into rf element by element, so a fault leaves exactly
      * the architectural partial state: elements before it are in dst and cleared in the mask, and the
-     * instruction can be restarted. Masked-off elements are never read. The mask is first normalised
-     * (MSB set -> all ones, else 0), then each element is cleared as it completes; on completion the
-     * whole mask register and everything in dst above the gathered elements are zero. */
+     * instruction can be restarted. Masked-off elements are never read. Each mask element is cleared as
+     * it is processed (the rest keep their value); on completion the whole mask register and everything
+     * in dst above the gathered elements are zero. */
     if (d->op == VGATHER) {
         int elem = d->mem_bytes, isz = d->vsib_bytes, vec = d->wide ? 32 : 16;
         int count = vec / (elem > isz ? elem : isz);
@@ -139,11 +139,7 @@ int avxemu_emulate(const decoded *d, avxemu_regfile *rf) {
         const uint8_t *ix = rf->ymm[d->vsib_index];
         uint64_t base = ea_rf(d, rf, rip_next);
         for (int i = 0; i < count; i++) {
-            int on = (mask[i * elem + elem - 1] >> 7) & 1;
-            memset(mask + i * elem, on ? 0xFF : 0, elem);
-        }
-        for (int i = 0; i < count; i++) {
-            if (mask[i * elem]) {
+            if ((mask[i * elem + elem - 1] >> 7) & 1) {
                 int64_t v;
                 if (isz == 8) memcpy(&v, ix + i * 8, 8);
                 else { int32_t v32; memcpy(&v32, ix + i * 4, 4); v = v32; }
