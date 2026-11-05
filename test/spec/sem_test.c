@@ -78,8 +78,7 @@ static void capture_ymm(const void *ucv) {
 static char g_curcase[160];
 static void on_ill(int sig, siginfo_t *si, void *uc) {
     (void)si; (void)uc; (void)sig;
-    fprintf(stderr, "SIGILL on the real CPU: %s
-", g_curcase); fflush(stdout); _exit(3);
+    fprintf(stderr, "SIGILL on the real CPU: %s\n", g_curcase); fflush(stdout); _exit(3);
 }
 static void on_fault(int sig, siginfo_t *si, void *uc) { capture_ymm(uc); g_sig = sig; g_addr = (uintptr_t)si->si_addr; siglongjmp(g_jb, 1); }
 
