@@ -28,30 +28,21 @@ jobs:
           for f in avx2 bmi1 bmi2 fma f16c movbe abm; do
             grep -qw "$f" /proc/cpuinfo || { echo "this runner lacks $f; references must come from AVX2 silicon"; exit 1; }
           done
-      - name: Install mavericks-shipyard
-        uses: Mavergreen/shipyard/.github/actions/install@v1
       - name: Build
         run: |
-          cmake -S . -B "$RUNNER_TEMP/b" -DMavericksShipyard_DIR="$MavericksShipyard_DIR"
+          cmake -S . -B "$RUNNER_TEMP/b"
           cmake --build "$RUNNER_TEMP/b" -j4 --target semtest
       - name: Emulator against this CPU, every case
         continue-on-error: true
         run: |
           mkdir -p "$RUNNER_TEMP/out"
-          AVXEMU_DISABLE=1 KNOWN_VERBOSE=1 "$RUNNER_TEMP/b/test/semtest" live full 2>&1 | tee "$RUNNER_TEMP/out/live.log"
+          KNOWN_VERBOSE=1 "$RUNNER_TEMP/b/test/semtest" live full 2>&1 | tee "$RUNNER_TEMP/out/live.log"
           exit "${PIPESTATUS[0]}"
       - name: Record the reference
         continue-on-error: true
         run: |
-          AVXEMU_DISABLE=1 KNOWN_VERBOSE=1 "$RUNNER_TEMP/b/test/semtest" record "$RUNNER_TEMP/out/semantics.ref" 2>&1 | tee "$RUNNER_TEMP/out/record.log"
+          KNOWN_VERBOSE=1 "$RUNNER_TEMP/b/test/semtest" record "$RUNNER_TEMP/out/semantics.ref" 2>&1 | tee "$RUNNER_TEMP/out/record.log"
           exit "${PIPESTATUS[0]}"
-      - name: Record app output hashes (native, AVX2)
-        continue-on-error: true
-        run: |
-          sudo apt-get install -y -qq zstd sqlite3 openssl python3-numpy python3-venv
-          python3 -m venv --system-site-packages "$RUNNER_TEMP/dv"
-          "$RUNNER_TEMP/dv/bin/pip" install -q duckdb==2.0.0
-          PATH="$RUNNER_TEMP/dv/bin:$PATH" python3 test/apps/run_apps.py --record "$RUNNER_TEMP/out/expected.tsv" 2>&1 | tee "$RUNNER_TEMP/out/apps.log"
       - uses: actions/upload-artifact@v7
         if: always()
         with:

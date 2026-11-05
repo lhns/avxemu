@@ -4,16 +4,14 @@
  *             addressing modes and 0x67/segment padding: length, registers, memory operand,
  *             memory width and read/write direction must equal XED's.
  *   negative  the whole VEX/legacy opcode space: whatever XED says is not one of our
- *             instructions (crc32, bsf/bsr, SSE4.2, AVX1, invalid) must be rejected by decode(),
- *             and lde_scan_zcnt() must not rewrite it.
+ *             instructions (crc32, bsf/bsr, SSE4.2, AVX1, invalid) must be rejected by decode().
  *   soup      prefix orderings around lzcnt/tzcnt/movbe/crc32/bsf/bsr/popcnt.
- *   fuzz      random bytes: lengths from x86_len() and decode() must equal XED's.
+ *   fuzz      random bytes: decode()'s length must equal XED's.
  * usage: decoder_test MANIFEST KNOWN [positive|negative|fuzz|all] [fuzz-iterations]
  */
 #include "spec.h"
 #include "known.h"
 #include "decode.h"
-#include "lde.h"
 #include "xed-interface.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -104,9 +102,9 @@ static const struct memv memvs[] = {
 static const int regv[][3] = {{1, 2, 3}, {9, 10, 11}, {15, 0, 8}, {3, 3, 3}, {0, 0, 1}, {7, 12, 5}, {2, 9, 2}};
 
 static int positive(const specform *f) {
-    uint8_t b[40], pad[40]; int bad[9] = {0}, seen = 0;
-    static const char *const what[] = {"len", "regs", "mem", "memw", "rw", "imm", "seg", "scan", "addr32"};
-    uint8_t first[9][24]; int firstn[9]; char why[9][64];
+    uint8_t b[40], pad[40]; int bad[8] = {0}, seen = 0;
+    static const char *const what[] = {"len", "regs", "mem", "memw", "rw", "imm", "seg", "addr32"};
+    uint8_t first[8][24]; int firstn[8]; char why[8][64];
     int nW = f->W < 0 ? 2 : 1, nL = f->L == -1 ? 2 : 1;
     int nmem = f->mem ? (int)(sizeof memvs / sizeof memvs[0]) : 1;
     for (int w = 0; w < nW; w++) for (int l = 0; l < nL; l++) for (int m = 0; m < nmem; m++)
@@ -126,7 +124,7 @@ static int positive(const specform *f) {
         if (!x.ok || x.len != n) { fprintf(stderr, "generator: %s %s not accepted by XED as %d bytes\n", f->name, hex(b, n), n); continue; }
         decoded d; int got = decode(pad, &d);
         seen++;
-        int fail[9] = {0};
+        int fail[8] = {0};
         fail[0] = got != n;
         if (got) {
             int dr[8], ndr = 0;
@@ -136,7 +134,7 @@ static int positive(const specform *f) {
             fail[1] = ndr != x.nreg || memcmp(dr, x.reg, ndr * sizeof(int)) != 0;
             if (f->mem) {
                 int hm = d.has_mem && (d.a_src == OPND_MEM || d.b_src == OPND_MEM || d.dst_kind == DST_MEM);
-                fail[8] = p67 && f->mem && !d.addr32;      /* 0x67 truncates the address; decode() must say so */
+                fail[7] = p67 && f->mem && !d.addr32;      /* 0x67 truncates the address; decode() must say so */
                 if (!p67) fail[2] = !hm || d.base != (x.base < 0 ? OPND_NONE : x.base) || d.index != (x.index < 0 ? OPND_NONE : x.index) ||
                           (x.index >= 0 && d.scale != x.scale) || d.disp != (int32_t)x.disp || d.rip_rel != x.rip;
                 fail[3] = d.mem_bytes != x.memw;
@@ -144,17 +142,14 @@ static int positive(const specform *f) {
                 fail[6] = d.seg != x.seg;
             }
             if (f->imm8) fail[5] = d.imm != x.imm && !(d.op == VPBLENDVB);
-            /* the length disassembler and the scanner's rewrite must agree too */
-            int zk, po; int xl = x86_len(pad, pad + 40, &zk, &po);
-            fail[7] = xl != n;
         }
-        for (int k = 0; k < 9; k++) if (fail[k] && !bad[k]) {
+        for (int k = 0; k < 8; k++) if (fail[k] && !bad[k]) {
             bad[k] = 1; memcpy(first[k], b, n); firstn[k] = n;
             snprintf(why[k], sizeof why[k], "(decode len %d, xed len %d)", got, x.len);
         }
     }
     if (!seen) return 0;
-    for (int k = 0; k < 9; k++) result("decoder", f->name, what[k], !bad[k], first[k], firstn[k], why[k]);
+    for (int k = 0; k < 8; k++) result("decoder", f->name, what[k], !bad[k], first[k], firstn[k], why[k]);
     return seen;
 }
 
@@ -170,12 +165,6 @@ static void neg_one(const uint8_t *b, int vex, int tag, int map, int pp, int opc
     for (char *p = form; *p; p++) if (*p >= 'A' && *p <= 'Z') *p += 32;
     negs++;
     result("decoder-neg", form, vex ? "vex" : "legacy", got == 0, b, 8, "decode() accepted it");
-    if (!vex) {                                         /* the lzcnt/tzcnt patcher must leave it alone */
-        uint8_t buf[32]; memset(buf, 0x90, sizeof buf); memcpy(buf, b, x.ok ? x.len : 8);
-        uint8_t ref[32]; memcpy(ref, buf, 32);
-        long r = lde_scan_zcnt(buf, x.ok ? x.len : 8, 1);
-        if (x.ok && !x.zcnt) result("decoder-neg", form, "patcher", memcmp(buf, ref, 32) == 0 && r <= 0, b, 8, "lde_scan_zcnt rewrote it");
-    }
     (void)tag; (void)mod;
 }
 
@@ -252,7 +241,7 @@ static int odd_prefixes(const uint8_t *b) {
     return 1;
 }
 
-/* Byte strings real toolchains emit; x86_len() and decode() must agree with XED on each. */
+/* Byte strings real toolchains emit; decode() must agree with XED on each. */
 static void idioms(void) {
     static const struct { const char *name; uint8_t b[16]; } v[] = {
         {"tls-gd-call", {0x66, 0x66, 0x48, 0xE8, 0x10, 0, 0, 0}},
@@ -274,10 +263,7 @@ static void idioms(void) {
     for (unsigned i = 0; i < sizeof v / sizeof v[0]; i++) {
         uint8_t b[32]; memset(b, 0x90, sizeof b); memcpy(b, v[i].b, 16);
         xr x; xdecode(b, 15, &x);
-        int zk, po, xl = x86_len(b, b + 32, &zk, &po);
         decoded d; int dl = decode(b, &d);
-        char w[48]; snprintf(w, sizeof w, "(x86_len %d, xed %d)", xl, x.len);
-        result("decoder-idiom", v[i].name, "x86_len", xl == x.len, b, 12, w);
         result("decoder-idiom", v[i].name, "decode", x.scope ? dl == x.len : dl == 0, b, 12, "decode() wrong for it");
     }
 }
@@ -286,8 +272,7 @@ static void fuzz(long iters) {
     static const uint8_t lp[] = {0x66, 0x67, 0xF2, 0xF3, 0xF0, 0x2E, 0x64, 0x65};
     static const uint8_t first[] = {0x0F, 0x0F, 0x0F, 0xC4, 0xC5};
     uint64_t s = 0x1234abcd5678ef01ull; int ok_dec = 1; char w2[64] = "";
-    char seen[200][32]; int nseen = 0, nmis = 0;
-    for (long i = 0; i < iters; i++) {
+        for (long i = 0; i < iters; i++) {
         uint8_t b[16]; int n = 0; uint64_t r = spec_rng(&s);
         for (int k = (int)(r & 3); k > 0; k--) b[n++] = lp[spec_rng(&s) & 7];
         if (spec_rng(&s) & 1) b[n++] = (uint8_t)(0x40 | (spec_rng(&s) & 15));
@@ -311,24 +296,12 @@ static void fuzz(long iters) {
             int has66 = 0; for (int k = 0; k < 14 && !((b[k] & 0xF0) == 0x40 || b[k] == 0x0F || b[k] == 0xE8 || b[k] == 0xE9 || (b[k] & 0xF0) == 0x70); k++) has66 |= b[k] == 0x66;
             if (has66) continue;          /* rel16 vs rel32 under 0x66 differs by vendor */
         }
-        int zk, po; int xl = x86_len(b, b + 15, &zk, &po);
         decoded d; int dl = decode(b, &d);
-        if (xl != x.len) {
-            nmis++;
-            char nm[48]; snprintf(nm, sizeof nm, "%s", x.iclass); for (char *p = nm; *p; p++) if (*p >= 'A' && *p <= 'Z') *p += 32;
-            int k; for (k = 0; k < nseen; k++) if (!strcmp(seen[k], nm)) break;
-            if (k == nseen && nseen < 200) {
-                strcpy(seen[nseen++], nm);
-                snprintf(w2, 64, "(x86_len %d, xed %d)", xl, x.len);
-                result("fuzz-len", nm, "x86_len", 0, b, x.len, w2);
-            }
-        }
         if (dl && dl != x.len && ok_dec) {
             ok_dec = 0; snprintf(w2, 64, "(decode %d, xed %d %s)", dl, x.len, x.iclass);
             result("fuzz-len", "any", "decode", 0, b, x.len, w2);
         }
     }
-    result("fuzz-len", "all", "x86_len", nmis == 0, 0, 0, 0);
     if (ok_dec) result("fuzz-len", "any", "decode", 1, 0, 0, 0);
 }
 

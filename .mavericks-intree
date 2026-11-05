@@ -1,1 +1,0 @@
-VERSION    # release.yml's version step writes the resolved YYYYMMDD.N here; CMake reads it

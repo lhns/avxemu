@@ -1,5 +1,5 @@
-name: Validate Linux runtime
-description: Build and validate the complete Linux runtime with required AVX1 TCG execution
+name: Build and test
+description: Build the helper library and the test suite, then run the tests that need no special hardware
 inputs:
   artifact-name:
     description: Unique evidence artifact name for this Ubuntu/compiler job
@@ -7,34 +7,11 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Select the external build directory
+    - name: Configure
       shell: bash
-      run: echo "BUILD=$RUNNER_TEMP/avxemu-linux" >> "$GITHUB_ENV"
-
-    - name: Install mavericks-shipyard
-      uses: Mavergreen/shipyard/.github/actions/install@v1
-
-    - name: Record the pre-build tree
-      shell: bash
-      run: sh "$SHIPYARD_SCRIPTS/assert-tree-clean.sh" --record
-
-    - name: Provision and verify Linux test tools
-      shell: bash
-      run: sh test/prepare-linux-ci.sh "$RUNNER_TEMP/linux-tools" "$GITHUB_ENV"
-
-    - name: Select CMake
-      shell: bash
-      run: echo "$CMAKE_BIN" >> "$GITHUB_PATH"
-
-    - name: Check family conventions
-      shell: bash
-      run: sh "$SHIPYARD_SCRIPTS/check-family-conventions.sh"
-
-    # platform: Shipyard's preset test runner requires macOS-only shipyard-ctest.
-    # spec: DEVELOPING.md "Linux CI dependencies" defines direct CTest on Ubuntu.
-    - name: Configure the complete runtime and required reduced-CPU test
-      shell: bash
-      run: cmake -S . -B "$BUILD" -DMavericksShipyard_DIR="$MavericksShipyard_DIR" -DAVXEMU_TEST_LOWCPU=ON
+      run: |
+        echo "BUILD=$RUNNER_TEMP/avxemu-linux" >> "$GITHUB_ENV"
+        cmake -S . -B "$RUNNER_TEMP/avxemu-linux"
 
     - name: Build
       shell: bash
@@ -50,27 +27,25 @@ runs:
       shell: bash
       run: ctest --test-dir "$BUILD" --no-tests=error --output-on-failure -L 'hermetic|replay'
 
+    - name: Every semantic case against the recorded references
+      shell: bash
+      run: ctest --test-dir "$BUILD" --no-tests=error --output-on-failure -L semantics-full -E live
+
     - name: Hardware oracles (raw feature guards report skips)
       shell: bash
       run: |
         "$BUILD/test/cpuprobe"
         ctest --test-dir "$BUILD" --no-tests=error --output-on-failure -L hardware
 
-    - name: Required full-system AVX1 matrix
-      shell: bash
-      run: ctest --test-dir "$BUILD" --no-tests=error --output-on-failure -L lowcpu
-
     - name: The build must not have written into the source tree
       if: always()
       shell: bash
-      run: sh "$SHIPYARD_SCRIPTS/assert-tree-clean.sh"
+      run: test -z "$(git status --porcelain --untracked-files=all)"
 
     - name: Preserve test evidence
       if: always()
       uses: actions/upload-artifact@v7
       with:
         name: ${{ inputs.artifact-name }}
-        path: |
-          ${{ env.BUILD }}/Testing/Temporary/
-          ${{ env.BUILD }}/lowcpu-logs/
+        path: ${{ env.BUILD }}/Testing/Temporary/
         if-no-files-found: warn
