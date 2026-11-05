@@ -144,7 +144,12 @@ vendor string: its `rcpps`/`rsqrtps` results match Ivy Bridge and two Xeons and 
 no SSE4A. Haswell-class is inferred: AVX2, FMA and BMI run; ADX, SHA, CLFLUSHOPT and RTM are `#UD`.
 It differs from `semantics.ref` in one form, `movbe.m64_g.2` (`66 REX.W 0F 38 F1`): in 36 of 81 cases that
 fault on a page-split store, memory after the fault differs. A Xeon 6975P matches `semantics.ref` there, so
-this is CPU generation, not vendor. `SEM_DUMP=file` writes one line per case, with raw rflags, to compare
+this is CPU generation, not vendor. Gather forms (`vgather*`, `vpgather*`) also compare the ymm file at a fault, read from the signal frame
+on the CPU and from the register file on the emulator, and restart a faulted gather with the guard page
+readable: the result must equal one uninterrupted run (`semantics/<form>/restart`, `restart-hw`). Only
+the gathered dst elements and the mask MSBs are compared at the fault; the rest is vendor-specific
+(docs/vendor-differences.md).
+`SEM_DUMP=file` writes one line per case, with raw rflags, to compare
 machines; it also shows the BMI/LZCNT/TZCNT flags the SDM leaves undefined, which digests mask and which do
 differ between Intel and AMD. Every measured difference and the decision on it: [docs/vendor-differences.md](docs/vendor-differences.md).
 
