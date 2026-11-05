@@ -202,6 +202,14 @@ static void run_emu(const sem_case *c, sem_out *o) {
 }
 
 static int is_gather(const specform *f) { return !strncmp(f->iclass, "VGATHER", 7) || !strncmp(f->iclass, "VPGATHER", 8); }
+/* Element and index sizes in bytes, and how many elements the form gathers. */
+static void gather_shape(const specform *f, int *elem, int *idxsz, int *count) {
+    const char *ic = f->iclass + (f->iclass[1] == 'P' ? 8 : 7);       /* after VGATHER / VPGATHER */
+    *idxsz = ic[0] == 'Q' ? 8 : 4;
+    *elem = f->iclass[1] == 'P' ? (ic[1] == 'Q' ? 8 : 4) : (ic[2] == 'D' ? 8 : 4);
+    int vec = f->L == 1 ? 32 : 16, per = *elem > *idxsz ? *elem : *idxsz;
+    *count = vec / per;
+}
 static void guards(int prot) { mprotect(g_gl, PAGE, prot); mprotect(g_gh, PAGE, prot); }
 
 /* Run one case. A gather that faults has made architectural partial progress (elements before the fault
@@ -219,6 +227,12 @@ static void run_case(sem_runner run, const sem_case *c, sem_out *o, int *rbad) {
     run(&r, &ro); run(c, &uo);
     guards(PROT_NONE);
     memcpy(o->rymm, ro.st.ymm, sizeof o->rymm); o->rkind = ro.kind;
+    /* What the mask holds in its not yet processed elements at the fault differs by vendor (Intel
+     * normalises them to all ones / zero as the SDM pseudocode says, AMD leaves them), and software cannot
+     * tell: only the MSB selects. Compare that, not the low bits. docs/vendor-differences.md. */
+    int elem, idxsz, count; gather_shape(c->f, &elem, &idxsz, &count);
+    uint8_t *mk = o->fymm[c->vvvv & 15];
+    for (int i = 0; i < count; i++) memset(mk + i * elem, (mk[i * elem + elem - 1] & 0x80) ? 0xFF : 0, elem);
     if (ro.kind != uo.kind || ro.mem_hash != uo.mem_hash || memcmp(ro.st.ymm, uo.st.ymm, sizeof ro.st.ymm)) *rbad = 1;
 }
 
@@ -330,10 +344,8 @@ static int64_t cdiv(int64_t a, int64_t b) { return -fdiv(-a, b); }
  * a faulting element, all set with a faulting element, anything. A faulting element lies in a guard page
  * or straddles into the high one, so earlier elements have completed. */
 static void gather_operands(const specform *f, int idx, specenc *e, sem_state *s) {
-    const char *ic = f->iclass + (f->iclass[1] == 'P' ? 8 : 7);       /* after VGATHER / VPGATHER */
-    int idxsz = ic[0] == 'Q' ? 8 : 4;
-    int elem = f->iclass[1] == 'P' ? (ic[1] == 'Q' ? 8 : 4) : (ic[2] == 'D' ? 8 : 4);
-    int vec = f->L == 1 ? 32 : 16, per = elem > idxsz ? elem : idxsz, count = vec / per;
+    int elem, idxsz, count;
+    gather_shape(f, &elem, &idxsz, &count);
     int dst = (int)(rnd() % 16), mask, ix;
     do mask = (int)(rnd() % 16); while (mask == dst);
     do ix = (int)(rnd() % 16); while (ix == dst || ix == mask);
