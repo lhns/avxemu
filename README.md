@@ -1,20 +1,26 @@
-# AVXEmu
+# AVXEmu helpers
 
-AVXEmu emulates AVX2/FMA/BMI instructions using AVX1 and SSE4.2.
-It is primarily useful on pre-Haswell CPUs such as Sandy Bridge and Ivy Bridge.
+Fork of AVXEmu, which emulates AVX2, FMA, BMI1/2, LZCNT, MOVBE and F16C instructions on CPUs that
+have AVX but not AVX2. It was developed by @Wowfunhappy for Mavericks (see `PROVENANCE.md`) and is
+CC0 (`LICENSE`).
 
-It was originally developed by @Wowfunhappy to coax Claude Code for darwin-x64 to run on a wider variety of Mavericks systems (such as my MacPro6,1).
+This fork keeps only the part worth reusing: the instruction semantics and the test suite that
+proves them against real silicon. The `LD_PRELOAD`/Mach-O mechanism that patched programs is gone
+(it stays in git history).
 
-## Using the emulator
+| | |
+|---|---|
+| `libavxemu_helpers.a` | `src/exec.c`, `exec_bmi.c`, `softfma.c`: the emulation core as a freestanding AVX1 library. Contract in `src/avxemu_helpers.h`. |
+| `src/decode.c`, `emulate.c` | decoder and register-file emulator; used by the test suite, not part of the library |
+| `test/spec/` | the semantic suite: a manifest of every instruction form (from Intel XED), a case generator, and `semtest` |
+| `test/reference/` | digests recorded on AVX2 silicon, replayed anywhere |
+| `docs/vendor-differences.md` | where Intel and AMD silicon disagree, and what the suite does about it |
 
-To run an unmodified program with the emulator:
+## Used by
 
-```sh
-DYLD_INSERT_LIBRARIES=/usr/local/mavergreen/avxemu/lib/libavxemu.dylib <program>
-```
+[lhns/v3compat](https://github.com/lhns/v3compat) pins this repo at a commit. It compiles the three
+helper sources itself (with VEX encoding), checks the result with `test/check-helpers-lib.sh`, and runs
+`test/spec/sem_test.c`, `manifest.tsv` and `reference/semantics.ref` under its DynamoRIO client. Keep
+those paths and the helper interface stable; see DEVELOPING.md.
 
-To link a program with it directly, pass `-rpath /usr/local/mavergreen/avxemu/lib` (install name is `@rpath/libavxemu.dylib`).
-
-To modify an existing Mach-O binary's linkage, see [Drydock](https://github.com/Mavergreen/drydock).
-
-An experimental Linux port exists but has not yet been tested with real programs on real hardware.
+Build and test: DEVELOPING.md.

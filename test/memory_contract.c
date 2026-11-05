@@ -2,7 +2,6 @@
 #undef NDEBUG
 #include <assert.h>
 #include <limits.h>
-#include <pthread.h>
 #include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -13,8 +12,7 @@
 #include <unistd.h>
 #include "platform/memory.h"
 
-/* Removing restoration, treating PROT_NONE as a gap, or allowing exact maps
- * to overwrite pages must fail these checks against real kernel mappings. */
+/* Treating PROT_NONE as a gap must fail these checks against real kernel mappings. */
 static void expect_fault(volatile unsigned char *p, int writing) {
     pid_t child = fork();
     assert(child >= 0);
@@ -33,77 +31,8 @@ static void expect_fault(volatile unsigned char *p, int writing) {
     assert(WTERMSIG(status) == SIGSEGV || WTERMSIG(status) == SIGBUS);
 }
 
-static void patch_permissions(unsigned char *p, size_t page, unsigned prot) {
-    avxemu_mapping before, saved, after, neighbor;
-    assert(avxemu_memory_protect((uintptr_t)p, 3 * page, prot));
-    assert(avxemu_memory_query((uintptr_t)p, &before) == 1);
-    assert(before.prot == prot);
-    assert(avxemu_memory_patch_begin((uintptr_t)p + page + 7, 1, &saved));
-    assert(saved.begin == (uintptr_t)p + page);
-    assert(saved.end == (uintptr_t)p + 2 * page);
-    assert(saved.prot == prot);
-    assert(avxemu_memory_query((uintptr_t)p + page, &after) == 1);
-    assert(after.prot == (prot | AVXEMU_PROT_W));
-    assert(avxemu_memory_query((uintptr_t)p, &neighbor) == 1);
-    assert(neighbor.prot == prot);
-    assert(avxemu_memory_query((uintptr_t)p + 2 * page, &neighbor) == 1);
-    assert(neighbor.prot == prot);
-    p[page + 7] = 0x90;
-    assert(avxemu_memory_patch_end(&saved));
-    assert(avxemu_memory_query((uintptr_t)p + page, &after) == 1);
-    assert(after.prot == before.prot);
-    assert(p[page + 7] == 0x90);
-    if (!(prot & AVXEMU_PROT_W)) expect_fault(p + page + 7, 1);
-}
-
-/* Threads share an address space, so exactly one non-overwriting mapping
- * may win. Both contenders must finish before checking the mapped contents. */
-typedef struct {
-    pthread_mutex_t mutex;
-    pthread_cond_t condition;
-    int ready, go, wins;
-    uintptr_t address;
-    size_t page;
-} mapping_race;
-
-static void *map_contender(void *arg) {
-    mapping_race *race = arg;
-    assert(!pthread_mutex_lock(&race->mutex));
-    race->ready++;
-    assert(!pthread_cond_broadcast(&race->condition));
-    while (!race->go) assert(!pthread_cond_wait(&race->condition, &race->mutex));
-    assert(!pthread_mutex_unlock(&race->mutex));
-    int won = avxemu_memory_map_gap(race->address, race->page);
-    if (won) *(volatile unsigned char *)race->address = 0x73;
-    assert(!pthread_mutex_lock(&race->mutex));
-    race->wins += won;
-    assert(!pthread_mutex_unlock(&race->mutex));
-    return NULL;
-}
-
-static void concurrent_gap(size_t page) {
-    /* Retain neighboring pages so a thread stack cannot consume the gap. */
-    unsigned char *p = mmap(NULL, 3 * page, PROT_NONE, MAP_PRIVATE | MAP_ANON, -1, 0);
-    assert(p != MAP_FAILED);
-    assert(!munmap(p + page, page));
-    mapping_race race = {PTHREAD_MUTEX_INITIALIZER, PTHREAD_COND_INITIALIZER,
-                         0, 0, 0, (uintptr_t)(p + page), page};
-    pthread_t threads[2];
-    for (int i = 0; i < 2; i++) assert(!pthread_create(&threads[i], NULL, map_contender, &race));
-    assert(!pthread_mutex_lock(&race.mutex));
-    while (race.ready != 2) assert(!pthread_cond_wait(&race.condition, &race.mutex));
-    race.go = 1;
-    assert(!pthread_cond_broadcast(&race.condition));
-    assert(!pthread_mutex_unlock(&race.mutex));
-    for (int i = 0; i < 2; i++) assert(!pthread_join(threads[i], NULL));
-    assert(race.wins == 1 && p[page] == 0x73);
-    assert(!munmap(p, 3 * page));
-    assert(!pthread_cond_destroy(&race.condition));
-    assert(!pthread_mutex_destroy(&race.mutex));
-}
-
 #ifdef __linux__
-static void query_failure(size_t page) {
+static void query_failure(void) {
     pid_t child = fork();
     assert(child >= 0);
     if (!child) {
@@ -112,7 +41,6 @@ static void query_failure(size_t page) {
         avxemu_mapping mapping = {11, 22, 33}, saved = mapping;
         assert(avxemu_memory_query((uintptr_t)&limit, &mapping) == -1);
         assert(!memcmp(&mapping, &saved, sizeof mapping));
-        assert(!avxemu_memory_map_gap(page, page));
         _exit(0);
     }
     int status;
@@ -132,9 +60,6 @@ int main(void) {
     assert(avxemu_memory_query((uintptr_t)p, &mapping) == 1);
     assert(mapping.begin <= (uintptr_t)p && mapping.end >= (uintptr_t)p + 8 * page);
     assert(mapping.prot == (AVXEMU_PROT_R | AVXEMU_PROT_W));
-    patch_permissions(p, page, AVXEMU_PROT_R);
-    patch_permissions(p, page, AVXEMU_PROT_R | AVXEMU_PROT_X);
-    patch_permissions(p, page, AVXEMU_PROT_R | AVXEMU_PROT_W | AVXEMU_PROT_X);
 
     unsigned char data[32];
     assert(avxemu_memory_read(data, (uintptr_t)p + 4 * page, sizeof data) == sizeof data);
@@ -146,7 +71,6 @@ int main(void) {
     assert(mprotect(guard, page, PROT_NONE) == 0);
     assert(avxemu_memory_query((uintptr_t)guard, &mapping) == 1);
     assert(mapping.prot == 0);
-    assert(!avxemu_memory_map_gap((uintptr_t)guard, page));
     assert(avxemu_memory_read(data, (uintptr_t)guard, sizeof data) == 0);
     expect_fault(guard, 0);
     expect_fault(guard, 1);
@@ -157,40 +81,10 @@ int main(void) {
     for (int i = 0; i < 16; i++) assert(data[i] == 0x5a);
     expect_fault(hole, 0);
 
-    avxemu_mapping saved = {11, 22, 33}, unchanged = saved;
-    assert(!avxemu_memory_patch_begin((uintptr_t)guard - 1, 2, &saved));
-    assert(saved.begin == unchanged.begin && saved.end == unchanged.end && saved.prot == unchanged.prot);
-    assert(!avxemu_memory_patch_begin((uintptr_t)hole, 1, &saved));
-    assert(!avxemu_memory_patch_begin(UINTPTR_MAX, 2, &saved));
-    assert(!avxemu_memory_patch_begin((uintptr_t)p, 0, &saved));
-    assert(!avxemu_memory_protect((uintptr_t)hole, page, AVXEMU_PROT_R));
-    assert(!avxemu_memory_protect(UINTPTR_MAX, 2, AVXEMU_PROT_R));
-    assert(!avxemu_memory_map_gap((uintptr_t)hole + 1, page));
-    assert(!avxemu_memory_map_gap((uintptr_t)hole, 0));
-    assert(!avxemu_memory_map_gap(UINTPTR_MAX, page));
-    assert(avxemu_memory_map_gap((uintptr_t)hole, page));
-    assert(avxemu_memory_query((uintptr_t)hole, &mapping) == 1);
-    assert(mapping.prot == (AVXEMU_PROT_R | AVXEMU_PROT_W));
-    for (size_t i = 0; i < page; i++) assert(hole[i] == 0);
-    hole[0] = 0xa5;
-    assert(!avxemu_memory_map_gap((uintptr_t)hole, page));
-    assert(hole[0] == 0xa5);
-
-    void *near = avxemu_memory_alloc_near((uintptr_t)p, page);
-    assert(near != NULL);
-    uintptr_t a = (uintptr_t)near, site = (uintptr_t)p;
-    assert(a >= site ? a - site <= INT32_MAX : site - a <= INT32_MAX);
-    assert(avxemu_memory_query(a, &mapping) == 1);
-    assert(mapping.prot == (AVXEMU_PROT_R | AVXEMU_PROT_W | AVXEMU_PROT_X));
-    memset(near, 0xcc, page);
-    assert(munmap(near, page) == 0);
-    assert(avxemu_memory_alloc_near(site, 0) == NULL);
-    assert(avxemu_memory_alloc_near(site, SIZE_MAX) == NULL);
     assert(munmap(p, 8 * page) == 0);
 #ifdef __linux__
-    query_failure(page);
+    query_failure();
 #endif
-    for (int i = 0; i < 100; i++) concurrent_gap(page);
     puts("memory-contract: all checks passed");
     return 0;
 }

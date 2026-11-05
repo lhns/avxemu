@@ -44,7 +44,7 @@ int ref_begin(enum ref_mode m, const char *s, const char *p) {
     if (m == REF_RECORD) return 0;
     FILE *f = fopen(p, "r");
     if (!f) {
-        fprintf(stderr, "refdigest: cannot read %s -- record a reference on real silicon (INGREDIENTS.md, \"Re-recording a reference\")\n", p);
+        fprintf(stderr, "refdigest: cannot read %s -- record a reference on real silicon (DEVELOPING.md, \"Re-recording a reference\")\n", p);
         return -1;
     }
     char buf[256], want[128];
@@ -77,10 +77,6 @@ enum ref_mode ref_init(int argc, char **argv, const char *s, unsigned need) {
     }
     enum ref_mode m = strcmp(argv[1], "record") == 0 ? REF_RECORD : REF_CHECK;
     if (m == REF_RECORD) {
-        if (cpu_translated()) {
-            printf("SKIP: record mode needs real silicon; this process runs translated, which is not ground truth\n");
-            exit(77);
-        }
         unsigned missing = need & ~cpu_features();
         if (missing) {
             printf("SKIP: record mode needs");

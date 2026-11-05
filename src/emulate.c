@@ -84,7 +84,7 @@ static uint64_t ea_rf(const decoded *d, const avxemu_regfile *rf, uint64_t rip_n
 }
 
 /*
- * The single emulation core, shared by the SIGILL handler and the trampoline.
+ * The emulation core.
  * Reads operands from rf (registers or memory), runs the SSE-only executor, and
  * writes results back into rf. rf->rip must be the instruction's own address so
  * RIP-relative memory operands resolve correctly. Returns 1 on success, 0 if the

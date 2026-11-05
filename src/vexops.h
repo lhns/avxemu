@@ -72,7 +72,7 @@ typedef enum {
     /* ---- F16C ---- */
     VCVTPH2PS,
 
-    /* ---- AVX2 masked move (per-lane conditional mem access; handled in handler.c) ---- */
+    /* ---- AVX2 masked move (per-lane conditional mem access; emulated in emulate.c) ---- */
     VPMASKMOVD, VPMASKMOVQ,
 
     /* ---- FMA3 (type chooses ss/sd/ps/pd) ---- */
