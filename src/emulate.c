@@ -192,6 +192,8 @@ int avxemu_emulate(const decoded *d, avxemu_regfile *rf) {
     memset(&A,0,sizeof A); memset(&B,0,sizeof B); memset(&C,0,sizeof C);
     if ((d->a_src == OPND_MEM || d->b_src == OPND_MEM || d->dst_kind == DST_MEM)
         && (d->mem_bytes < 1 || d->mem_bytes > (int)sizeof A.b)) return 0;
+    /* A misaligned ymm vmovntdqa is #GP, which Linux reports as a SIGSEGV for address 0. */
+    if (d->op == VMOVNTDQA && !d->seg && (ea_rf(d, rf, rip_next) & 31)) __asm__ volatile("movb (%0), %%al" :: "r"((uintptr_t)0) : "al");
     if (d->a_src == OPND_MEM) { uint64_t a=ea_rf(d,rf,rip_next); MEMRD(A.b, a, d->mem_bytes); }
     else if (d->a_src >= 0)   memcpy(A.b, rf->ymm[d->a_src], 32);
     if (d->b_src == OPND_MEM) { uint64_t a=ea_rf(d,rf,rip_next); MEMRD(B.b, a, d->mem_bytes); }
@@ -199,7 +201,7 @@ int avxemu_emulate(const decoded *d, avxemu_regfile *rf) {
     if (d->c_src >= 0)        memcpy(C.b, rf->ymm[d->c_src], 32);
     if (d->shift_imm) { memset(B.b,0,32); B.b[0] = d->imm; }
     /* A VEX.128 FMA must not compute, or raise flags for, the stale upper lanes. */
-    if (!d->wide && d->op >= VFMADD132 && d->op <= VFNMSUB231) {
+    if (!d->wide && ((d->op >= VFMADD132 && d->op <= VFNMSUB231) || (d->op >= VFMADDSUB132 && d->op <= VFMSUBADD231))) {
         memset(A.b + 16, 0, 16); memset(B.b + 16, 0, 16); memset(C.b + 16, 0, 16);
     }
     if (!d->wide && d->op == VCVTPH2PS) memset(B.b + 8, 0, 24);   /* xmm form: 4 halves only */

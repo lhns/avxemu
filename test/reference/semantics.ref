@@ -3,6 +3,7 @@
 # cpu: AMD EPYC 9V45 96-Core Processor                
 # os: Linux 7.0.0-1017-azure
 # cc: 13.3.0
+# vgather*/vpgather* rows recorded on AMD EPYC 7763 (same recorder, CPU line above is the original recording)
 andn.g_g_g.w0:s	59	9d63212d498a547e
 andn.g_g_g.w0:f	400	349d110a8afe6d66
 andn.g_g_m32:s	59	e67d2c9e43005bf1
@@ -457,6 +458,22 @@ vfnmsub231ss.x_x_m32:s	59	ca562ca27acd0911
 vfnmsub231ss.x_x_m32:f	400	3e4c7f77d7e7c618
 vfnmsub231ss.x_x_x:s	59	4cca2bcc094e46c1
 vfnmsub231ss.x_x_x:f	400	837978869b4d6838
+vgatherdpd.x_m64_x:s	59	848f4471dd3e4b88
+vgatherdpd.x_m64_x:f	400	1590bb17d01fbe61
+vgatherdpd.y_m64_y:s	59	459e31d5eba45246
+vgatherdpd.y_m64_y:f	400	6f67f9e823059b8c
+vgatherdps.x_m32_x:s	59	c3aab542dfc23c86
+vgatherdps.x_m32_x:f	400	522b2ccb257fe335
+vgatherdps.y_m32_y:s	59	bdbe284ccc8fc322
+vgatherdps.y_m32_y:f	400	d7ef8aedef564f7c
+vgatherqpd.x_m64_x:s	59	48c5a7d93f949b64
+vgatherqpd.x_m64_x:f	400	8384c3387f866726
+vgatherqpd.y_m64_y:s	59	8dec6d881ea9daa3
+vgatherqpd.y_m64_y:f	400	57be798bc8a846e3
+vgatherqps.x_m32_x.w0:s	59	ef836aa7e5abc603
+vgatherqps.x_m32_x.w0:f	400	14000ecd06a943b9
+vgatherqps.x_m32_x.2:s	59	1cd0abd85780bbc2
+vgatherqps.x_m32_x.2:f	400	700f29eb5197db2b
 vinserti128.y_y_m128_i:s	105	eb64a253c7aed9e4
 vinserti128.y_y_m128_i:f	768	b591b3a021e2ed3e
 vinserti128.y_y_x_i:s	105	7a8d6d9b69068ef4
@@ -641,6 +658,22 @@ vpermq.y_m256_i:s	105	835a1590760ccca7
 vpermq.y_m256_i:f	768	2ad5e905bf59284a
 vpermq.y_y_i:s	105	4f211b61cee8fb8d
 vpermq.y_y_i:f	768	c48a8cfcac636002
+vpgatherdd.x_m32_x:s	59	5a19a1a91f7315f4
+vpgatherdd.x_m32_x:f	400	f68d2edfd9019b42
+vpgatherdd.y_m32_y:s	59	d9aeaf12d39e6520
+vpgatherdd.y_m32_y:f	400	6322acb40837086f
+vpgatherdq.x_m64_x:s	59	0d2a6be744540de8
+vpgatherdq.x_m64_x:f	400	5094b01d2fab5783
+vpgatherdq.y_m64_y:s	59	a4062e02f632cda6
+vpgatherdq.y_m64_y:f	400	e30e60b13cb1d69d
+vpgatherqd.x_m32_x.w0:s	59	697579157489320c
+vpgatherqd.x_m32_x.w0:f	400	dfae8595fb1959d9
+vpgatherqd.x_m32_x.2:s	59	251d1d84f17a9184
+vpgatherqd.x_m32_x.2:f	400	0201cf62aba94d70
+vpgatherqq.x_m64_x:s	59	35e2dbb5f0ed0b24
+vpgatherqq.x_m64_x:f	400	67e04e3701ba2ecc
+vpgatherqq.y_m64_y:s	59	16ac36c3f631d786
+vpgatherqq.y_m64_y:f	400	2232da6f0c40723d
 vphaddd.y_y_m256:s	59	f90b4517db5fb040
 vphaddd.y_y_m256:f	400	5fa42fcb2af484b1
 vphaddd.y_y_y:s	59	dfc04bddb6c58325

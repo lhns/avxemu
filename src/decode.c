@@ -222,6 +222,13 @@ static int decode_inner(const uint8_t *p, decoded *d) {
     else if (mapsel == 2 && pp == 1) {       /* 66 0F38 */
         switch (opcode) {
         case 0x00: VVV(VPSHUFB); break; case 0x02: VVV(VPHADDD); break;
+        case 0x01: VVV(VPHADDW); break; case 0x03: VVV(VPHADDSW); break;
+        case 0x05: VVV(VPHSUBW); break; case 0x06: VVV(VPHSUBD); break; case 0x07: VVV(VPHSUBSW); break;
+        /* register-source vbroadcastss/sd are AVX2 (the memory forms are AVX and run natively) */
+        case 0x18: if (rm >= 0 && !W) { UNB(VPBROADCASTD); d->mem_bytes=4; } break;
+        case 0x19: if (rm >= 0 && !W && L) { UNB(VPBROADCASTQ); d->mem_bytes=8; } break;
+        /* ymm non-temporal load (the xmm form is AVX); 32-byte alignment is checked in emulate.c */
+        case 0x2A: if (rm < 0 && L) { UNB(VMOVNTDQA); d->mem_bytes=32; } break;
         case 0x04: VVV(VPMADDUBSW); break;
         case 0x08: VVV(VPSIGNB); break; case 0x09: VVV(VPSIGNW); break;
         case 0x0A: VVV(VPSIGND); break; case 0x0B: VVV(VPMULHRSW); break;
@@ -265,6 +272,15 @@ static int decode_inner(const uint8_t *p, decoded *d) {
             d->mem_bytes = W ? 8 : 4; handled=1; break;
         }
         default:
+            /* FMA: 96-9F / A6-AF / B6-BF. 96/97, A6/A7, B6/B7 are the packed addsub/subadd forms. */
+            if (((opcode&0xF0)==0x90||(opcode&0xF0)==0xA0||(opcode&0xF0)==0xB0) && ((opcode&0x0F)==6||(opcode&0x0F)==7)) {
+                int order = (opcode&0xF0)==0x90?0:((opcode&0xF0)==0xA0?1:2), sub = opcode&1;
+                static const vex_op tab[2][3] = {{VFMADDSUB132,VFMADDSUB213,VFMADDSUB231},{VFMSUBADD132,VFMSUBADD213,VFMSUBADD231}};
+                d->op = tab[sub][order]; d->type = W?FT_PD:FT_PS;
+                d->dst=reg; d->dst_kind=DST_YMM; d->a_src=vvvv; d->b_src=(rm<0)?OPND_MEM:rm; d->c_src=reg; handled=1;
+                d->mem_bytes = L?32:16;
+                break;
+            }
             /* FMA: 96-9F / A6-AF / B6-BF */
             if ((opcode>=0x96&&opcode<=0x9F)||(opcode>=0xA6&&opcode<=0xAF)||(opcode>=0xB6&&opcode<=0xBF)) {
                 int order = (opcode&0xF0)==0x90?0:((opcode&0xF0)==0xA0?1:2);
@@ -317,6 +333,7 @@ static int decode_inner(const uint8_t *p, decoded *d) {
     else if (mapsel == 3 && pp == 1) {       /* 66 0F3A */
         switch (opcode) {
         case 0x0F: VVVI(VPALIGNR); break;
+        case 0x42: VVVI(VMPSADBW); break;
         case 0x0E: VVVI(VPBLENDW); break;
         case 0x02: VVVI(VPBLENDD); break;
         case 0x46: VVVI(VPERM2I128); break;
