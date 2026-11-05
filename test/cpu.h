@@ -8,8 +8,6 @@ enum {
 };
 
 unsigned    cpu_features(void);
-int         cpu_translated(void);
-int         cpu_avxemu_capable(void);   /* avxemu stays inert here (src/handler.c) */
 const char *cpu_feature_name(unsigned bit);
 void        cpu_brand(char out[49]);
 

@@ -1,7 +1,7 @@
 /*
  * decode.c — decode the AVX2/FMA/F16C (VEX) and BMI/LZCNT/MOVBE instructions
  * that fault on an AVX1 target into a normalized `decoded` (op + operand
- * descriptors + length). Anything else returns 0 (handler chains onward).
+ * descriptors + length). Anything else returns 0.
  *
  * Only the instruction forms that actually appear / can fault are decoded;
  * the classifier is by (map, pp, W, opcode).
@@ -89,13 +89,12 @@ static int decode_inner(const uint8_t *p, decoded *d) {
             if (c == 0x66) { has66 = 1; q++; prefixes++; }
             else if (c == 0xF3) { hasF3 = 1; q++; prefixes++; }
             else if (c == 0xF2) { hasF2 = 1; q++; prefixes++; }
-            else if (c == 0xF0) { hasLock = 1; q++; prefixes++; }   /* our patched lzcnt/tzcnt */
+            else if (c == 0xF0) { hasLock = 1; q++; prefixes++; }   /* F0-marked lzcnt/tzcnt, accepted for compatibility */
             else if ((c & 0xF0) == 0x40) { rexW=(c>>3)&1; rexR=(c>>2)&1; rexX=(c>>1)&1; rexB=c&1; q++; }
             else break;
             if (prefixes > 8) break;
         }
-        /* lzcnt/tzcnt: F3 0F BD/BC, OR the F0-prefixed form we patch in so the
-         * instruction faults on a CPU that would otherwise run it as bsr/bsf. */
+        /* lzcnt/tzcnt: F3 0F BD/BC, or the F0-prefixed marker form of them. */
         if (q[0] == 0x0F && (hasF3 || hasLock) && (q[1] == 0xBC || q[1] == 0xBD)) {
             int reg, rm; int adv = parse_modrm(q+2, rexX, rexB, d, &rm);
             reg = ((q[2]>>3)&7) + (rexR?8:0);
@@ -338,7 +337,7 @@ static int decode_inner(const uint8_t *p, decoded *d) {
     /* default memory size if not set */
     if (d->has_mem && d->mem_bytes == 0) d->mem_bytes = d->wide ? 32 : 16;
     /* shift-imm count carried in imm */
-    if (d->shift_imm) { /* a holds data; handler builds count from imm */ }
+    if (d->shift_imm) { /* a holds data; emulate.c builds the count from imm */ }
 
     d->len = (uint8_t)((after - p) + imm_bytes);
     (void)handled;

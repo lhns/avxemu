@@ -26,7 +26,7 @@ endfunction()
 add_executable(memory-contract memory_contract.c $<TARGET_OBJECTS:avxemu_linux_memory>)
 add_executable(linux-memory-faults linux_memory_faults.c $<TARGET_OBJECTS:avxemu_linux_memory>)
 target_link_options(linux-memory-faults PRIVATE
-  -Wl,--wrap=open -Wl,--wrap=read -Wl,--wrap=mmap -Wl,--wrap=munmap -Wl,--wrap=syscall)
+  -Wl,--wrap=open -Wl,--wrap=read -Wl,--wrap=syscall)
 foreach(contract memory-contract linux-memory-faults)
   target_compile_options(${contract} PRIVATE ${AVXEMU_CORE_FLAGS} -Wextra)
   target_include_directories(${contract} PRIVATE "${PROJECT_SOURCE_DIR}/src")

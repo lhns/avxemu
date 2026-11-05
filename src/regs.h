@@ -7,9 +7,9 @@
 /*
  * The slice of architectural state the emulator reads and writes.
  *
- * The SIGILL handler populates this from the signal's mcontext, runs exec(),
- * and writes back. The differential oracle builds it directly. Same struct,
- * same exec() — so the oracle tests exactly the code path the handler uses.
+ * emulate.c fills this from an avxemu_regfile, runs exec() and writes back; the
+ * differential oracles build it directly. Same struct, same exec(), so the
+ * oracles test the code path the emulator uses.
  *
  * GPR indexing follows the x86-64 hardware register-number encoding
  * (0=rax,1=rcx,2=rdx,3=rbx,4=rsp,5=rbp,6=rsi,7=rdi,8..15=r8..r15), which is
@@ -19,7 +19,7 @@ typedef struct {
     ymm256   ymm[16];   /* vector regs; xmm_i is the low 16 bytes of ymm_i  */
     uint64_t gpr[16];   /* general-purpose regs, hardware encoding order    */
     uint64_t rflags;    /* only CF/PF/ZF/SF/OF are modeled where ops set them */
-    uint64_t rip;       /* updated by the handler, not exec()               */
+    uint64_t rip;       /* advanced by the caller, not exec()                */
 } cpu_state;
 
 /* RFLAGS bit positions (the ones BMI/logic ops touch). */

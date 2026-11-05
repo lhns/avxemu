@@ -59,7 +59,7 @@ target_compile_options(semtest PRIVATE "$<$<COMPILE_LANGUAGE:C>:${AVXEMU_CORE_FL
 target_compile_definitions(semtest PRIVATE SEM_MANIFEST="${SPEC_DIR}/manifest.tsv" SEM_KNOWN="${KNOWN_FAILURES}")
 target_include_directories(semtest PRIVATE "${SPEC_DIR}" "${PROJECT_SOURCE_DIR}/src" "${CMAKE_CURRENT_SOURCE_DIR}")
 set_target_properties(semtest PROPERTIES LINKER_LANGUAGE C)
-# Static link: the fault handlers must work without a dynamic libc.
+# Static link: the fault handlers must work in a static executable.
 add_executable(semtest-static spec/sem_test.c spec/sem_hw.S $<TARGET_OBJECTS:t_spec> $<TARGET_OBJECTS:t_refdigest>
   $<TARGET_OBJECTS:avxemu_core> ${AVXEMU_PLATFORM_OBJECTS})
 target_compile_options(semtest-static PRIVATE "$<$<COMPILE_LANGUAGE:C>:${AVXEMU_CORE_FLAGS}>" -UNDEBUG)

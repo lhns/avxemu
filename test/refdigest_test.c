@@ -42,11 +42,10 @@ static int check_ops(const char *path, const char *const *names, int n, const ch
     return ref_report(o, n) + ref_finish();
 }
 
-static int child_status(const char *translated, const char *features) {
+static int child_status(const char *features) {
     pid_t p = fork();
     if (p == 0) {
         char *argv[] = {"refdigest_test", "record", path_b, NULL};
-        if (translated) setenv("AVXEMU_TEST_TRANSLATED", translated, 1);
         if (features) setenv("AVXEMU_TEST_FEATURES", features, 1);
         ref_init(3, argv, "t", CPU_AVX2);
         ref_finish();
@@ -98,8 +97,7 @@ int main(void) {
     CHECK(access(path_b, F_OK) != 0, "and write no reference");
 
     fflush(stdout);
-    CHECK(child_status("1", "2") == 77, "record refuses to run translated (Rosetta)");
-    CHECK(child_status("0", "0") == 77, "record refuses a CPU without the needed feature");
+    CHECK(child_status("0") == 77, "record refuses a CPU without the needed feature");
     CHECK(access(path_b, F_OK) != 0, "a refused recording writes no reference");
 
     unlink(path_a); rmdir(dir);
