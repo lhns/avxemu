@@ -1,6 +1,4 @@
 # glob on the form name <TAB> why decode() rejects it (status `refused`). A new rejected form with no line here stays UNSET and fails spec-complete.
-vgather*	gathers are not emulated (VSIB); the SIGILL handler chains on
-vpgather*	gathers are not emulated (VSIB); the SIGILL handler chains on
 vbroadcastss.*	register-source vbroadcastss/sd is AVX2-only and not decoded (the memory form is AVX1)
 vbroadcastsd.*	register-source vbroadcastss/sd is AVX2-only and not decoded (the memory form is AVX1)
 vfmaddsub*	FMA3 addsub/subadd variants are not implemented

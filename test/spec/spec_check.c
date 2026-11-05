@@ -21,6 +21,7 @@ int main(int argc, char **argv) {
     for (int i = 0; i < n; i++) {
         specenc e = {.reg = 1, .vvvv = 2, .rm = 3, .base = 3, .index = -1, .scale = 1, .W = 0, .L = 0, .imm = 0x5a};
         uint8_t b[32] = {0}; decoded d;
+        if (!strncmp(f[i].iclass, "VGATHER", 7) || !strncmp(f[i].iclass, "VPGATHER", 8)) e.index = 4;   /* VSIB: xmm4 is a valid index */
         int len = spec_encode(&f[i], &e, b);
         int got = decode(b, &d);
         if (propose) { printf("%s\t%s\t%d\n", f[i].name, got == len ? "accepted" : got ? "WRONGLEN" : "rejected", got); continue; }
