@@ -64,6 +64,11 @@ and a listed entry whose cases all pass both fail the run.
 Environment knobs: `KNOWN_VERBOSE=1`; `SEM_ONLY=glob`, `SEM_DUMP=file` (one line per case, raw rflags, to
 compare machines), `SEM_TRACE`, `SEM_DIFFMAX=n`.
 
+Gather forms (`vgather*`, `vpgather*`) also compare the ymm file at a fault (from the signal frame on the CPU,
+from the register file on the emulator) and restart a faulted gather with the guard page readable: the result
+must equal one uninterrupted run (`semantics/<form>/restart`, `restart-hw`). Only the gathered dst elements and
+the mask MSBs are compared at the fault; the rest is vendor-specific (`docs/vendor-differences.md`).
+
 Run a stage with `ctest --test-dir build -L spec` (likewise `decoder`, `semantics`). `-L semantics-full` is the
 full replay, `-L silicon` the live comparison on an AVX2 host, `-L hardware` the oracle recordings.
 QEMU TCG (`-L tcg`, if `qemu-x86_64` is installed) is only a stand-in oracle: it mishandles NaN payloads, fault

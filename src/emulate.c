@@ -52,6 +52,12 @@ static void mem_read(void *dst, uint64_t ea, int n, int seg){
     else
         memcpy(d8 + n0, (const void *)(uintptr_t)b, tail);
 }
+/* One gather element. Unlike mem_read this never tolerates an unmapped trailing page: a masked-in
+ * element must fault exactly where the instruction would. */
+static void mem_read_exact(void *dst, uint64_t ea, int n, int seg){
+    if (seg) { mem_read(dst, ea, n, seg); return; }     /* the segment path is already byte-exact */
+    memcpy(dst, (const void*)ea, n);
+}
 /* Hardware commits nothing when any byte of a store faults, so a store that spans two pages
  * must find out about the second one before writing the first. An atomic or-with-zero faults
  * exactly as the store would and changes nothing, whatever other threads do meanwhile. */
@@ -120,6 +126,36 @@ int avxemu_emulate(const decoded *d, avxemu_regfile *rf) {
         return 1;
     }
 
+    /* AVX2 gather (SDM VPGATHERDD etc.). Written into rf element by element, so a fault leaves exactly
+     * the architectural partial state: elements before it are in dst and cleared in the mask, and the
+     * instruction can be restarted. Masked-off elements are never read. Each mask element is cleared as
+     * it is processed (the rest keep their value); on completion the whole mask register and everything
+     * in dst above the gathered elements are zero. */
+    if (d->op == VGATHER) {
+        int elem = d->mem_bytes, isz = d->vsib_bytes, vec = d->wide ? 32 : 16;
+        int count = vec / (elem > isz ? elem : isz);
+        if ((elem != 4 && elem != 8) || (isz != 4 && isz != 8) || d->vsib_index < 0) return 0;
+        uint8_t *dst = rf->ymm[d->dst], *mask = rf->ymm[d->a_src];
+        const uint8_t *ix = rf->ymm[d->vsib_index];
+        uint64_t base = ea_rf(d, rf, rip_next);
+        for (int i = 0; i < count; i++) {
+            if ((mask[i * elem + elem - 1] >> 7) & 1) {
+                int64_t v;
+                if (isz == 8) memcpy(&v, ix + i * 8, 8);
+                else { int32_t v32; memcpy(&v32, ix + i * 4, 4); v = v32; }
+                uint64_t a = base + (uint64_t)v * d->scale;
+                if (d->addr32) a = (uint32_t)a;
+                uint8_t tmp[8];
+                mem_read_exact(tmp, a, elem, d->seg);
+                memcpy(dst + i * elem, tmp, elem);
+            }
+            memset(mask + i * elem, 0, elem);
+        }
+        memset(dst + count * elem, 0, 32 - count * elem);
+        memset(mask, 0, 32);
+        return 1;
+    }
+
     /* AVX2 masked move: per-lane conditional memory access (unmasked lanes are
      * neither read nor written, so they never fault). Mask = a_src register; the
      * lane's high bit selects. Load: dst<-mem (else 0). Store: mem<-b_src. */
@@ -156,6 +192,8 @@ int avxemu_emulate(const decoded *d, avxemu_regfile *rf) {
     memset(&A,0,sizeof A); memset(&B,0,sizeof B); memset(&C,0,sizeof C);
     if ((d->a_src == OPND_MEM || d->b_src == OPND_MEM || d->dst_kind == DST_MEM)
         && (d->mem_bytes < 1 || d->mem_bytes > (int)sizeof A.b)) return 0;
+    /* A misaligned ymm vmovntdqa is #GP, which Linux reports as a SIGSEGV for address 0. */
+    if (d->op == VMOVNTDQA && !d->seg && (ea_rf(d, rf, rip_next) & 31)) __asm__ volatile("movb (%0), %%al" :: "r"((uintptr_t)0) : "al");
     if (d->a_src == OPND_MEM) { uint64_t a=ea_rf(d,rf,rip_next); MEMRD(A.b, a, d->mem_bytes); }
     else if (d->a_src >= 0)   memcpy(A.b, rf->ymm[d->a_src], 32);
     if (d->b_src == OPND_MEM) { uint64_t a=ea_rf(d,rf,rip_next); MEMRD(B.b, a, d->mem_bytes); }
@@ -163,7 +201,7 @@ int avxemu_emulate(const decoded *d, avxemu_regfile *rf) {
     if (d->c_src >= 0)        memcpy(C.b, rf->ymm[d->c_src], 32);
     if (d->shift_imm) { memset(B.b,0,32); B.b[0] = d->imm; }
     /* A VEX.128 FMA must not compute, or raise flags for, the stale upper lanes. */
-    if (!d->wide && d->op >= VFMADD132 && d->op <= VFNMSUB231) {
+    if (!d->wide && ((d->op >= VFMADD132 && d->op <= VFNMSUB231) || (d->op >= VFMADDSUB132 && d->op <= VFMSUBADD231))) {
         memset(A.b + 16, 0, 16); memset(B.b + 16, 0, 16); memset(C.b + 16, 0, 16);
     }
     if (!d->wide && d->op == VCVTPH2PS) memset(B.b + 8, 0, 24);   /* xmm form: 4 halves only */

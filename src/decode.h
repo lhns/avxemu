@@ -37,6 +37,11 @@ typedef struct {
     uint8_t mem_bytes;   /* bytes to load/store for the memory operand */
     uint8_t shift_imm;   /* scalar-count shift whose count is `imm` */
 
+    /* VGATHER/VPGATHER: dst = reg, a_src = mask register, mem_bytes = element size (4/8). `index`
+     * stays OPND_NONE: the VSIB index is a vector register, `scale` applies to it. */
+    int8_t  vsib_index;  /* vector index register, else OPND_NONE */
+    uint8_t vsib_bytes;  /* size of one index element: 4 (VGATHERD/VPGATHERD) or 8 (Q) */
+
     /* BMI/scalar */
     uint8_t is_bmi;
     uint8_t opsize;      /* 16 (66-prefixed lzcnt/tzcnt/movbe), 32 or 64 */

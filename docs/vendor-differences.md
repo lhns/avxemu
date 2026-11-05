@@ -8,6 +8,10 @@ value in a raw dump; "inferred" is a conclusion drawn from them.
 - 494 forms, 212,320 cases, same inputs as the AMD recording (0 inputs differ).
 - Intel Haswell-class (inferred): a KVM guest reporting `GenuineIntel`, family 15, model 107. Bare
   metal was not tested. AVX2, FMA and BMI run, ADX, SHA, CLFLUSHOPT and RTM fault with `#UD`.
+- The 80 forms added later (the 16 gathers, `vphadd`/`vphsub` words and ymm, `vmpsadbw`, ymm `vmovntdqa`,
+  register-source `vbroadcastss/sd`, `vfmaddsub`/`vfmsubadd`) were recorded on a Xeon 6975P-C and are
+  identical to the AMD rows (digests included); those rows are marked in the file. The Haswell-class
+  guest was not available for them.
 - Controls reproduced `semantics.ref` byte for byte on EPYC 7763, 9V74, 9V45 and Xeon 6975P, so the
   harness itself is not the source of any difference below.
 
@@ -50,6 +54,7 @@ NaN priority, FMA and F16C values, MXCSR, integer results, in every form. Only t
 | `66 e9`, `66 e8` (`66`-prefixed near jmp, call) | run | `SIGSEGV` (`SEGV_MAPERR`) on all 5 seeds | measured: `66 e9` with `probe -v`; `66 e8` in the batch probe (all five seeds fault on AMD, none on Intel) |
 | `0f 0d ce` (prefetchw with a register operand) | runs, no effect | `SIGILL` on all 5 seeds | measured. The memory forms `0f 0d 0b` and `0f 0d 1b` run on both. |
 | `f3 41 90` (`pause` with `REX.B`), seed 2 | no-op: `rax=123456789abcdef0`, `r8=1a3c` unchanged | executes as `xchg r8d, eax`: `rax=1a3c`, `r8=9abcdef0` | measured; seeds 1 and 4 agree (`rax`/`r8` swap, upper halves cleared on AMD) |
+| Gather (`vgather*`, `vpgather*`) state at a fault, `ymm` read from the signal frame | mask elements not yet processed are normalised (MSB set: all ones, else 0; the SDM pseudocode); on VEX.128 forms the upper half of dst and mask, and for the four-element `vpgatherqd`/`vgatherqps` forms the unused part of dst and mask, are already zero | the unprocessed mask elements keep their value; the zeroing happens at completion | measured on Xeon Platinum 8370C and Xeon 6973P-C/6975P-C against EPYC 7763, 9V74, 9V45. Elements already gathered, the processed mask elements, fault page, final result and restart all agree. The harness compares gathered dst elements and the mask MSBs only, so `semantics.ref` is vendor-neutral for these forms; the emulator does the AMD thing. |
 
 ## Between Intel parts
 

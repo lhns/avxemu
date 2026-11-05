@@ -39,6 +39,16 @@ static inline void put(ymm256 *o, __m128i l, __m128i h){
 /* per-lane (16-byte) helpers for scalar code */
 static inline const uint8_t *lane(const ymm256 *v, int l){ return v->b + 16*l; }
 
+/* _mm_mpsadbw_epu8 wants a constant control. */
+static __m128i mpsadbw(__m128i x, __m128i y, int ctl) {
+    switch (ctl) {
+    case 0: return _mm_mpsadbw_epu8(x, y, 0); case 1: return _mm_mpsadbw_epu8(x, y, 1);
+    case 2: return _mm_mpsadbw_epu8(x, y, 2); case 3: return _mm_mpsadbw_epu8(x, y, 3);
+    case 4: return _mm_mpsadbw_epu8(x, y, 4); case 5: return _mm_mpsadbw_epu8(x, y, 5);
+    case 6: return _mm_mpsadbw_epu8(x, y, 6); default: return _mm_mpsadbw_epu8(x, y, 7);
+    }
+}
+
 int vec_exec(vex_op op, int type,
              const ymm256 *a, const ymm256 *b, const ymm256 *c,
              uint8_t imm, ymm256 *out, uint64_t *gpr_out, uint32_t *mxcsr)
@@ -115,6 +125,13 @@ int vec_exec(vex_op op, int type,
     case VPSIGNW: HALFOP(_mm_sign_epi16); return 1;
     case VPSIGND: HALFOP(_mm_sign_epi32); return 1;
     case VPHADDD: HALFOP(_mm_hadd_epi32); return 1;
+    case VPHADDW: HALFOP(_mm_hadd_epi16); return 1;
+    case VPHADDSW:HALFOP(_mm_hadds_epi16);return 1;
+    case VPHSUBW: HALFOP(_mm_hsub_epi16); return 1;
+    case VPHSUBD: HALFOP(_mm_hsub_epi32); return 1;
+    case VPHSUBSW:HALFOP(_mm_hsubs_epi16);return 1;
+    case VMOVNTDQA: *out = *b; return 1;
+    case VMPSADBW: put(out, mpsadbw(lo(a), lo(b), imm & 7), mpsadbw(hi(a), hi(b), (imm >> 3) & 7)); return 1;
 
     /* ---- scalar-count shifts (count = low 64 bits of b) ---- */
     case VPSLLW: SHIFT(_mm_sll_epi16); return 1;
@@ -277,6 +294,8 @@ int vec_exec(vex_op op, int type,
     case VFMSUB132: case VFMSUB213: case VFMSUB231:
     case VFNMADD132:case VFNMADD213:case VFNMADD231:
     case VFNMSUB132:case VFNMSUB213:case VFNMSUB231:
+    case VFMADDSUB132: case VFMADDSUB213: case VFMADDSUB231:
+    case VFMSUBADD132: case VFMSUBADD213: case VFMSUBADD231:
         return fma_exec(op, type, a, b, c, out, mxcsr);
 
     default:

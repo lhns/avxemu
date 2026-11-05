@@ -105,6 +105,7 @@ static int positive(const specform *f) {
     uint8_t b[40], pad[40]; int bad[8] = {0}, seen = 0;
     static const char *const what[] = {"len", "regs", "mem", "memw", "rw", "imm", "seg", "addr32"};
     uint8_t first[8][24]; int firstn[8]; char why[8][64];
+    int gather = !strncmp(f->iclass, "VGATHER", 7) || !strncmp(f->iclass, "VPGATHER", 8);
     int nW = f->W < 0 ? 2 : 1, nL = f->L == -1 ? 2 : 1;
     int nmem = f->mem ? (int)(sizeof memvs / sizeof memvs[0]) : 1;
     for (int w = 0; w < nW; w++) for (int l = 0; l < nL; l++) for (int m = 0; m < nmem; m++)
@@ -117,6 +118,11 @@ static int positive(const specform *f) {
             const struct memv *mv = &memvs[m];
             e.base = mv->base; e.index = mv->index; e.scale = mv->scale; e.disp = mv->disp; e.rip = mv->rip; e.disp_size = mv->dsz;
             if (r > 2) continue;
+            if (gather) {      /* VSIB: a vector index, no RIP form, dst/mask/index all different */
+                if (mv->rip || e.reg == e.vvvv) continue;
+                e.index = (m & 1) ? 12 : 4; e.scale = 1 << (m & 3);
+                while (e.index == e.reg || e.index == e.vvvv) e.index = (e.index + 1) & 15;
+            }
         } else if (v2 || p67 > 1) { if (r > 0) continue; }
         int n = spec_encode(f, &e, b);
         memset(pad, 0x90, sizeof pad); memcpy(pad, b, n);
@@ -133,12 +139,13 @@ static int positive(const specform *f) {
             for (int i = 0; i < ndr; i++) for (int j = i + 1; j < ndr; j++) if (dr[j] < dr[i]) { int t = dr[i]; dr[i] = dr[j]; dr[j] = t; }
             fail[1] = ndr != x.nreg || memcmp(dr, x.reg, ndr * sizeof(int)) != 0;
             if (f->mem) {
-                int hm = d.has_mem && (d.a_src == OPND_MEM || d.b_src == OPND_MEM || d.dst_kind == DST_MEM);
+                int hm = d.has_mem && (gather || d.a_src == OPND_MEM || d.b_src == OPND_MEM || d.dst_kind == DST_MEM);
                 fail[7] = p67 && f->mem && !d.addr32;      /* 0x67 truncates the address; decode() must say so */
-                if (!p67) fail[2] = !hm || d.base != (x.base < 0 ? OPND_NONE : x.base) || d.index != (x.index < 0 ? OPND_NONE : x.index) ||
+                if (!p67) fail[2] = !hm || d.base != (x.base < 0 ? OPND_NONE : x.base) ||
+                          (gather ? (d.index != OPND_NONE || d.vsib_index != x.index) : d.index != (x.index < 0 ? OPND_NONE : x.index)) ||
                           (x.index >= 0 && d.scale != x.scale) || d.disp != (int32_t)x.disp || d.rip_rel != x.rip;
                 fail[3] = d.mem_bytes != x.memw;
-                fail[4] = (d.dst_kind == DST_MEM) != x.wr || ((d.a_src == OPND_MEM || d.b_src == OPND_MEM) != x.rd);
+                fail[4] = (d.dst_kind == DST_MEM) != x.wr || ((gather || d.a_src == OPND_MEM || d.b_src == OPND_MEM) != x.rd);
                 fail[6] = d.seg != x.seg;
             }
             if (f->imm8) fail[5] = d.imm != x.imm && !(d.op == VPBLENDVB);

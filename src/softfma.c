@@ -153,7 +153,8 @@ static uint64_t fma1(ffmt f, uint64_t m1b, uint64_t m2b, uint64_t adb,
     return r;
 }
 
-static void fma_lanes(ffmt f, int order, int negp, int negc, int n,
+/* alt: 1 subtracts the addend in even elements (vfmaddsub), 2 in odd ones (vfmsubadd). */
+static void fma_lanes(ffmt f, int order, int negp, int negc, int alt, int n,
                       const uint8_t *a, const uint8_t *b, const uint8_t *c, uint8_t *out,
                       uint32_t csr, int *fl) {
     int w = (f.mb + f.eb + 1) / 8;
@@ -165,7 +166,8 @@ static void fma_lanes(ffmt f, int order, int negp, int negc, int n,
         case 1: m1 = av; m2 = cv; ad = bv; break;      /* 213: src2*dst + src3 */
         default: m1 = av; m2 = bv; ad = cv; break;     /* 231: src2*src3 + dst */
         }
-        uint64_t r = fma1(f, m1, m2, ad, negp, negc, csr, fl);
+        int nc = negc ^ (alt == 1 ? !(i & 1) : alt == 2 ? (i & 1) : 0);
+        uint64_t r = fma1(f, m1, m2, ad, negp, nc, csr, fl);
         memcpy(out + i * w, &r, w);
     }
 }
@@ -180,8 +182,14 @@ int fp_raise(uint32_t *mxcsr, uint32_t fl) {
 int fma_exec(vex_op op, int type,
              const ymm256 *a, const ymm256 *b, const ymm256 *c, ymm256 *out,
              uint32_t *mxcsr) {
-    int order, negp, negc;
+    int order, negp, negc, alt = 0;
     switch (op) {
+    case VFMADDSUB132: order=0; negp=0; negc=0; alt=1; break;
+    case VFMADDSUB213: order=1; negp=0; negc=0; alt=1; break;
+    case VFMADDSUB231: order=2; negp=0; negc=0; alt=1; break;
+    case VFMSUBADD132: order=0; negp=0; negc=0; alt=2; break;
+    case VFMSUBADD213: order=1; negp=0; negc=0; alt=2; break;
+    case VFMSUBADD231: order=2; negp=0; negc=0; alt=2; break;
     case VFMADD132: order=0; negp=0; negc=0; break;
     case VFMADD213: order=1; negp=0; negc=0; break;
     case VFMADD231: order=2; negp=0; negc=0; break;
@@ -202,7 +210,7 @@ int fma_exec(vex_op op, int type,
     ymm256 tmp;
     if (scalar) { memcpy(tmp.b, c->b, 16); memset(tmp.b + 16, 0, 16); }   /* keep dst's upper bits, zero 255:128 */
     else memset(tmp.b, 0, 32);
-    fma_lanes(dbl ? FD : FS, order, negp, negc, n, a->b, b->b, c->b, tmp.b, csr, &fl);
+    fma_lanes(dbl ? FD : FS, order, negp, negc, alt, n, a->b, b->b, c->b, tmp.b, csr, &fl);
     if (!fp_raise(mxcsr, (uint32_t)fl)) return AVXEMU_FP_PENDING;
     *out = tmp;
     return 1;

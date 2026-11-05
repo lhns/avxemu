@@ -22,6 +22,8 @@
 #include <fnmatch.h>
 #include <setjmp.h>
 #include <signal.h>
+#include <ucontext.h>
+#include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -43,6 +45,9 @@ static uint8_t *g_gl, *g_data, *g_gh, *g_code, *g_stk;     /* guard, 2 data page
 typedef struct {
     int kind; uint64_t fault_page;
     sem_state st; uint64_t mem_hash;
+    /* gather forms only: the ymm file at the fault (partial progress), and the outcome of re-running
+     * from that state with the guard pages readable (the restart) */
+    int gather, rkind; uint8_t fymm[16][32], rymm[16][32];
 } sem_out;
 
 typedef struct {
@@ -53,7 +58,29 @@ typedef struct {
 typedef void (*sem_runner)(const sem_case *c, sem_out *o);
 
 static sigjmp_buf g_jb; static volatile int g_sig; static volatile uintptr_t g_addr;
-static void on_fault(int sig, siginfo_t *si, void *uc) { (void)uc; g_sig = sig; g_addr = (uintptr_t)si->si_addr; siglongjmp(g_jb, 1); }
+static uint8_t g_fymm[16][32]; static volatile int g_fymm_ok;
+/* ymm at the fault, from the XSAVE area of the signal frame: xmm in the legacy area (offset 160), the
+ * upper halves at 576 (standard format), each only when its XSTATE_BV bit says it is not in its init state. */
+static void capture_ymm(const void *ucv) {
+    const ucontext_t *uc = ucv; const uint8_t *x = (const uint8_t *)uc->uc_mcontext.fpregs;
+    g_fymm_ok = 0; memset(g_fymm, 0, sizeof g_fymm);
+    uint32_t magic = 0; uint64_t bv = 0;
+    if (!x) return;
+    memcpy(&magic, x + 464, 4); memcpy(&bv, x + 512, 8);
+    if (magic != 0x46505853u) return;      /* FP_XSTATE_MAGIC1 */
+    for (int r = 0; r < 16; r++) {
+        if (bv & 2) memcpy(g_fymm[r], x + 160 + 16 * r, 16);
+        if (bv & 4) memcpy(g_fymm[r] + 16, x + 576 + 16 * r, 16);
+    }
+    g_fymm_ok = 1;
+}
+/* A #UD on the real CPU means the harness generated an invalid encoding; name it instead of dying silently. */
+static char g_curcase[160];
+static void on_ill(int sig, siginfo_t *si, void *uc) {
+    (void)si; (void)uc; (void)sig;
+    fprintf(stderr, "SIGILL on the real CPU: %s\n", g_curcase); fflush(stdout); _exit(3);
+}
+static void on_fault(int sig, siginfo_t *si, void *uc) { capture_ymm(uc); g_sig = sig; g_addr = (uintptr_t)si->si_addr; siglongjmp(g_jb, 1); }
 
 static void install_handlers(void) {
     static uint8_t stack[65536];
@@ -61,6 +88,7 @@ static void install_handlers(void) {
     struct sigaction sa; memset(&sa, 0, sizeof sa);
     sa.sa_sigaction = on_fault; sa.sa_flags = SA_SIGINFO | SA_ONSTACK | SA_NODEFER; sigemptyset(&sa.sa_mask);
     sigaction(SIGSEGV, &sa, 0); sigaction(SIGBUS, &sa, 0); sigaction(SIGFPE, &sa, 0);
+    sa.sa_sigaction = on_ill; sigaction(SIGILL, &sa, 0);
 }
 
 static int map_arena(void) {
@@ -111,9 +139,13 @@ static void run_hw(const sem_case *c, sem_out *o) {
     g_code[c->len] = 0xFF; g_code[c->len + 1] = 0x25; memset(g_code + c->len + 2, 0, 4);
     uintptr_t after = (uintptr_t)sem_hw_after; memcpy(g_code + c->len + 6, &after, 8);
     o->st = c->in;
+    { int n = snprintf(g_curcase, sizeof g_curcase, "%s case %d: ", c->f->name, c->idx); for (int b = 0; b < c->len && n < (int)sizeof g_curcase - 3; b++) n += snprintf(g_curcase + n, sizeof g_curcase - n, "%02x", c->code[b]); }
     g_sig = 0;
     if (!sigsetjmp(g_jb, 1)) sem_hw_call(&o->st, g_code);
-    else { o->kind = g_sig == SIGFPE ? K_FPE : K_SEGV; o->fault_page = g_sig == SIGFPE ? 0 : (uint64_t)(g_addr & ~(uintptr_t)(PAGE - 1)); memset(&o->st, 0, sizeof o->st); }
+    else {
+        o->kind = g_sig == SIGFPE ? K_FPE : K_SEGV; o->fault_page = g_sig == SIGFPE ? 0 : (uint64_t)(g_addr & ~(uintptr_t)(PAGE - 1)); memset(&o->st, 0, sizeof o->st);
+        if (g_fymm_ok) memcpy(o->fymm, g_fymm, sizeof o->fymm);
+    }
     _mm_setcsr(0x1F80);
     collect(o);
 }
@@ -126,7 +158,7 @@ static void run_emu(const sem_case *c, sem_out *o) {
     decoded d; int n = decode(g_code, &d);
     if (n == 0) { o->kind = K_NODECODE; collect(o); return; }
     if (n != c->len) { o->kind = K_BADLEN; collect(o); return; }
-    avxemu_regfile rf; memset(&rf, 0, sizeof rf);
+    static avxemu_regfile rf; memset(&rf, 0, sizeof rf);      /* static: its state at a fault is read after the longjmp */
     memcpy(rf.ymm, c->in.ymm, sizeof rf.ymm); memcpy(rf.gpr, c->in.gpr, sizeof rf.gpr);
     rf.rflags = c->in.rflags; rf.rip = (uintptr_t)g_code;
     int ok = 0; g_sig = 0;
@@ -142,8 +174,49 @@ static void run_emu(const sem_case *c, sem_out *o) {
     } else {
         _mm_setcsr(0x1F80);
         o->kind = g_sig == SIGFPE ? K_FPE : K_SEGV; o->fault_page = g_sig == SIGFPE ? 0 : (uint64_t)(g_addr & ~(uintptr_t)(PAGE - 1));
+        memcpy(o->fymm, rf.ymm, sizeof o->fymm);
     }
     collect(o);
+}
+
+static int is_gather(const specform *f) { return !strncmp(f->iclass, "VGATHER", 7) || !strncmp(f->iclass, "VPGATHER", 8); }
+/* Element and index sizes in bytes, and how many elements the form gathers. */
+static void gather_shape(const specform *f, int *elem, int *idxsz, int *count) {
+    const char *ic = f->iclass + (f->iclass[1] == 'P' ? 8 : 7);       /* after VGATHER / VPGATHER */
+    *idxsz = ic[0] == 'Q' ? 8 : 4;
+    *elem = f->iclass[1] == 'P' ? (ic[1] == 'Q' ? 8 : 4) : (ic[2] == 'D' ? 8 : 4);
+    int vec = f->L == 1 ? 32 : 16, per = *elem > *idxsz ? *elem : *idxsz;
+    *count = vec / per;
+}
+static void guards(int prot) { mprotect(g_gl, PAGE, prot); mprotect(g_gh, PAGE, prot); }
+
+/* Run one case. A gather that faults has made architectural partial progress (elements before the fault
+ * are in dst and cleared in the mask), so for those forms the state at the fault is compared too, and the
+ * instruction is restarted from it with the guard pages readable: that must equal one uninterrupted run.
+ * *rbad is set when it does not. */
+static void run_case(sem_runner run, const sem_case *c, sem_out *o, int *rbad) {
+    run(c, o);
+    if (!is_gather(c->f)) return;
+    o->gather = 1;
+    if (o->kind != K_SEGV) return;
+    sem_case r = *c; sem_out ro, uo;
+    memcpy(r.in.ymm, o->fymm, sizeof r.in.ymm);
+    guards(PROT_READ | PROT_WRITE);
+    run(&r, &ro); run(c, &uo);
+    guards(PROT_NONE);
+    memcpy(o->rymm, ro.st.ymm, sizeof o->rymm); o->rkind = ro.kind;
+    /* Intel and AMD differ in what a faulted gather has done so far to what it overwrites or zeroes on
+     * completion: the mask elements not yet processed (Intel normalises them to all ones or zero as the
+     * SDM pseudocode says, AMD leaves them), the bits of dst and mask above the gathered elements (Intel
+     * zeroes the upper half of a VEX.128 form and the unused part up front, AMD at completion), and the
+     * upper mask elements of a ymm-index form. Software cannot tell: only the MSB selects. Compare the
+     * gathered dst elements and the MSB of the mask elements; docs/vendor-differences.md. */
+    int elem, idxsz, count; gather_shape(c->f, &elem, &idxsz, &count);
+    uint8_t *mk = o->fymm[c->vvvv & 15];
+    for (int i = 0; i < count; i++) memset(mk + i * elem, (mk[i * elem + elem - 1] & 0x80) ? 0xFF : 0, elem);
+    memset(mk + count * elem, 0, 32 - count * elem);
+    memset(o->fymm[c->reg & 15] + count * elem, 0, 32 - count * elem);
+    if (ro.kind != uo.kind || ro.mem_hash != uo.mem_hash || memcmp(ro.st.ymm, uo.st.ymm, sizeof ro.st.ymm)) *rbad = 1;
 }
 
 /* What is compared and digested: nothing the architecture leaves undefined or the harness owns. */
@@ -157,6 +230,10 @@ static size_t pack(const sem_out *o, uint8_t *buf) {
         memcpy(buf + n, o->st.gpr, 128); n += 128;
         uint64_t fl = o->st.rflags & FLAGS_MASK; memcpy(buf + n, &fl, 8); n += 8;
         uint32_t mx = o->st.mxcsr & 0x3F; memcpy(buf + n, &mx, 4); n += 4;
+    } else if (o->gather && o->kind == K_SEGV) {
+        memcpy(buf + n, o->fymm, 512); n += 512;
+        memcpy(buf + n, o->rymm, 512); n += 512;
+        buf[n++] = (uint8_t)o->rkind;
     }
     return n;
 }
@@ -164,7 +241,17 @@ static size_t pack(const sem_out *o, uint8_t *buf) {
 static void describe_diff(const sem_out *h, const sem_out *e, char *out, size_t cap) {
     out[0] = 0;
     if (h->kind != e->kind) { snprintf(out, cap, "outcome hw=%d emu=%d (0 ok,1 segv,2 fpe,3 nodecode,4 refused,5 badlen)", h->kind, e->kind); return; }
-    if (h->kind != K_OK) { snprintf(out, cap, "fault page hw=%llx emu=%llx", (unsigned long long)h->fault_page, (unsigned long long)e->fault_page); if (h->mem_hash != e->mem_hash) strncat(out, " memory differs", cap - strlen(out) - 1); return; }
+    if (h->kind != K_OK) {
+        snprintf(out, cap, "fault page hw=%llx emu=%llx", (unsigned long long)h->fault_page, (unsigned long long)e->fault_page);
+        if (h->mem_hash != e->mem_hash) strncat(out, " memory differs", cap - strlen(out) - 1);
+        if (h->gather && h->kind == K_SEGV) {
+            for (int r = 0; r < 16; r++) for (int b = 0; b < 32; b++) if (h->fymm[r][b] != e->fymm[r][b]) {
+                size_t l = strlen(out); snprintf(out + l, cap - l, " state at fault: ymm%d byte %d hw=%02x emu=%02x", r, b, h->fymm[r][b], e->fymm[r][b]); return;
+            }
+            if (memcmp(h->rymm, e->rymm, sizeof h->rymm) || h->rkind != e->rkind) strncat(out, " restart result differs", cap - strlen(out) - 1);
+        }
+        return;
+    }
     for (int r = 0; r < 16; r++) for (int b = 0; b < 32; b++)
         if (h->st.ymm[r][b] != e->st.ymm[r][b]) { snprintf(out, cap, "ymm%d byte %d hw=%02x emu=%02x", r, b, h->st.ymm[r][b], e->st.ymm[r][b]); return; }
     for (int r = 0; r < 16; r++)
@@ -231,6 +318,62 @@ static int is_shiftcount(const specform *f) {   /* vpsll/srl/sra with an xmm or 
     return !strncmp(c, "VPS", 3) && (strstr(c, "LL") || strstr(c, "RL") || strstr(c, "RA")) ;
 }
 
+static int64_t fdiv(int64_t a, int64_t b) { int64_t q = a / b; return (a % b != 0 && (a < 0)) ? q - 1 : q; }   /* b > 0 */
+static int64_t cdiv(int64_t a, int64_t b) { return -fdiv(-a, b); }
+
+/* Gather operands (VSIB). Distinct dst/mask/index registers; the data region is [g_data, g_data+2 pages)
+ * with a guard page on each side. Scenarios (idx % 8): all set, all set, all clear with wild indices (no
+ * fault, no read), mixed (wild indices only where masked off), mixed with a faulting element, mixed with
+ * a faulting element, all set with a faulting element, anything. A faulting element lies in a guard page
+ * or straddles into the high one, so earlier elements have completed. */
+static void gather_operands(const specform *f, int idx, specenc *e, sem_state *s) {
+    int elem, idxsz, count;
+    gather_shape(f, &elem, &idxsz, &count);
+    int dst = (int)(rnd() % 16), mask, ix;
+    do mask = (int)(rnd() % 16); while (mask == dst);
+    do ix = (int)(rnd() % 16); while (ix == dst || ix == mask);
+    e->reg = dst; e->vvvv = mask; e->index = ix;
+    static const int sc[] = {1, 2, 4, 8};
+    e->scale = sc[rnd() & 3];
+    int64_t lo = (int64_t)(uintptr_t)g_data, end = lo + 2 * PAGE;
+    int64_t C = lo + (int64_t)(rnd() % (2 * PAGE));                     /* base + disp */
+    static const int32_t dv[] = {0, 0, 4, -4, 100, -100, 0x1000, -0x1000, 0x12345, -0x12345};
+    int32_t disp = dv[rnd() % 10];
+    if (end + PAGE < 0x7fffffff && rnd() % 5 == 0) { e->base = -1; e->disp = (int32_t)C; }
+    else {
+        static const int bv[] = {0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+        e->base = bv[rnd() % 15];
+        e->disp = disp;
+        s->gpr[e->base] = (uint64_t)(C - disp);
+    }
+    if (end + PAGE < 0x7fffffff && idx % 8 == 7 && e->base >= 0) {       /* 0x67: 32-bit address, high base bits ignored */
+        e->pad67 = 1; s->gpr[e->base] = (uint32_t)(C - disp) | (rnd() << 32);
+    }
+    int mode = idx % 8, fj = -1;
+    if (mode == 4 || mode == 5 || mode == 6) fj = (int)(rnd() % count);
+    int64_t ilo = cdiv(lo - C, e->scale), ihi = fdiv(end - elem - C, e->scale);
+    uint8_t *mk = s->ymm[mask], *iv = s->ymm[ix];
+    for (int i = 0; i < count; i++) {
+        int on = mode <= 1 || mode == 6 ? 1 : mode == 2 ? 0 : (int)(rnd() & 1);
+        if (i == fj) on = 1;
+        uint64_t m = rnd() & (elem == 8 ? 0x7fffffffffffffffull : 0x7fffffffull);
+        if (on) m |= 1ull << (elem * 8 - 1);
+        memcpy(mk + i * elem, &m, elem);
+        int64_t v;
+        if (!on) v = (int64_t)rnd() >> (rnd() % 3 ? 0 : 33);              /* wild, never read */
+        else if (i == fj) {
+            int64_t t;
+            if (rnd() & 1) { t = end - elem + 1 + (int64_t)(rnd() % (elem - 1 + 300)); v = cdiv(t - C, e->scale); }
+            else { t = lo - 1 - (int64_t)(rnd() % 300); v = fdiv(t - C, e->scale); }
+        } else {
+            uint64_t r = rnd();
+            v = r % 8 == 0 ? ihi : r % 8 == 1 ? ilo : ilo + (int64_t)(rnd() % (uint64_t)(ihi - ilo + 1));
+        }
+        if (idxsz == 4) { int32_t v32 = (int32_t)v; memcpy(iv + i * 4, &v32, 4); }
+        else memcpy(iv + i * 8, &v, 8);
+    }
+}
+
 /* Build case #idx of form f. The same (form, idx) always yields the same case. */
 static int gen_case(const specform *f, int idx, sem_case *c) {
     uint64_t h = REF_FNV_OFFSET; h = fnv(f->name, strlen(f->name), h);
@@ -277,7 +420,11 @@ static int gen_case(const specform *f, int idx, sem_case *c) {
     /* memory operand */
     fill_bytes(c->mem, sizeof c->mem, fpw, fpw ? fpw : 1 << (rnd() & 3));
     uint64_t ea = 0; c->ea = 0; int mw = f->memw > 0 ? f->memw : 1;
-    if (f->mem) {
+    if (f->mem && is_gather(f)) {
+        gather_operands(f, idx, &e, s);
+        ea = (uintptr_t)g_data;
+        e.rm = e.index;
+    } else if (f->mem) {
         static const int places[] = {0, 1, 2, 5, 5, 0, 1, 2, 3, 4};
         c->place = places[idx % 10];   /* every placement in the first ten cases, so smoke has them all */
         uint8_t *de = g_data + 2 * PAGE;
@@ -415,13 +562,13 @@ int main(int argc, char **argv) {
         int total = full_cases(f);
         FLAGS_MASK = flags_mask(f);
         uint64_t ds = REF_FNV_OFFSET, df = REF_FNV_OFFSET, dh_s = REF_FNV_OFFSET, dh_f = REF_FNV_OFFSET; long cs = 0, cf = 0;
-        int bad_hw = 0, bad_dec = 0, bad_ref = 0; int diffs = 0; char repro[600] = "";
+        int bad_hw = 0, bad_dec = 0, bad_ref = 0, rst_emu = 0, rst_hw = 0; int diffs = 0; char repro[600] = "";
         for (int k = 0; k < total; k++) {
             int smoke = is_smoke(k);
             if (!full && !smoke) continue;
             sem_case c; gen_case(f, k, &c);
-            sem_out eo, ho; uint8_t pe[1024], ph[1024];
-            emu(&c, &eo);
+            sem_out eo, ho; uint8_t pe[2048], ph[2048];
+            run_case(emu, &c, &eo, &rst_emu);
             if (getenv("SEM_TRACE")) printf("%s case %d place %d ea+%lld kind %d\n", f->name, k, c.place, (long long)(c.ea - (uintptr_t)g_data), eo.kind);
             size_t ne = pack(&eo, pe);
             if (eo.kind == K_NODECODE || eo.kind == K_BADLEN || eo.kind == K_REFUSED) {
@@ -432,7 +579,7 @@ int main(int argc, char **argv) {
             ds = fnv(pe, ne, ds); if (smoke) { cs++; } cf++;
             if (smoke) df = fnv(pe, ne, df);      /* df = smoke digest, ds = full digest */
             if (live) {
-                run_hw(&c, &ho);
+                run_case(run_hw, &c, &ho, &rst_hw);
                 size_t nh = pack(&ho, ph);
                 if (dump) dump_case(dump, f, &c, &ho);
                 dh_f = fnv(ph, nh, dh_f); if (smoke) dh_s = fnv(ph, nh, dh_s);
@@ -451,6 +598,8 @@ int main(int argc, char **argv) {
                         for (int b = 0; b < c.len; b++) sprintf(hx + 2 * b, "%02x", c.code[b]);
                         int o = 0; o = snprintf(repro, sizeof repro, "  repro semantics/%s/hw: %s (case %d, place %d, ea+%lld, mxcsr %04x): %s", f->name, hx, k, c.place, (long long)(c.ea - (uintptr_t)g_data), c.in.mxcsr, why);
                         if (fp_width(f)) { int rg[3] = {c.reg, c.vvvv, c.rm}; for (int q = 0; q < (f->mem ? 2 : 3); q++) { o += snprintf(repro + o, sizeof repro - o, " r%d=", rg[q]); for (int b = 15; b >= 0; b--) o += snprintf(repro + o, sizeof repro - o, "%02x", c.in.ymm[rg[q] & 15][b]); } }
+                        if (is_gather(f)) { o += snprintf(repro + o, sizeof repro - o, " mask(y%d)=", c.vvvv); for (int b = 31; b >= 0 && o < 480; b--) o += snprintf(repro + o, sizeof repro - o, "%02x", c.in.ymm[c.vvvv & 15][b]);
+                            o += snprintf(repro + o, sizeof repro - o, " index(y%d)=", c.rm); for (int b = 31; b >= 0 && o < 560; b--) o += snprintf(repro + o, sizeof repro - o, "%02x", c.in.ymm[c.rm & 15][b]); }
                         if (!strncmp(f->iclass, "VPMASKMOV", 9)) { o += snprintf(repro + o, sizeof repro - o, " mask="); for (int b = 0; b < 32 && o < 560; b++) o += snprintf(repro + o, sizeof repro - o, "%02x", c.in.ymm[c.vvvv & 15][b]); }
                     }
                     bad_hw = 1;
@@ -481,12 +630,16 @@ int main(int argc, char **argv) {
             uint64_t d2 = REF_FNV_OFFSET;
             for (int k = 0; k < total; k++) {
                 if (!is_smoke(k)) continue;
-                sem_case c; gen_case(f, k, &c); sem_out o2; uint8_t p2[1024]; emu(&c, &o2); d2 = fnv(p2, pack(&o2, p2), d2);
+                sem_case c; gen_case(f, k, &c); sem_out o2; uint8_t p2[2048]; int rb2 = 0; run_case(emu, &c, &o2, &rb2); d2 = fnv(p2, pack(&o2, p2), d2);
             }
             if (d2 != df) deterministic_bad = 1;
         }
         char cn[160];
         snprintf(cn, sizeof cn, "semantics/%s/decode", f->name); known_case(cn, !bad_dec);
+        if (is_gather(f)) {
+            snprintf(cn, sizeof cn, "semantics/%s/restart", f->name); known_case(cn, !rst_emu);
+            if (live) { snprintf(cn, sizeof cn, "semantics/%s/restart-hw", f->name); known_case(cn, !rst_hw); }
+        }
         if (live) { snprintf(cn, sizeof cn, "semantics/%s/hw", f->name); if (known_case(cn, !bad_hw) || (bad_hw && getenv("KNOWN_VERBOSE"))) puts(repro); }
         if (check) { snprintf(cn, sizeof cn, "semantics/%s/digest", f->name); known_case(cn, !bad_ref); }
     }
