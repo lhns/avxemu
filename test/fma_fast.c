@@ -127,6 +127,16 @@ static void gen(const fmt *f, int kind, uint64_t v[3]) {
         break;
     }
     case G_TIE: {      /* x*y = +-2^k (1 + 0, +2^-j or -2^-j), 2^k half an ulp of z: exact ties and just off */
+        if (below(4) == 0) {
+            /* Just above a tie through a borrow: x*y = 2^k (2 - 2^(2-2p)) has 2p-2 ones; aligned with z of
+             * the other sign, the ones below z's ulp read as half an ulp after the sticky borrow. */
+            int sx = (int)(rnd() & 1), sy = (int)(rnd() & 1), ex = b + below(21) - 10, ey = b + below(21) - 10;
+            v[0] = mk(f, sx, ex, (1ull << f->mb) - 2);
+            v[1] = mk(f, sy, ey, 1);
+            uint64_t m = mant(f);
+            v[2] = mk(f, !(sx ^ sy), ex + ey - b + f->p + 1, m);
+            break;
+        }
         v[2] = normal(f, near);
         int a = below(21) - 10, j = 1 + below(f->mb), kb = bexp(f, v[2]) - f->p;
         v[0] = mk(f, (int)(rnd() & 1), b + a, below(2) ? 1ull << (f->mb - j) : 0);
