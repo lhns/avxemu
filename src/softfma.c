@@ -143,8 +143,108 @@ static uint64_t fma1x(ffmt f, uint64_t m1b, uint64_t m2b, uint64_t adb,
     return round_pack(f, sign, r, e0, sticky, rm, ftz, um, fl);
 }
 
+/*
+ * Fast path, taken only in round-to-nearest with every operand normal or zero and a normal result:
+ * then DAZ, FTZ, DE, IE, UE and OE cannot arise and only PE is computed. Anything else returns 0 and
+ * the element goes to fma1. x, y, z already carry the op's negations.
+ * The product and the addend sit at the top of one integer; bits shifted out of the smaller one
+ * become `sticky`. Both have many trailing zeros, so a sticky operand is far below the other and a
+ * subtraction cancels at most one bit; an exact zero sum has no sticky.
+ */
+#ifndef SOFTFMA_NO_FAST    /* test builds: softfma alone, the reference for the fast path */
+#ifndef SOFTFMA_HIT
+#define SOFTFMA_HIT(k) ((void)0)    /* test builds count fast-path hits by category */
+#endif
+
+/* RN-even of (r + sticky fraction) * 2^e0 with sign s, r != 0, to p bits; 0 unless the result is normal. */
+#define FAST_ROUND_FN(name, T, msb, p, bias, sbit)                                                  \
+    static int name(T r, int e0, int s, int sticky, uint64_t *out, int *fl) {                      \
+        int m = msb(r), be = e0 + m + (bias), sh = m - ((p) - 1), inexact = sticky;                \
+        if (be < 1) { SOFTFMA_HIT(8); return 0; } /* below the normal range before rounding */     \
+        if (sh > 0) {                                                                              \
+            T rem = r & (((T)1 << sh) - 1), half = (T)1 << (sh - 1);                               \
+            r >>= sh;                                                                              \
+            inexact |= rem != 0;                                                                   \
+            if (rem == half) SOFTFMA_HIT(sticky ? 11 : r & 1 ? 9 : 10);                            \
+            r += rem > half || (rem == half && (sticky || (r & 1)));                               \
+            if (r >> (p)) { SOFTFMA_HIT(12); r >>= 1; be++; }                                      \
+        } else if (sticky) return 0;              /* unreachable: sticky implies a large r */      \
+        else r <<= -sh;                                                                            \
+        if (be >= 2 * (bias) + 1) { SOFTFMA_HIT(13); return 0; }   /* overflow */                 \
+        if (be == 1) SOFTFMA_HIT(14);                                                              \
+        if (be == 2 * (bias)) SOFTFMA_HIT(15);                                                     \
+        if (inexact) *fl |= F_PE;                                                                  \
+        *out = ((uint64_t)s << (sbit)) + ((uint64_t)(be - 1) << ((p) - 1)) + (uint64_t)r;          \
+        return 1;                                                                                  \
+    }
+
+/* Align y (smaller exponent) to x, then add or subtract: magnitude r, sign s. */
+#define FAST_ADD(T, x, ex, sx, y, ey, sy, r, s, sticky) do {                                       \
+    int d_ = (ex) - (ey); T y_ = (y);                                                              \
+    if (d_ >= (int)(sizeof(T) * 8)) { (sticky) = 1; y_ = 0; }                                      \
+    else if (d_) { (sticky) = (y_ & (((T)1 << d_) - 1)) != 0; y_ >>= d_; }                         \
+    if ((sx) == (sy)) { (r) = (x) + y_; (s) = (sx); }                                              \
+    else if ((x) >= y_) { (r) = (x) - y_ - (T)(sticky); (s) = (sx); if (sticky) SOFTFMA_HIT(16); } \
+    else { (r) = y_ - (x); (s) = (sy); }                                                           \
+} while (0)
+
+static int msb64(uint64_t v) { return 63 - __builtin_clzll(v); }
+FAST_ROUND_FN(fast_round_d, u128, msb128, 53, 1023, 63)
+FAST_ROUND_FN(fast_round_s, uint64_t, msb64, 24, 127, 31)
+
+/* binary64: the 106-bit product at bit 125 or 126 of a u128, the addend's 53 bits at bit 125. */
+static int fast_d(uint64_t x, uint64_t y, uint64_t z, uint64_t *out, int *fl) {
+    const uint64_t M = (1ull << 52) - 1;
+    unsigned ex = (unsigned)(x >> 52) & 0x7ff, ey = (unsigned)(y >> 52) & 0x7ff, ez = (unsigned)(z >> 52) & 0x7ff;
+    if ((ex - 1 >= 0x7fe && (x << 1)) || (ey - 1 >= 0x7fe && (y << 1)) || (ez - 1 >= 0x7fe && (z << 1)))
+        return 0;                                          /* Inf, NaN or subnormal */
+    int sp = (int)((x ^ y) >> 63), sz = (int)(z >> 63), s, sticky = 0, e0;
+    if (!(x << 1) || !(y << 1)) {                          /* product +-0: z exactly, or the RN zero sign */
+        SOFTFMA_HIT(0);
+        *out = (z << 1) ? z : (uint64_t)(sp & sz) << 63;
+        return 1;
+    }
+    u128 p = (u128)((x & M) | (M + 1)) * ((y & M) | (M + 1)) << 21, r;
+    int ep = (int)(ex + ey) - 2 * 1075 - 21;
+    if (!(z << 1)) { SOFTFMA_HIT(1); return fast_round_d(p, ep, sp, 0, out, fl); }
+    u128 c = (u128)((z & M) | (M + 1)) << 73;
+    int ec = (int)ez - 1075 - 73;
+    if (ep >= ec) { FAST_ADD(u128, p, ep, sp, c, ec, sz, r, s, sticky); e0 = ep; }
+    else          { FAST_ADD(u128, c, ec, sz, p, ep, sp, r, s, sticky); e0 = ec; }
+    if (r == 0) { SOFTFMA_HIT(2); *out = 0; return 1; }   /* exact cancellation: +0 in RN */
+    SOFTFMA_HIT(3);
+    return fast_round_d(r, e0, s, sticky, out, fl);
+}
+
+/* binary32: the 48-bit product at bit 61 or 62 of a u64, the addend's 24 bits at bit 61. */
+static int fast_s(uint64_t x, uint64_t y, uint64_t z, uint64_t *out, int *fl) {
+    const uint64_t M = (1u << 23) - 1;
+    unsigned ex = (unsigned)(x >> 23) & 0xff, ey = (unsigned)(y >> 23) & 0xff, ez = (unsigned)(z >> 23) & 0xff;
+    uint64_t mag = 0x7fffffffu;
+    if ((ex - 1 >= 0xfe && (x & mag)) || (ey - 1 >= 0xfe && (y & mag)) || (ez - 1 >= 0xfe && (z & mag)))
+        return 0;
+    int sp = (int)((x ^ y) >> 31) & 1, sz = (int)(z >> 31) & 1, s, sticky = 0, e0;
+    if (!(x & mag) || !(y & mag)) {
+        SOFTFMA_HIT(4);
+        *out = (z & mag) ? z : (uint64_t)(sp & sz) << 31;
+        return 1;
+    }
+    uint64_t p = ((x & M) | (M + 1)) * ((y & M) | (M + 1)) << 15, r;
+    int ep = (int)(ex + ey) - 2 * 150 - 15;
+    if (!(z & mag)) { SOFTFMA_HIT(5); return fast_round_s(p, ep, sp, 0, out, fl); }
+    uint64_t c = ((z & M) | (M + 1)) << 38;
+    int ec = (int)ez - 150 - 38;
+    if (ep >= ec) { FAST_ADD(uint64_t, p, ep, sp, c, ec, sz, r, s, sticky); e0 = ep; }
+    else          { FAST_ADD(uint64_t, c, ec, sz, p, ep, sp, r, s, sticky); e0 = ec; }
+    if (r == 0) { SOFTFMA_HIT(6); *out = 0; return 1; }
+    SOFTFMA_HIT(7);
+    return fast_round_s(r, e0, s, sticky, out, fl);
+}
+
+#endif /* SOFTFMA_NO_FAST */
+
 /* DE is not reported when the element also raises IE or propagates a NaN. */
-static uint64_t fma1(ffmt f, uint64_t m1b, uint64_t m2b, uint64_t adb,
+__attribute__((noinline)) static uint64_t fma1(ffmt f, uint64_t m1b, uint64_t m2b, uint64_t adb,
                      int negp, int negc, uint32_t csr, int *fl) {
     int l = 0, den = 0;
     uint64_t r = fma1x(f, m1b, m2b, adb, negp, negc, csr, &l, &den);
@@ -153,11 +253,16 @@ static uint64_t fma1(ffmt f, uint64_t m1b, uint64_t m2b, uint64_t adb,
     return r;
 }
 
-/* alt: 1 subtracts the addend in even elements (vfmaddsub), 2 in odd ones (vfmsubadd). */
-static void fma_lanes(ffmt f, int order, int negp, int negc, int alt, int n,
+/* alt: 1 subtracts the addend in even elements (vfmaddsub), 2 in odd ones (vfmsubadd).
+ * Inlined per format so the element width is a constant. */
+__attribute__((always_inline)) static inline void fma_lanes(ffmt f, int order, int negp, int negc, int alt, int n,
                       const uint8_t *a, const uint8_t *b, const uint8_t *c, uint8_t *out,
                       uint32_t csr, int *fl) {
     int w = (f.mb + f.eb + 1) / 8;
+#ifndef SOFTFMA_NO_FAST
+    int fast = ((csr >> 13) & 3) == 0, dbl = w == 8;   /* round to nearest */
+    uint64_t sign = 1ull << (w * 8 - 1);
+#endif
     for (int i = 0; i < n; i++) {
         uint64_t av = 0, bv = 0, cv = 0, m1, m2, ad;
         memcpy(&av, a + i * w, w); memcpy(&bv, b + i * w, w); memcpy(&cv, c + i * w, w);
@@ -167,7 +272,14 @@ static void fma_lanes(ffmt f, int order, int negp, int negc, int alt, int n,
         default: m1 = av; m2 = bv; ad = cv; break;     /* 231: src2*src3 + dst */
         }
         int nc = negc ^ (alt == 1 ? !(i & 1) : alt == 2 ? (i & 1) : 0);
-        uint64_t r = fma1(f, m1, m2, ad, negp, nc, csr, fl);
+        uint64_t r;
+#ifndef SOFTFMA_NO_FAST
+        if (fast && (dbl ? fast_d : fast_s)(m1 ^ (negp ? sign : 0), m2, ad ^ (nc ? sign : 0), &r, fl)) {
+            memcpy(out + i * w, &r, w);
+            continue;
+        }
+#endif
+        r = fma1(f, m1, m2, ad, negp, nc, csr, fl);
         memcpy(out + i * w, &r, w);
     }
 }
@@ -210,7 +322,8 @@ int fma_exec(vex_op op, int type,
     ymm256 tmp;
     if (scalar) { memcpy(tmp.b, c->b, 16); memset(tmp.b + 16, 0, 16); }   /* keep dst's upper bits, zero 255:128 */
     else memset(tmp.b, 0, 32);
-    fma_lanes(dbl ? FD : FS, order, negp, negc, alt, n, a->b, b->b, c->b, tmp.b, csr, &fl);
+    if (dbl) fma_lanes(FD, order, negp, negc, alt, n, a->b, b->b, c->b, tmp.b, csr, &fl);
+    else fma_lanes(FS, order, negp, negc, alt, n, a->b, b->b, c->b, tmp.b, csr, &fl);
     if (!fp_raise(mxcsr, (uint32_t)fl)) return AVXEMU_FP_PENDING;
     *out = tmp;
     return 1;
