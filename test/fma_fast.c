@@ -15,7 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static unsigned long long hits[8];
+static unsigned long long hits[17];   /* softfma.c: 0-7 taken, 8-16 boundary events */
 #define SOFTFMA_HIT(k) (hits[k]++)
 #define fma_exec fast_fma_exec
 #define fp_raise fast_fp_raise
@@ -87,7 +87,7 @@ static uint64_t special(const fmt *f) {
     }
 }
 
-enum { G_RAND, G_NORM, G_CANCEL, G_ALIGN, G_EDGE, G_ZERO, G_SPECIAL, G_N };
+enum { G_RAND, G_NORM, G_CANCEL, G_ALIGN, G_EDGE, G_ZERO, G_TIE, G_SPECIAL, G_N };
 
 /* One element's m1, m2, addend. */
 static void gen(const fmt *f, int kind, uint64_t v[3]) {
@@ -126,6 +126,17 @@ static void gen(const fmt *f, int kind, uint64_t v[3]) {
         }
         break;
     }
+    case G_TIE: {      /* x*y = +-2^k (1 + 0, +2^-j or -2^-j), 2^k half an ulp of z: exact ties and just off */
+        v[2] = normal(f, near);
+        int a = below(21) - 10, j = 1 + below(f->mb), kb = bexp(f, v[2]) - f->p;
+        v[0] = mk(f, (int)(rnd() & 1), b + a, below(2) ? 1ull << (f->mb - j) : 0);
+        switch (below(3)) {
+        case 0: v[1] = mk(f, (int)(rnd() & 1), kb - a, 0); break;
+        case 1: v[1] = mk(f, (int)(rnd() & 1), kb - a, 1ull << below(f->mb)); break;
+        default: v[1] = mk(f, (int)(rnd() & 1), kb - a - 1, ((1ull << j) - 1) << (f->mb - j)); break;
+        }
+        break;
+    }
     case G_ZERO:       /* zeros of both signs in any role */
         v[0] = normal(f, near); v[1] = normal(f, near); v[2] = normal(f, near);
         for (int i = 0; i < 3; i++) if (below(2)) v[i] = mk(f, (int)(rnd() & 1), 0, 0);
@@ -158,13 +169,14 @@ static void fill(const fmt *f, int order, int type, int kind, ymm256 abc[3]) {
     }
 }
 
+static int fails;
+
 static unsigned long long total_hits(void) {
     unsigned long long t = 0;
     for (int i = 0; i < 8; i++) t += hits[i];
     return t;
 }
 
-static int fails;
 static void fail(const char *what, vex_op op, int type, uint32_t csr, const ymm256 abc[3]) {
     if (fails++ >= 10) return;
     printf("FAIL %s: op %d type %d mxcsr %#x\n", what, (int)op, type, csr);
@@ -191,6 +203,17 @@ static uint32_t random_csr(void) {
     return (uint32_t)(rnd() & 0xFFFF);
 }
 
+static void report(const char *mode) {
+    static const char *const nm[17] = {"d:zero-product", "d:zero-addend", "d:cancel", "d:sum",
+        "s:zero-product", "s:zero-addend", "s:cancel", "s:sum", "declined-tiny", "tie-up", "tie-even",
+        "half+sticky", "carry", "declined-overflow", "result-min-normal", "result-max-binade", "sub-sticky"};
+    printf("%s: fast-path events:", mode);
+    for (int i = 0; i < 17; i++) printf(" %s=%llu", nm[i], hits[i]);
+    printf("\n");
+    for (int i = 0; i < 17; i++)
+        if (!hits[i]) { printf("FAIL: fast-path event %s never seen\n", nm[i]); fails++; }
+}
+
 static int run_ref(long n) {
     /* 1: everything, random MXCSRs */
     for (long i = 0; i < n; i++) {
@@ -200,11 +223,8 @@ static int run_ref(long n) {
         fill(f, oi % 3, type, -1, abc);
         compare(ops[oi], type, random_csr(), abc);
     }
-    printf("ref: %ld random cases, fast hits by category:", n);
-    for (int i = 0; i < 8; i++) printf(" %llu", hits[i]);
-    printf("\n");
-    for (int i = 0; i < 8; i++)
-        if (!hits[i]) { printf("FAIL: fast-path category %d never taken\n", i); fails++; }
+    printf("ref: %ld random cases\n", n);
+    report("ref");
     /* 2: normal-range sets in round to nearest must almost always take the fast path */
     memset(hits, 0, sizeof hits);
     long m = n / 4, lanes = 0;
@@ -257,12 +277,14 @@ static int run_silicon(long n) {
         memcpy(&got, out.b, dbl ? 8 : 4);
         if (ret != 1 || got != hw || (mx & 0x3F) != hwfl) {
             if (fails < 10)
-                printf("  cpu %016llx flags %#x, emu %016llx flags %#x ret %d\n", (unsigned long long)hw, hwfl,
+                printf("  %s: cpu %016llx flags %#x, emu %016llx flags %#x ret %d\n",
+                       total_hits() != before ? "FAST PATH" : "general code", (unsigned long long)hw, hwfl,
                        (unsigned long long)got, mx & 0x3F, ret);
             fail("emulator != cpu", ops[3 * variant + 2], dbl ? FT_SD : FT_SS, csr, abc);
         }
     }
     printf("silicon: %ld cases, %ld through the fast path\n", n, fast_cases);
+    report("silicon");
     if (fast_cases < n / 4) { printf("FAIL: fast path rarely taken\n"); fails++; }
     return fails;
 }

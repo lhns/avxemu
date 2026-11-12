@@ -160,16 +160,19 @@ static uint64_t fma1x(ffmt f, uint64_t m1b, uint64_t m2b, uint64_t adb,
 #define FAST_ROUND_FN(name, T, msb, p, bias, sbit)                                                  \
     static int name(T r, int e0, int s, int sticky, uint64_t *out, int *fl) {                      \
         int m = msb(r), be = e0 + m + (bias), sh = m - ((p) - 1), inexact = sticky;                \
-        if (be < 1) return 0;                     /* below the normal range before rounding */     \
+        if (be < 1) { SOFTFMA_HIT(8); return 0; } /* below the normal range before rounding */     \
         if (sh > 0) {                                                                              \
             T rem = r & (((T)1 << sh) - 1), half = (T)1 << (sh - 1);                               \
             r >>= sh;                                                                              \
             inexact |= rem != 0;                                                                   \
+            if (rem == half) SOFTFMA_HIT(sticky ? 11 : r & 1 ? 9 : 10);                            \
             r += rem > half || (rem == half && (sticky || (r & 1)));                               \
-            if (r >> (p)) { r >>= 1; be++; }                                                       \
+            if (r >> (p)) { SOFTFMA_HIT(12); r >>= 1; be++; }                                      \
         } else if (sticky) return 0;              /* unreachable: sticky implies a large r */      \
         else r <<= -sh;                                                                            \
-        if (be >= 2 * (bias) + 1) return 0;       /* overflow */                                   \
+        if (be >= 2 * (bias) + 1) { SOFTFMA_HIT(13); return 0; }   /* overflow */                 \
+        if (be == 1) SOFTFMA_HIT(14);                                                              \
+        if (be == 2 * (bias)) SOFTFMA_HIT(15);                                                     \
         if (inexact) *fl |= F_PE;                                                                  \
         *out = ((uint64_t)s << (sbit)) + ((uint64_t)(be - 1) << ((p) - 1)) + (uint64_t)r;          \
         return 1;                                                                                  \
@@ -181,7 +184,7 @@ static uint64_t fma1x(ffmt f, uint64_t m1b, uint64_t m2b, uint64_t adb,
     if (d_ >= (int)(sizeof(T) * 8)) { (sticky) = 1; y_ = 0; }                                      \
     else if (d_) { (sticky) = (y_ & (((T)1 << d_) - 1)) != 0; y_ >>= d_; }                         \
     if ((sx) == (sy)) { (r) = (x) + y_; (s) = (sx); }                                              \
-    else if ((x) >= y_) { (r) = (x) - y_ - (T)(sticky); (s) = (sx); }                              \
+    else if ((x) >= y_) { (r) = (x) - y_ - (T)(sticky); (s) = (sx); if (sticky) SOFTFMA_HIT(16); } \
     else { (r) = y_ - (x); (s) = (sy); }                                                           \
 } while (0)
 

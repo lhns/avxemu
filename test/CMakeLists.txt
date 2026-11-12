@@ -65,7 +65,7 @@ add_library(t_fma_fast_hw OBJECT fma_fast_hw.c)
 target_compile_options(t_fma_fast_hw PRIVATE ${AVXEMU_HOST_FLAGS})
 avxemu_test_exe(fma-fast SOURCES fma_fast.c LINK t_softfma_ref t_fma_fast_hw t_cpu)
 add_test(NAME fma-fast COMMAND fma-fast ref)
-add_test(NAME fma-fast-silicon COMMAND fma-fast silicon)
+add_test(NAME fma-fast-silicon COMMAND fma-fast silicon 50000000)
 set_tests_properties(fma-fast PROPERTIES LABELS hermetic)
 set_tests_properties(fma-fast-silicon PROPERTIES LABELS hardware SKIP_RETURN_CODE 77)
 
