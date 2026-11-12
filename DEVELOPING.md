@@ -14,7 +14,8 @@ ctest --test-dir build -L 'hermetic|replay' --output-on-failure   # about a minu
 
 | path | what |
 |---|---|
-| `src/exec.c`, `exec_bmi.c`, `softfma.c` | the emulation core. Vector ops, FMA (exact integer arithmetic, not libm `fma()`, so results, NaN choice and flags match hardware) and scalar BMI. |
+| `src/exec.c`, `exec_bmi.c`, `softfma.c` | the emulation core. Vector ops, FMA (exact integer arithmetic, not libm `fma()`, so results, NaN choice and flags match hardware; a fast path for round-to-nearest with normal operands and result) and scalar BMI. |
+| `test/fma_fast.c` | that fast path against softfma without it (`fma-fast`, any CPU) and against this CPU's FMA with flags (`fma-fast-silicon`) |
 | `src/avxemu_helpers.h` | the contract of `libavxemu_helpers.a`: those three sources built AVX1-only, needing nothing from libc but `memcpy`/`memset`/`memmove` |
 | `src/decode.c`, `emulate.c`, `names.c`, `regfile.h` | decoder and register-file emulator. Not in the library; the suite drives instructions through them |
 | `src/platform/linux/memory.c`, `maps.c` | fault-safe memory reads and mapping queries for operands |

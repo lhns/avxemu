@@ -58,6 +58,17 @@ add_test(NAME half-snan COMMAND half-snan)
 set_tests_properties(prefix-coverage crc32-decode operand-faults overread zcnt16 half-snan
   PROPERTIES LABELS hermetic SKIP_RETURN_CODE 77)
 
+# softfma's fast path against softfma alone (any CPU) and against this CPU's FMA.
+avxemu_objects(t_softfma_ref "${PROJECT_SOURCE_DIR}/src/softfma.c")
+target_compile_definitions(t_softfma_ref PRIVATE SOFTFMA_NO_FAST)
+add_library(t_fma_fast_hw OBJECT fma_fast_hw.c)
+target_compile_options(t_fma_fast_hw PRIVATE ${AVXEMU_HOST_FLAGS})
+avxemu_test_exe(fma-fast SOURCES fma_fast.c LINK t_softfma_ref t_fma_fast_hw t_cpu)
+add_test(NAME fma-fast COMMAND fma-fast ref)
+add_test(NAME fma-fast-silicon COMMAND fma-fast silicon)
+set_tests_properties(fma-fast PROPERTIES LABELS hermetic)
+set_tests_properties(fma-fast-silicon PROPERTIES LABELS hardware SKIP_RETURN_CODE 77)
+
 # Recorded hardware references: replay runs anywhere, record needs the silicon.
 avxemu_objects(t_refdigest refdigest.c cpu.c)
 avxemu_test_exe(refdigest_test SOURCES refdigest_test.c LINK t_refdigest)
