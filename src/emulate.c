@@ -14,7 +14,8 @@ static void fp_fault(uint32_t t) {
     else if (t & 2)   { x = 1e-40f;  y = 0.0f;    __asm__ volatile("addss %1, %0" : "+x"(x) : "x"(y)); }   /* DE */
     else if (t & 8)   { x = 3e38f;   y = 3e38f;   __asm__ volatile("mulss %1, %0" : "+x"(x) : "x"(y)); }   /* OE */
     else if (t & 16)  { x = 1e-30f;  y = 1e-30f;  __asm__ volatile("mulss %1, %0" : "+x"(x) : "x"(y)); }   /* UE */
-    else              { x = 1.0f;    y = 3.0f;    __asm__ volatile("divss %1, %0" : "+x"(x) : "x"(y)); }   /* ZE, PE */
+    else if (t & 4)   { x = 1.0f;    y = 0.0f;    __asm__ volatile("divss %1, %0" : "+x"(x) : "x"(y)); }   /* ZE */
+    else              { x = 1.0f;    y = 3.0f;    __asm__ volatile("divss %1, %0" : "+x"(x) : "x"(y)); }   /* PE */
 }
 
 /*

@@ -18,6 +18,10 @@
  *     *mxcsr holds the input with the raised flags ORed in. The caller raises the #XM, picking
  *     the exception from the raised flags that its masks (bits 7-12) leave unmasked; to isolate
  *     this op's flags, pass an MXCSR with bits 0-5 clear and restore the old flags afterwards.
+ *     Linux takes the SIGFPE's si_code from MXCSR alone (flags & ~masks: IE, then ZE, OE, UE or DE,
+ *     PE), so ORing the raised flags into the live MXCSR and then executing any SSE op that raises
+ *     one of the unmasked ones gives the native si_code at that op's pc; what else that op raises
+ *     stays in MXCSR. emulate.c's fp_fault and v3compat's client do this.
  *   - gpr_out is written only by VPMOVMSKB.
  *
  * bmi_exec

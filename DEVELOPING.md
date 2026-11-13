@@ -39,6 +39,11 @@ project, and takes:
 - `test/spec/manifest.tsv` as the list of forms the suite accounts for, regenerated with the same Intel XED
   this repo pins (see `spec.cmake`).
 
+Where a test goes: one that checks an instruction's result (registers, flags, MXCSR, memory, faults) against
+silicon belongs in this suite, which v3compat then runs through its client too. v3compat keeps the tests of what its
+client does around an instruction: state at a fault inside an expansion, flags across blocks, scratch registers,
+segment rewriting, refusals, exec and the launcher.
+
 `sem_test.c` is `#include`d by the adapter, which supplies `decode`, `avxemu_emulate` and `avxemu_page_size`.
 Changing those paths, the helper interface, `sem_test.c`'s entry points or `manifest.tsv`'s format needs a
 matching v3compat change. Test a change by pointing its pin at your branch.
