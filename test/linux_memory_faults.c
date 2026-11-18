@@ -4,21 +4,17 @@
 #include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/mman.h>
-#include <sys/syscall.h>
-#include <sys/uio.h>
 #include <sys/wait.h>
 #include <unistd.h>
 
-enum { NORMAL, OPEN_ERROR, READ_ERROR, EMPTY, TRUNCATED, MALFORMED, READ_UNAVAILABLE, READ_DENIED };
+enum { NORMAL, OPEN_ERROR, READ_ERROR, EMPTY, TRUNCATED, MALFORMED };
 static int mode, maps_fd = -1, synthetic_eof;
 
 int __real_open(const char *, int, ...);
 ssize_t __real_read(int, void *, size_t);
-long __real_syscall(long, ...);
 
 int __wrap_open(const char *path, int flags, ...) {
     if (!strcmp(path, "/proc/self/maps")) {
@@ -49,24 +45,6 @@ ssize_t __wrap_read(int fd, void *dst, size_t size) {
     return __real_read(fd, dst, size);
 }
 
-long __wrap_syscall(long number, ...) {
-    assert(number == SYS_process_vm_readv);
-    if (mode == READ_UNAVAILABLE || mode == READ_DENIED) {
-        errno = mode == READ_UNAVAILABLE ? ENOSYS : EPERM;
-        return -1;
-    }
-    va_list args;
-    va_start(args, number);
-    pid_t pid = va_arg(args, pid_t);
-    struct iovec *local = va_arg(args, struct iovec *);
-    unsigned long nl = va_arg(args, unsigned long);
-    struct iovec *remote = va_arg(args, struct iovec *);
-    unsigned long nr = va_arg(args, unsigned long);
-    unsigned long flags = va_arg(args, unsigned long);
-    va_end(args);
-    return __real_syscall(number, pid, local, nl, remote, nr, flags);
-}
-
 static void failures(void) {
     size_t page = avxemu_page_size();
     unsigned char *p = mmap(NULL, 3 * page, PROT_READ | PROT_WRITE,
@@ -81,14 +59,6 @@ static void failures(void) {
     mode = NORMAL;
     avxemu_mapping mapping;
     assert(avxemu_memory_query((uintptr_t)p + page, &mapping) == 0);
-    for (mode = READ_UNAVAILABLE; mode <= READ_DENIED; mode++) {
-        unsigned char dst[8];
-        memset(dst, 0xa5, sizeof dst);
-        assert(!avxemu_memory_read(dst, (uintptr_t)p, sizeof dst));
-        for (size_t i = 0; i < sizeof dst; i++) assert(dst[i] == 0xa5);
-        /* An unsafe fallback would fault here instead of returning zero. */
-        assert(!avxemu_memory_read(dst, 1, sizeof dst));
-    }
     mode = NORMAL;
     assert(!munmap(p, 3 * page));
 }

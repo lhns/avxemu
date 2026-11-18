@@ -61,24 +61,14 @@ int main(void) {
     assert(mapping.begin <= (uintptr_t)p && mapping.end >= (uintptr_t)p + 8 * page);
     assert(mapping.prot == (AVXEMU_PROT_R | AVXEMU_PROT_W));
 
-    unsigned char data[32];
-    assert(avxemu_memory_read(data, (uintptr_t)p + 4 * page, sizeof data) == sizeof data);
-    for (size_t i = 0; i < sizeof data; i++) assert(data[i] == 0x5a);
-    assert(avxemu_memory_read(data, UINTPTR_MAX, sizeof data) == 0);
-    assert(avxemu_memory_read(data, (uintptr_t)p, 0) == 0);
-
     unsigned char *guard = p + 5 * page, *hole = p + 6 * page;
     assert(mprotect(guard, page, PROT_NONE) == 0);
     assert(avxemu_memory_query((uintptr_t)guard, &mapping) == 1);
     assert(mapping.prot == 0);
-    assert(avxemu_memory_read(data, (uintptr_t)guard, sizeof data) == 0);
     expect_fault(guard, 0);
     expect_fault(guard, 1);
     assert(munmap(hole, page) == 0);
     assert(avxemu_memory_query((uintptr_t)hole, &mapping) == 0);
-    assert(avxemu_memory_read(data, (uintptr_t)hole, sizeof data) == 0);
-    assert(avxemu_memory_read(data, (uintptr_t)guard - 16, sizeof data) == 16);
-    for (int i = 0; i < 16; i++) assert(data[i] == 0x5a);
     expect_fault(hole, 0);
 
     assert(munmap(p, 8 * page) == 0);

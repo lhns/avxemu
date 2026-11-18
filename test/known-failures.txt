@@ -9,4 +9,5 @@ DEC-BSF-F3F2	decoder-neg/bs[fr]/*	-	F3 F2 0F BC/BD: F2 is the last mandatory pre
 DEC-LOCK-BSF	decoder-soup/0fb[cd]/accept	-	LOCK + 0F BC/BD is accepted on purpose (the patcher's F0 marker); lock bsf is #UD anyway. Design, listed so a change is noticed
 DEC-REX-ORDER	decoder-soup/0fb[cd]/opsize	-	a REX byte before F3 (not adjacent to the opcode) is ignored by hardware but decode() reads REX.W from it: 48 F3 0F BC is tzcnt r32 on hardware, r64 here
 DEC-AVX1-128	decoder-neg/vp*/vex	-	decode() ignores VEX.L and accepts the AVX1 128-bit integer forms (vpaddb xmm...) that run natively; the scanner trampolines them needlessly (may be deliberate)
+DEC-AVX1-128-MPSADBW	decoder-neg/vmpsadbw/vex	-	same as DEC-AVX1-128: vmpsadbw xmm is AVX1 and runs natively, yet decode() accepts it
 DEC-INVALID-VEX	decoder-neg/invalid.vex.*/vex	-	encodings that are #UD on hardware (register form of a memory-only op, wrong pp/L/W/modrm.reg) are accepted and would be emulated instead of faulting

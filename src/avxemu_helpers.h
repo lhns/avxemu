@@ -11,6 +11,12 @@
  *   - Return 1: handled, results written. Return 0: op not implemented here, nothing written.
  *
  * vec_exec (vex_op and operand order as in vexops.h; FMA ops included)
+ *   - VEX.L is not an input: every op reads all 32 bytes of its operands and writes all 32 of `out`.
+ *     For a 128-bit form the caller zeroes the unused source lanes (the upper 16 bytes of a, b and c;
+ *     for VCVTPH2PS bytes 8-31 of b), commits only the low 16 bytes of `out` and zeroes the
+ *     destination's upper half; for VPMOVMSKB it masks gpr_out to 16 bits. It matters most for
+ *     the ops that raise MXCSR flags (FMA, VCVTPH2PS): stale lanes would compute and raise flags of
+ *     their own. emulate.c does all of this around the call.
  *   - *mxcsr is the guest MXCSR, passed in and out; it must be non-NULL. Rounding mode, FTZ, DAZ
  *     and the exception masks are read from it; the exception flags an op raises (bits 0-5) are
  *     ORed into it. Only FMA and VCVTPH2PS read or write it; every other op leaves it alone.
@@ -21,9 +27,8 @@
  *     Linux takes the SIGFPE's si_code from MXCSR alone (flags & ~masks: IE, then ZE, OE, UE or DE,
  *     PE), so ORing the raised flags into the live MXCSR and then executing any SSE op that raises
  *     one of the unmasked ones gives the si_code of that MXCSR at that op's pc. emulate.c's fp_fault
- *     and v3compat's client do this. Not silicon's in every case: the raised flags include every
- *     lane's post-computation flags even where an unmasked IE or DE stops silicon before them, and
- *     the suite does not compare MXCSR or si_code at a fault.
+ *     and v3compat's client do this. As on silicon, an unmasked IE or DE raises only IE and DE
+ *     (test/fma_pending.c); the suite does not compare si_code at a fault.
  *   - gpr_out is written only by VPMOVMSKB.
  *
  * bmi_exec

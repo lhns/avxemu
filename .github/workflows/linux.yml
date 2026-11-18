@@ -28,6 +28,20 @@ jobs:
         with:
           artifact-name: linux-ubuntu22.04-${{ matrix.compiler }}
 
+  xed:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Configure with Intel XED
+        run: cmake -S . -B "$RUNNER_TEMP/b" -DAVXEMU_TEST_XED=ON
+      - name: Build
+        run: cmake --build "$RUNNER_TEMP/b" -j4
+      - name: Manifest and decoder against XED
+        run: ctest --test-dir "$RUNNER_TEMP/b" --no-tests=error --output-on-failure -L 'spec|decoder'
+
   ubuntu24:
     runs-on: ubuntu-24.04
     timeout-minutes: 45

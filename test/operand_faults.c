@@ -8,13 +8,6 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-/* Operand reads must retain native access semantics even if self-read is denied.
- * This wrapper affects only the Linux test link, never the runtime library. */
-#ifdef __linux__
-size_t __wrap_avxemu_memory_read(void *dst, uintptr_t src, size_t size) {
-    (void)dst; (void)src; (void)size; return 0;
-}
-#endif
 static void operand(int mode) {
     size_t page = (size_t)sysconf(_SC_PAGESIZE);
     unsigned char *p = mmap(0, page * 2, PROT_READ | PROT_WRITE,

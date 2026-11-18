@@ -1,13 +1,7 @@
 #define _GNU_SOURCE
 #include "platform/memory.h"
 #include "maps.h"
-#include <errno.h>
-#include <fcntl.h>
-#include <limits.h>
 #include <stdatomic.h>
-#include <sys/mman.h>
-#include <sys/syscall.h>
-#include <sys/uio.h>
 #include <unistd.h>
 
 static _Atomic size_t page_size;
@@ -36,25 +30,4 @@ int avxemu_memory_query(uintptr_t address, avxemu_mapping *mapping) {
     if (close(reader.fd) != 0) return -1;
     if (status == 1) *mapping = found;
     return status;
-}
-
-size_t avxemu_memory_read(void *dst, uintptr_t src, size_t size) {
-    size_t page = avxemu_page_size(), done = 0;
-    uintptr_t target = (uintptr_t)dst;
-    if (!page || size > UINTPTR_MAX - src || size > UINTPTR_MAX - target) return 0;
-    while (done < size) {
-        size_t n = page - (src + done) % page;
-        if (n > size - done) n = size - done;
-        struct iovec local = {(void *)(target + done), n};
-        struct iovec remote = {(void *)(src + done), n};
-        ssize_t got;
-        do {
-            got = syscall(SYS_process_vm_readv, getpid(), &local, 1UL, &remote, 1UL, 0UL);
-        } while (got < 0 && errno == EINTR);
-        /* ENOSYS/EPERM are failures too; never dereference the input instead. */
-        if (got <= 0 || (size_t)got > n) break;
-        done += (size_t)got;
-        if ((size_t)got != n) break;
-    }
-    return done;
 }
