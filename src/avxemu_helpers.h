@@ -11,6 +11,12 @@
  *   - Return 1: handled, results written. Return 0: op not implemented here, nothing written.
  *
  * vec_exec (vex_op and operand order as in vexops.h; FMA ops included)
+ *   - VEX.L is not an input: every op reads all 32 bytes of its operands and writes all 32 of `out`.
+ *     For a 128-bit form the caller zeroes the unused source lanes (the upper 16 bytes of a, b and c;
+ *     for VCVTPH2PS bytes 8-31 of b), commits only the low 16 bytes of `out` and zeroes the
+ *     destination's upper half; for VPMOVMSKB it masks gpr_out to 16 bits. It matters most for
+ *     the ops that raise MXCSR flags (FMA, VCVTPH2PS): stale lanes would compute and raise flags of
+ *     their own. emulate.c does all of this around the call.
  *   - *mxcsr is the guest MXCSR, passed in and out; it must be non-NULL. Rounding mode, FTZ, DAZ
  *     and the exception masks are read from it; the exception flags an op raises (bits 0-5) are
  *     ORed into it. Only FMA and VCVTPH2PS read or write it; every other op leaves it alone.
