@@ -27,9 +27,8 @@
  *     Linux takes the SIGFPE's si_code from MXCSR alone (flags & ~masks: IE, then ZE, OE, UE or DE,
  *     PE), so ORing the raised flags into the live MXCSR and then executing any SSE op that raises
  *     one of the unmasked ones gives the si_code of that MXCSR at that op's pc. emulate.c's fp_fault
- *     and v3compat's client do this. Not silicon's in every case: the raised flags include every
- *     lane's post-computation flags even where an unmasked IE or DE stops silicon before them, and
- *     the suite does not compare MXCSR or si_code at a fault.
+ *     and v3compat's client do this. As on silicon, an unmasked IE or DE raises only IE and DE
+ *     (test/fma_pending.c); the suite does not compare si_code at a fault.
  *   - gpr_out is written only by VPMOVMSKB.
  *
  * bmi_exec

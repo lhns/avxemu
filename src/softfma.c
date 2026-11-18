@@ -324,6 +324,9 @@ int fma_exec(vex_op op, int type,
     else memset(tmp.b, 0, 32);
     if (dbl) fma_lanes(FD, order, negp, negc, alt, n, a->b, b->b, c->b, tmp.b, csr, &fl);
     else fma_lanes(FS, order, negp, negc, alt, n, a->b, b->b, c->b, tmp.b, csr, &fl);
+    /* An unmasked IE or DE stops silicon before it computes: the MXCSR then holds those two only,
+     * not the OE/UE/PE other lanes would have raised (test/fma_pending.c). */
+    if ((fl & 3) & ~(csr >> 7) & 3) fl &= 3;
     if (!fp_raise(mxcsr, (uint32_t)fl)) return AVXEMU_FP_PENDING;
     *out = tmp;
     return 1;

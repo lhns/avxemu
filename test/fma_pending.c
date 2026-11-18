@@ -45,6 +45,9 @@ static const fcase cases[] = {
     {"ps DE lane0, OE lane1",       0, DE, {DEN_S, BIG_S}, {ONE_S, BIG_S}, {0}},
     {"ps DE lane5, UE lane0",       0, DE, {TINY_S, 0, 0, 0, 0, DEN_S}, {TINY_S, 0, 0, 0, 0, ONE_S}, {0}},
     {"ps OE lane0, PE lane1",       0, OE, {BIG_S, 0x3f800001u}, {BIG_S, 0x3f800001u}, {0}},
+    {"ps IE+DE, SNaN l0, denormal l1", 0, IE | DE, {NAN_S, DEN_S}, {ONE_S, ONE_S}, {0}},
+    {"ps IE only, SNaN l0, denormal l1", 0, IE, {NAN_S, DEN_S}, {ONE_S, ONE_S}, {0}},
+    {"ps DE only, denormal l0, SNaN l1", 0, DE, {DEN_S, NAN_S}, {ONE_S, ONE_S}, {0}},
     {"pd IE lane0, OE lane1",       1, IE, {NAN_D, BIG_D}, {ONE_D, BIG_D}, {0}},
     {"pd DE lane0, OE lane1",       1, DE, {DEN_D, BIG_D}, {ONE_D, BIG_D}, {0}},
 };
@@ -71,7 +74,7 @@ int main(void) {
         uint32_t hw;
         if (sigsetjmp(jump, 1) == 0) {
             fma_pending_hw(t->dbl, &a, &b, &c, &out, csr);
-            printf("%-24s  no exception on this CPU\n", t->name); bad++; continue;
+            printf("%-34s  no exception on this CPU\n", t->name); bad++; continue;
         }
         hw = fault_csr & 0x3Fu;
         uint32_t mx = csr, gpr = 0;
@@ -79,7 +82,7 @@ int main(void) {
         int r = vec_exec(VFMADD231, t->dbl ? FT_PD : FT_PS, &a, &b, &c, 0, &ref, &g, &mx);
         uint32_t em = mx & 0x3Fu;
         int ok = r == AVXEMU_FP_PENDING && em == hw;
-        printf("%-24s  cpu 0x%02x  helper 0x%02x  %s\n", t->name, hw, em, ok ? "ok" : "DIFFERS");
+        printf("%-34s  cpu 0x%02x  helper 0x%02x  %s\n", t->name, hw, em, ok ? "ok" : "DIFFERS");
         bad += !ok;
     }
     return bad ? 1 : 0;
