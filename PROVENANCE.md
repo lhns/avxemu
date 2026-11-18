@@ -24,10 +24,11 @@ unreachable objects pruned. Verified by tree identity, not by inspection:
 
 ## Branches and what follows
 
-`main` is upstream `6ead179`, then this repo's own build, tests and packaging. Release
-`20260908.1` ships this code unchanged.
+`main` is upstream `6ead179`, then this repo's own build, tests and packaging.
 
-Release `20261005.1` carries the maintainer's follow-up work: nine fixes, run on a 10.9
+*Historical:* release `20260908.1` shipped this code unchanged.
+
+*Historical:* release `20261005.1` carried the maintainer's follow-up work: nine fixes, run on a 10.9
 machine since September (load-time fixes, thread-safe live patching, hermetic tests on CPUs
 without AVX2, a load-time analysis cache, and fixes found running the suite on an AVX2 Mac).
 One more fix was folded into "stay inert on a CPU that already has everything we emulate"
@@ -54,7 +55,7 @@ Checked 2026-09-27 on Mac OS X 10.9 with `Apple LLVM version 6.0 (clang-600.0.57
 - Linked against the pinned 10.9 SDK, as every family build is, the result has the same
   code, symbols, binds, rebases and exports. Only `LC_DYLIB_CODE_SIGN_DRS` differs (24 bytes
   instead of 64), with the link-edit offsets and UUID that follow from it.
-- Release `20260908.1` is cross-built in CI with the runner's Xcode clang (shipyard's
+- *Historical:* release `20260908.1` was cross-built in CI with the runner's Xcode clang (shipyard's
   toolchain sets the SDK, not the compiler), so its bytes differ again. Its behaviour is
   checked by the hermetic and replay tests, which pass on both builds, and by a run of the
   shipped dylib on Mac OS X 10.9 before release (the release process is in git history).

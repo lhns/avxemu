@@ -1,13 +1,12 @@
 # Developing
 
 x86-64 Linux only. CMake >= 3.25, gcc or clang, GNU binutils (for the helper-library guard), Python 3.
-No Docker or QEMU is needed.
 
 ```sh
 cmake -S . -B build
 cmake --build build -j
 sh test/check-helpers-lib.sh build/libavxemu_helpers.a
-ctest --test-dir build -L 'hermetic|replay' --output-on-failure   # about a minute, any x86-64 CPU
+ctest --test-dir build -L 'hermetic|replay' --output-on-failure   # about a minute; needs an x86-64 CPU with AVX, which the `-vex` replays run on
 ```
 
 ## What is in the repo
@@ -16,6 +15,7 @@ ctest --test-dir build -L 'hermetic|replay' --output-on-failure   # about a minu
 |---|---|
 | `src/exec.c`, `exec_bmi.c`, `softfma.c` | the emulation core. Vector ops, FMA (exact integer arithmetic, not libm `fma()`, so results, NaN choice and flags match hardware; a fast path for round-to-nearest with normal operands and result) and scalar BMI. |
 | `test/fma_fast.c` | that fast path against softfma without it (`fma-fast`, any CPU) and against this CPU's FMA with flags (`fma-fast-silicon`) |
+| `cmake/helpers.cmake` | defines `libavxemu_helpers.a`: sources, flags, target |
 | `src/avxemu_helpers.h` | the contract of `libavxemu_helpers.a`: those three sources built AVX1-only, needing nothing from libc but `memcpy`/`memset`/`memmove` |
 | `src/decode.c`, `emulate.c`, `names.c`, `regfile.h` | decoder and register-file emulator. Not in the library; the suite drives instructions through them |
 | `src/platform/linux/memory.c`, `maps.c` | fault-safe memory reads and mapping queries for operands |
@@ -27,12 +27,16 @@ ctest --test-dir build -L 'hermetic|replay' --output-on-failure   # about a minu
 The archive is the ceiling for the client's CPU: the CI runner executes AVX2, BMI and FMA happily, so
 only the guard script stops one from entering `libavxemu_helpers.a`.
 
+F16C: only `vcvtph2ps` is emulated; `vcvtps2ph` is refused (`test/spec/refused.tsv`).
+
 ## How lhns/v3compat uses it
 
 v3compat fetches this repo at a pinned commit (`AVXEMU_COMMIT` in its `CMakeLists.txt`) with no CMake
 project, and takes:
 
-- `src/exec.c`, `exec_bmi.c`, `softfma.c`, built with its own flags into its helper archive; headers from `src/`;
+- `cmake/helpers.cmake`, which defines the helper archive (sources, flags, target `avxemu_helpers`) for both
+  builds; it has no `project()` and no global state, since v3compat cannot `add_subdirectory` this repo (CMake 3.25,
+  the test tree, a directory-wide `link_libraries(m)` its `-nostdlib` client must not get); headers from `src/`;
 - `test/check-helpers-lib.sh`, run on that archive;
 - `test/spec/{sem_test.c,sem_hw.S,spec.c,known.c}`, `test/refdigest.c`, `test/cpu.c` (with `-I src -I test -I test/spec`),
   plus `test/spec/manifest.tsv` and `test/reference/semantics.ref`, run under its DynamoRIO client;
@@ -100,4 +104,6 @@ one form, `movbe.m64_g.2`, and is not replayed. See `docs/vendor-differences.md`
 
 `.github/workflows/linux.yml`: gcc and clang on Ubuntu 22.04 and 24.04 build everything, run the helper-archive
 guard, `-L 'hermetic|replay'`, the full replay (`-L semantics-full`, skipping live) and the oracle recordings
-(which skip on CPUs lacking the instructions). `record-references.yml` is the silicon job.
+(which skip on CPUs lacking the instructions). An `xed` job builds with `-DAVXEMU_TEST_XED=ON` and runs
+`-L 'spec|decoder'`. `record-references.yml` is the silicon job: the emulator and the helper archive against the
+runner's CPU, then the recording; any failing step fails the job.

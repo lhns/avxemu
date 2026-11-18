@@ -4,6 +4,8 @@ Fork of AVXEmu, which emulates AVX2, FMA, BMI1/2, LZCNT, MOVBE and F16C instruct
 have AVX but not AVX2. It was developed by @Wowfunhappy for Mavericks (see `PROVENANCE.md`) and is
 CC0 (`LICENSE`).
 
+Of F16C only `vcvtph2ps` is emulated; `vcvtps2ph` is refused.
+
 This fork keeps only the part worth reusing: the instruction semantics and the test suite that
 proves them against real silicon. The `LD_PRELOAD`/Mach-O mechanism that patched programs is gone
 (it stays in git history).
@@ -18,8 +20,8 @@ proves them against real silicon. The `LD_PRELOAD`/Mach-O mechanism that patched
 
 ## Used by
 
-[lhns/v3compat](https://github.com/lhns/v3compat) pins this repo at a commit. It compiles the three
-helper sources itself (with VEX encoding), checks the result with `test/check-helpers-lib.sh`, and runs
+[lhns/v3compat](https://github.com/lhns/v3compat) pins this repo at a commit. It includes
+`cmake/helpers.cmake` to build the helper archive, checks the result with `test/check-helpers-lib.sh`, and runs
 `test/spec/sem_test.c`, `manifest.tsv` and `reference/semantics.ref` under its DynamoRIO client. Keep
 those paths and the helper interface stable; see DEVELOPING.md.
 
