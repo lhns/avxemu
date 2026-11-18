@@ -5,10 +5,9 @@
 #include "ymm.h"
 
 /*
- * Internal opcode ids for the AVX2-delta the emulator must cover on an AVX1
- * target: AVX2 integer SIMD, FMA3, F16C, and the BMI1/BMI2/LZCNT/MOVBE scalar
- * ops. (AVX1 SIMD and SSE-VEX run native on the target; AVX-512 is
- * runtime-dispatched and dead there — neither is emulated.)
+ * Opcode ids for what AVX2 adds over an AVX1 CPU: AVX2 integer SIMD, FMA3,
+ * VCVTPH2PS (of F16C only this; VCVTPS2PH is refused) and the BMI1/BMI2/LZCNT/MOVBE
+ * scalar ops. AVX1, SSE and AVX-512 forms are not emulated.
  *
  * Operand convention for the vector executor vec_exec(op, type, a,b,c, imm,...):
  *   a = src1  (VEX.vvvv)        b = src2 (ModRM.rm)        c = src3 / old dst

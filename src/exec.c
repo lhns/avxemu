@@ -1,9 +1,9 @@
 /*
  * exec.c — SSE-only emulation of the AVX2/F16C vector trap set.
  *
- * The runtime compiles it SSE4.2-ONLY (-msse4.2 -mno-avx), verified to emit no VEX, so it is
- * safe to run on the target CPU (Sandy/Ivy Bridge: AVX1 + SSE4.2, no AVX2). libavxemu_helpers.a
- * compiles it with -mavx instead (AVX1 only, guarded by test/check-helpers-lib.sh).
+ * The test emulator builds it SSE4.2-only (-msse4.2 -mno-avx), so the suite runs on CPUs
+ * without AVX. libavxemu_helpers.a builds it with -mavx instead (AVX1 only, guarded by
+ * test/check-helpers-lib.sh; flags in cmake/helpers.cmake).
  *
  * Three strategies:
  *   - per-128-bit-lane ops  -> apply the SSE equivalent to low & high halves

@@ -12,6 +12,4 @@ size_t avxemu_page_size(void);
 /* 1: mapped (including protection zero), 0: verified gap, -1: unknown/error.
  * Failed queries leave mapping unchanged. */
 int avxemu_memory_query(uintptr_t address, avxemu_mapping *mapping);
-/* Return the readable prefix copied, without faulting on inaccessible input. */
-size_t avxemu_memory_read(void *dst, uintptr_t src, size_t size);
 #endif
