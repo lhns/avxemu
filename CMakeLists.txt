@@ -26,17 +26,10 @@ avxemu_objects(avxemu_linux_memory src/platform/linux/memory.c src/platform/linu
 target_compile_options(avxemu_linux_memory PRIVATE -Wextra)
 set(AVXEMU_PLATFORM_OBJECTS $<TARGET_OBJECTS:avxemu_linux_memory>)
 set(AVXEMU_EMULATOR_SOURCES src/names.c src/decode.c src/emulate.c)
-set(AVXEMU_EXEC_SOURCES src/exec.c src/exec_bmi.c src/softfma.c)
+include(cmake/helpers.cmake)
 avxemu_objects(avxemu_core ${AVXEMU_EXEC_SOURCES} ${AVXEMU_EMULATOR_SOURCES})
 
-# libavxemu_helpers.a: the emulation core alone, for a client that runs without libc on an
-# AVX1 CPU (contract: src/avxemu_helpers.h). AVX1 is the ceiling; test/check-helpers-lib.sh
-# verifies the built archive, since the CI CPU would run anything above it.
-add_library(avxemu_helpers STATIC ${AVXEMU_EXEC_SOURCES})
-target_include_directories(avxemu_helpers PRIVATE "${PROJECT_SOURCE_DIR}/src")
-target_compile_options(avxemu_helpers PRIVATE -O2 -Wall -std=c11
-  -mavx -mno-avx2 -mno-fma -mno-f16c -mno-bmi -mno-bmi2 -mno-lzcnt -mno-movbe
-  -mtune=ivybridge -fPIC -fno-stack-protector -D_FORTIFY_SOURCE=0)
+# libavxemu_helpers.a is defined in cmake/helpers.cmake, which v3compat includes too.
 set_target_properties(avxemu_helpers PROPERTIES ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
 include(GNUInstallDirs)
 install(TARGETS avxemu_helpers ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}")
