@@ -22,8 +22,8 @@
 
 /* softfma.c: 0-7 integer path taken, 8-16 its boundary events; 17/18 kernel taken (d/s), 19 operand
  * out of range, 20 H guard (d), 21 float midpoint, 22 zero result, 23 float result out of range,
- * 24 live MXCSR declined the kernel, 25 vector with kernel and fallback lanes */
-enum { NHIT = 26, H_KD = 17, H_KS = 18, H_LIVE = 24 };
+ * 24 live MXCSR declined the kernel, 25 vector with kernel and fallback lanes, 26 all-zero lanes (no arithmetic) */
+enum { NHIT = 27, H_KD = 17, H_KS = 18, H_LIVE = 24 };
 static unsigned long long hits[NHIT];
 static int hw_on;                       /* the kernel is switched off to test the integer path alone */
 #define SOFTFMA_HIT(k) (hits[k]++)
@@ -381,7 +381,7 @@ static const char *const hit_name[NHIT] = {"d:zero-product", "d:zero-addend", "d
     "s:zero-product", "s:zero-addend", "s:cancel", "s:sum", "declined-tiny", "tie-up", "tie-even",
     "half+sticky", "carry", "declined-overflow", "result-min-normal", "result-max-binade", "sub-sticky",
     "kernel-d", "kernel-s", "range", "H-guard", "float-midpoint", "zero-result", "float-result-range",
-    "live-declined", "mixed-vector"};
+    "live-declined", "mixed-vector", "zero-lanes"};
 
 static void report(const char *mode, int lo, int hi) {
     printf("%s: events:", mode);
@@ -483,7 +483,7 @@ static void run_ref_hw(long n) {
         fill(f, oi % 3, type, -1, abc);
         compare(ops[oi], type, kernel_csr(), abc);
     }
-    report("ref (kernel)", H_KD, 25);
+    report("ref (kernel)", H_KD, 26);
     report_live("ref (kernel)", 1);
     /* never the kernel (nor the integer path) with a special operand, or outside round to nearest */
     memset(hits, 0, sizeof hits);
@@ -596,7 +596,7 @@ static int run_silicon(long n) {
     silicon_packed(n / 16);
     printf("silicon (kernel): %ld scalar cases, %ld through the kernel; %ld packed cases\n", n / 4, kernel_cases, n / 16);
     report("silicon (kernel)", H_KD, 23);
-    report("silicon (kernel)", 25, 25);
+    report("silicon (kernel)", 25, 26);
     if (kernel_cases < n / 16) { printf("FAIL: kernel rarely taken\n"); fails++; }
     report_live("silicon (kernel)", 1);
     return fails;
