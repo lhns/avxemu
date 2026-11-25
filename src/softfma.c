@@ -7,8 +7,9 @@
  * FTZ, DAZ and the exception masks; the raised flags are ORed into it.
  *
  * Fast paths (absent from SOFTFMA_NO_FAST builds): with every exception masked and round to nearest,
- * a kernel in native SSE arithmetic takes the lanes it can prove; the rest go to an integer path
- * and then to the exact code. The kernel reads and restores the live MXCSR itself.
+ * packed forms first try a kernel in native SSE arithmetic on the lanes it can prove; the rest, and
+ * the scalar forms, go to an integer path and then to the exact code. The kernel reads and restores
+ * the live MXCSR itself.
  */
 
 #include "softfma.h"
@@ -268,6 +269,8 @@ static int fast_s(uint64_t x, uint64_t y, uint64_t z, uint64_t *out, int *fl) {
  * |x-r| <= |z|+|w| < H gives r = RN(x). RN is monotone and H is representable, so
  * RN(|z|+|w|) < H implies the exact sum is below H. r == 0 is left to the exact code. The result is
  * inexact iff z+w != 0; a sum of two normal doubles is 0 only if they cancel.
+ * A lane whose three operands are all zero (the unused half of a 128-bit form) needs no arithmetic:
+ * its result is +0, or -0 when the product and the addend are both negative.
  *
  * binary32: all three operands normal. p = a*b is exact in double (48 bits); TwoSum(p,c) = (d,err),
  * d = RN53(x), f = RN24(d). f = RN24(x) unless d is exactly a float rounding midpoint and x is not:
