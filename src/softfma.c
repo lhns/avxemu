@@ -264,38 +264,35 @@ __attribute__((noinline)) static uint64_t fma1(ffmt f, uint64_t m1b, uint64_t m2
     return r;
 }
 
-/* One element i of a form: operand order, the op's negations and the vfmaddsub/vfmsubadd alternation, then the
- * integer path (round to nearest only, `fast`) and the exact code. alt: 1 subtracts the addend in even elements
- * (vfmaddsub), 2 in odd ones (vfmsubadd). Inlined per format so the element width is a constant. */
-__attribute__((always_inline)) static inline void fma_lane(ffmt f, int order, int negp, int negc, int alt, int i,
-                      const uint8_t *a, const uint8_t *b, const uint8_t *c, uint8_t *out,
-                      uint32_t csr, int *fl) {
-    int w = (f.mb + f.eb + 1) / 8;
-    uint64_t av = 0, bv = 0, cv = 0, m1, m2, ad;
-    memcpy(&av, a + i * w, w); memcpy(&bv, b + i * w, w); memcpy(&cv, c + i * w, w);
-    switch (order) {
-    case 0: m1 = cv; m2 = bv; ad = av; break;      /* 132: dst*src3 + src2 */
-    case 1: m1 = av; m2 = cv; ad = bv; break;      /* 213: src2*dst + src3 */
-    default: m1 = av; m2 = bv; ad = cv; break;     /* 231: src2*src3 + dst */
-    }
-    int nc = negc ^ (alt == 1 ? !(i & 1) : alt == 2 ? (i & 1) : 0);
-    uint64_t r;
-#ifndef SOFTFMA_NO_FAST
-    uint64_t sign = 1ull << (w * 8 - 1);
-    if (((csr >> 13) & 3) == 0 &&                  /* round to nearest */
-        (w == 8 ? fast_d : fast_s)(m1 ^ (negp ? sign : 0), m2, ad ^ (nc ? sign : 0), &r, fl)) {
-        memcpy(out + i * w, &r, w);
-        return;
-    }
-#endif
-    r = fma1(f, m1, m2, ad, negp, nc, csr, fl);
-    memcpy(out + i * w, &r, w);
-}
-
+/* alt: 1 subtracts the addend in even elements (vfmaddsub), 2 in odd ones (vfmsubadd).
+ * Inlined per format so the element width is a constant. */
 __attribute__((always_inline)) static inline void fma_lanes(ffmt f, int order, int negp, int negc, int alt, int n,
                       const uint8_t *a, const uint8_t *b, const uint8_t *c, uint8_t *out,
                       uint32_t csr, int *fl) {
-    for (int i = 0; i < n; i++) fma_lane(f, order, negp, negc, alt, i, a, b, c, out, csr, fl);
+    int w = (f.mb + f.eb + 1) / 8;
+#ifndef SOFTFMA_NO_FAST
+    int fast = ((csr >> 13) & 3) == 0, dbl = w == 8;   /* round to nearest */
+    uint64_t sign = 1ull << (w * 8 - 1);
+#endif
+    for (int i = 0; i < n; i++) {
+        uint64_t av = 0, bv = 0, cv = 0, m1, m2, ad;
+        memcpy(&av, a + i * w, w); memcpy(&bv, b + i * w, w); memcpy(&cv, c + i * w, w);
+        switch (order) {
+        case 0: m1 = cv; m2 = bv; ad = av; break;      /* 132: dst*src3 + src2 */
+        case 1: m1 = av; m2 = cv; ad = bv; break;      /* 213: src2*dst + src3 */
+        default: m1 = av; m2 = bv; ad = cv; break;     /* 231: src2*src3 + dst */
+        }
+        int nc = negc ^ (alt == 1 ? !(i & 1) : alt == 2 ? (i & 1) : 0);
+        uint64_t r;
+#ifndef SOFTFMA_NO_FAST
+        if (fast && (dbl ? fast_d : fast_s)(m1 ^ (negp ? sign : 0), m2, ad ^ (nc ? sign : 0), &r, fl)) {
+            memcpy(out + i * w, &r, w);
+            continue;
+        }
+#endif
+        r = fma1(f, m1, m2, ad, negp, nc, csr, fl);
+        memcpy(out + i * w, &r, w);
+    }
 }
 
 int fp_raise(uint32_t *mxcsr, uint32_t fl) {
@@ -344,11 +341,9 @@ int fma_exec(vex_op op, int type,
              const ymm256 *a, const ymm256 *b, const ymm256 *c, ymm256 *out,
              uint32_t *mxcsr) {
 #ifndef SOFTFMA_NO_FAST
-    /* A packed form with every exception masked and round to nearest: the kernel, lanes it cannot prove by the lane step. */
-    if (type >= FT_PS && (*mxcsr & 0x7F80u) == 0x1F80u) {
-        int r = fma_packed_hw(a, b, c, out, mxcsr, (unsigned)op << 8 | (unsigned)type);
-        if (r) return r;
-    }
+    /* A packed form with every exception masked and round to nearest: the kernel, the lanes it cannot prove by a lane step. */
+    if (type >= FT_PS && (*mxcsr & 0x7F80u) == 0x1F80u && fma_packed_hw(a, b, c, out, mxcsr, (unsigned)op << 8 | (unsigned)type))
+        return 1;
 #endif
     int order, negp, negc, alt;
     if (!decode_op(op, &order, &negp, &negc, &alt)) return 0;
@@ -607,6 +602,24 @@ HW_INLINE void hw_count(int dbl, int n, hwmask m) {
 #endif
 }
 
+/* fma_lanes' per-element step for one element i (fast_d/fast_s, then fma1), for the kernel's unproven lanes. Round to
+ * nearest holds. Duplicated, not shared with fma_lanes: sharing it slowed the scalar forms on AMD (see the PR). */
+HW_INLINE void fma_lane_hw(ffmt f, int order, int negp, int negc, int alt, int i,
+                           const uint8_t *a, const uint8_t *b, const uint8_t *c, uint8_t *out, uint32_t csr, int *fl) {
+    int w = (f.mb + f.eb + 1) / 8;
+    uint64_t av = 0, bv = 0, cv = 0, m1, m2, ad, r, sign = 1ull << (w * 8 - 1);
+    memcpy(&av, a + i * w, w); memcpy(&bv, b + i * w, w); memcpy(&cv, c + i * w, w);
+    switch (order) {
+    case 0: m1 = cv; m2 = bv; ad = av; break;
+    case 1: m1 = av; m2 = cv; ad = bv; break;
+    default: m1 = av; m2 = bv; ad = cv; break;
+    }
+    int nc = negc ^ (alt == 1 ? !(i & 1) : alt == 2 ? (i & 1) : 0);
+    if (!(w == 8 ? fast_d : fast_s)(m1 ^ (negp ? sign : 0), m2, ad ^ (nc ? sign : 0), &r, fl))
+        r = fma1(f, m1, m2, ad, negp, nc, csr, fl);
+    memcpy(out + i * w, &r, w);
+}
+
 /* Returns 1 with out and *mxcsr done if the kernel ran: lanes it proved are taken, each other lane goes through
  * the same per-lane step as the integer path. Returns 0 with nothing written if it did not run. */
 __attribute__((noinline, section(".text.softfma_kernel"))) static int fma_packed_hw(const ymm256 *a, const ymm256 *b,
@@ -626,13 +639,14 @@ __attribute__((noinline, section(".text.softfma_kernel"))) static int fma_packed
         uint32_t csr = *mxcsr;
         for (int i = 0; i < n; i++) {
             if (hm.ok >> i & 1) continue;
-            if (dbl) fma_lane(FD, order, negp, negc, alt, i, a->b, b->b, c->b, tmp.b, csr, &fl);
-            else fma_lane(FS, order, negp, negc, alt, i, a->b, b->b, c->b, tmp.b, csr, &fl);
+            if (dbl) fma_lane_hw(FD, order, negp, negc, alt, i, a->b, b->b, c->b, tmp.b, csr, &fl);
+            else fma_lane_hw(FS, order, negp, negc, alt, i, a->b, b->b, c->b, tmp.b, csr, &fl);
         }
     }
-    /* Every exception is masked (the gate in fma_exec and the live-MXCSR check in the kernel), so nothing is
-     * pending and no IE/DE stop applies; if it ever were, behave as the integer path does. */
-    if (!fp_raise(mxcsr, (uint32_t)fl)) return AVXEMU_FP_PENDING;
+    /* Every exception is masked (the gate in fma_exec, the live-MXCSR check in the kernel), so fp_raise cannot report
+     * pending; if it ever would, leave *mxcsr and out alone and let the integer path redo the vector and report it. */
+    if (fl & ~(*mxcsr >> 7) & 0x3F) return 0;
+    fp_raise(mxcsr, (uint32_t)fl);
     /* in 8-byte moves: the lanes were stored 8 or 16 bytes at a time, and one wider load across stores is not
      * forwarded from them but waits for them to retire */
     for (int i = 0; i < 4; i++)
