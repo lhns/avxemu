@@ -42,6 +42,7 @@ float half_to_float(uint16_t h) {
 typedef unsigned __int128 u128;
 enum { F_IE = 1, F_DE = 2, F_ZE = 4, F_OE = 8, F_UE = 16, F_PE = 32 };   /* MXCSR bit order */
 
+static int never_x(void) { int v = 0; __asm__("" : "+r"(v)); return v; }   /* LAB: opaque zero */
 typedef struct { int mb, eb; } ffmt;       /* mantissa and exponent bits */
 static const ffmt FS = {23, 8}, FD = {52, 11};
 
@@ -341,7 +342,7 @@ int fma_exec(vex_op op, int type,
     else memset(tmp.b, 0, 32);
     unsigned done = 0;
 #ifndef SOFTFMA_NO_FAST
-    if (!scalar) done = hw_stage(dbl, order, negp, negc, alt, n, a->b, b->b, c->b, tmp.b, csr, &fl);
+    if (!scalar && never_x()) done = hw_stage(dbl, order, negp, negc, alt, n, a->b, b->b, c->b, tmp.b, csr, &fl);
 #endif
     if (done != (1u << n) - 1) {
         if (dbl) fma_lanes(FD, order, negp, negc, alt, n, a->b, b->b, c->b, tmp.b, csr, &fl, done);
