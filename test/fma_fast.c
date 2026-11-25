@@ -22,8 +22,9 @@
 
 /* softfma.c: 0-7 integer path taken, 8-16 its boundary events; 17/18 kernel taken (d/s), 19 operand
  * out of range, 20 H guard (d), 21 float midpoint, 22 zero result, 23 float result out of range,
- * 24 live MXCSR declined the kernel, 25 vector with kernel and fallback lanes, 26 all-zero lanes (no arithmetic) */
-enum { NHIT = 27, H_KD = 17, H_KS = 18, H_LIVE = 24 };
+ * 24 live MXCSR declined the kernel, 25 vector with kernel and fallback lanes, 26 all-zero lanes (no arithmetic),
+ * 27 kernel ran. The kernel is taken for a vector only if it proves every lane: 17, 18, 26 count such lanes. */
+enum { NHIT = 28, H_KD = 17, H_KS = 18, H_LIVE = 24, H_RAN = 27 };
 static unsigned long long hits[NHIT];
 static int hw_on;                       /* the kernel is switched off to test the integer path alone */
 #define SOFTFMA_HIT(k) (hits[k]++)
@@ -336,22 +337,25 @@ static uint32_t pick_live(int *may_run) {
     return v;
 }
 
-static unsigned long long kernel_calls, kernel_exact_calls, live_calls, live_declined;
+static unsigned long long kernel_ran, kernel_calls, kernel_exact_calls, live_calls, live_declined;
 
 /* fast_fma_exec under a chosen live MXCSR, which must be unchanged afterwards. */
 static int call_fast(vex_op op, int type, const ymm256 abc[3], ymm256 *out, uint32_t *mx) {
     int may_run;
     uint32_t live = pick_live(&may_run), in = *mx, after;
-    unsigned long long k0 = kernel_hits(), l0 = hits[H_LIVE];
+    unsigned long long k0 = kernel_hits(), r0 = hits[H_RAN], l0 = hits[H_LIVE];
     live_set(live);
     int r = fast_fma_exec(op, type, &abc[0], &abc[1], &abc[2], out, mx);
     after = live_get();
     live_set(LIVE_DEFAULT);
     live_calls++;
     if (after != live) { printf("  live MXCSR %#x -> %#x\n", live, after); fail("live MXCSR changed", op, type, in, abc); }
+    if (hits[H_RAN] != r0) {
+        kernel_ran++;
+        if (!may_run) fail("kernel ran under a live MXCSR that forbids it", op, type, in, abc);
+    }
     if (kernel_hits() != k0) {
         kernel_calls++;
-        if (!may_run) fail("kernel ran under a live MXCSR that forbids it", op, type, in, abc);
         if (!(in & 0x20) && !(*mx & 0x20)) kernel_exact_calls++;
     }
     if (hits[H_LIVE] != l0) live_declined++;
@@ -381,7 +385,7 @@ static const char *const hit_name[NHIT] = {"d:zero-product", "d:zero-addend", "d
     "s:zero-product", "s:zero-addend", "s:cancel", "s:sum", "declined-tiny", "tie-up", "tie-even",
     "half+sticky", "carry", "declined-overflow", "result-min-normal", "result-max-binade", "sub-sticky",
     "kernel-d", "kernel-s", "range", "H-guard", "float-midpoint", "zero-result", "float-result-range",
-    "live-declined", "mixed-vector", "zero-lanes"};
+    "live-declined", "mixed-vector", "zero-lanes", "kernel-ran"};
 
 static void report(const char *mode, int lo, int hi) {
     printf("%s: events:", mode);
@@ -392,8 +396,8 @@ static void report(const char *mode, int lo, int hi) {
 }
 
 static void report_live(const char *mode, int need_declined) {
-    printf("%s: %llu calls with a chosen live MXCSR, %llu took the kernel (%llu of them with no PE), %llu declined by it\n",
-           mode, live_calls, kernel_calls, kernel_exact_calls, live_declined);
+    printf("%s: %llu calls with a chosen live MXCSR, the kernel ran in %llu and was taken in %llu (%llu of them with no PE), "
+           "%llu declined by the live MXCSR\n", mode, live_calls, kernel_ran, kernel_calls, kernel_exact_calls, live_declined);
     if (!kernel_calls || !kernel_exact_calls || (need_declined && !live_declined)) {
         printf("FAIL: the live MXCSR checks did not cover the kernel\n"); fails++;
     }
@@ -445,7 +449,7 @@ static void run_ref_int(long n) {
 static void run_ref_hw(long n) {
     hw_on = 1;
     memset(hits, 0, sizeof hits);
-    kernel_calls = kernel_exact_calls = live_calls = live_declined = 0;
+    kernel_ran = kernel_calls = kernel_exact_calls = live_calls = live_declined = 0;
     for (long i = 0; i < n; i++) {
         int oi = below(18), type = oi >= 12 ? FT_PS + below(2) : below(4);
         const fmt *f = type == FT_SD || type == FT_PD ? &FMT_D : &FMT_S;
@@ -483,7 +487,7 @@ static void run_ref_hw(long n) {
         fill(f, oi % 3, type, -1, abc);
         compare(ops[oi], type, kernel_csr(), abc);
     }
-    report("ref (kernel)", H_KD, 26);
+    report("ref (kernel)", H_KD, 27);
     report_live("ref (kernel)", 1);
     /* never the kernel (nor the integer path) with a special operand, or outside round to nearest */
     memset(hits, 0, sizeof hits);
@@ -508,8 +512,8 @@ static void run_ref_hw(long n) {
         fill(f, oi % 3, type, G_NORM + below(3), abc);
         compare(ops[oi], type, 0x1F80u ^ (1u << (7 + below(6))), abc);
     }
-    printf("ref (kernel): %ld cases with an exception unmasked, %llu kernel\n", m, kernel_hits());
-    if (kernel_hits()) { printf("FAIL: the kernel ran with an exception unmasked\n"); fails++; }
+    printf("ref (kernel): %ld cases with an exception unmasked, kernel ran %llu times\n", m, hits[H_RAN]);
+    if (hits[H_RAN]) { printf("FAIL: the kernel ran with an exception unmasked\n"); fails++; }
 }
 
 static int run_ref(long n) {
@@ -594,7 +598,7 @@ static int run_silicon(long n) {
     /* the kernel: scalar and packed */
     hw_on = 1;
     memset(hits, 0, sizeof hits);
-    kernel_calls = kernel_exact_calls = live_calls = live_declined = 0;
+    kernel_ran = kernel_calls = kernel_exact_calls = live_calls = live_declined = 0;
     long scalar_cases = 0;
     silicon_scalar(n / 8, kernel_hits, &scalar_cases);        /* scalar forms stay on the integer path */
     long kernel_cases = silicon_packed(n / 8);
@@ -602,7 +606,7 @@ static int run_silicon(long n) {
            n / 8, scalar_cases, n / 8, kernel_cases);
     if (scalar_cases) { printf("FAIL: the kernel ran for a scalar form\n"); fails++; }
     report("silicon (kernel)", H_KD, 23);
-    report("silicon (kernel)", 25, 26);
+    report("silicon (kernel)", 25, 27);
     if (kernel_cases < n / 32) { printf("FAIL: kernel rarely taken\n"); fails++; }
     report_live("silicon (kernel)", 1);
     return fails;
