@@ -204,7 +204,7 @@ FAST_ROUND_FN(fast_round_d, u128, msb128, 53, 1023, 63)
 FAST_ROUND_FN(fast_round_s, uint64_t, msb64, 24, 127, 31)
 
 /* binary64: the 106-bit product at bit 125 or 126 of a u128, the addend's 53 bits at bit 125. */
-static int fast_d(uint64_t x, uint64_t y, uint64_t z, uint64_t *out, int *fl) {
+__attribute__((always_inline)) static inline int fast_d_body(uint64_t x, uint64_t y, uint64_t z, uint64_t *out, int *fl) {
     const uint64_t M = (1ull << 52) - 1;
     unsigned ex = (unsigned)(x >> 52) & 0x7ff, ey = (unsigned)(y >> 52) & 0x7ff, ez = (unsigned)(z >> 52) & 0x7ff;
     if ((ex - 1 >= 0x7fe && (x << 1)) || (ey - 1 >= 0x7fe && (y << 1)) || (ez - 1 >= 0x7fe && (z << 1)))
@@ -228,7 +228,7 @@ static int fast_d(uint64_t x, uint64_t y, uint64_t z, uint64_t *out, int *fl) {
 }
 
 /* binary32: the 48-bit product at bit 61 or 62 of a u64, the addend's 24 bits at bit 61. */
-static int fast_s(uint64_t x, uint64_t y, uint64_t z, uint64_t *out, int *fl) {
+__attribute__((always_inline)) static inline int fast_s_body(uint64_t x, uint64_t y, uint64_t z, uint64_t *out, int *fl) {
     const uint64_t M = (1u << 23) - 1;
     unsigned ex = (unsigned)(x >> 23) & 0xff, ey = (unsigned)(y >> 23) & 0xff, ez = (unsigned)(z >> 23) & 0xff;
     uint64_t mag = 0x7fffffffu;
@@ -250,6 +250,19 @@ static int fast_s(uint64_t x, uint64_t y, uint64_t z, uint64_t *out, int *fl) {
     if (r == 0) { SOFTFMA_HIT(6); *out = 0; return 1; }
     SOFTFMA_HIT(7);
     return fast_round_s(r, e0, s, sticky, out, fl);
+}
+
+/* Two entry points per format: the scalar path keeps one call site of fast_d/fast_s, as before (a second caller of
+ * the bodies changed the scalar code's inlining and slowed it on AMD); fast_*_hw is the kernel's own. */
+static int fast_d(uint64_t x, uint64_t y, uint64_t z, uint64_t *out, int *fl) { return fast_d_body(x, y, z, out, fl); }
+static int fast_s(uint64_t x, uint64_t y, uint64_t z, uint64_t *out, int *fl) { return fast_s_body(x, y, z, out, fl); }
+__attribute__((noinline, section(".text.softfma_kernel"))) static int fast_d_hw(uint64_t x, uint64_t y, uint64_t z,
+                                                                                uint64_t *out, int *fl) {
+    return fast_d_body(x, y, z, out, fl);
+}
+__attribute__((noinline, section(".text.softfma_kernel"))) static int fast_s_hw(uint64_t x, uint64_t y, uint64_t z,
+                                                                                uint64_t *out, int *fl) {
+    return fast_s_body(x, y, z, out, fl);
 }
 
 #endif /* SOFTFMA_NO_FAST */
@@ -615,7 +628,7 @@ HW_INLINE void fma_lane_hw(ffmt f, int order, int negp, int negc, int alt, int i
     default: m1 = av; m2 = bv; ad = cv; break;
     }
     int nc = negc ^ (alt == 1 ? !(i & 1) : alt == 2 ? (i & 1) : 0);
-    if (!(w == 8 ? fast_d : fast_s)(m1 ^ (negp ? sign : 0), m2, ad ^ (nc ? sign : 0), &r, fl))
+    if (!(w == 8 ? fast_d_hw : fast_s_hw)(m1 ^ (negp ? sign : 0), m2, ad ^ (nc ? sign : 0), &r, fl))
         r = fma1(f, m1, m2, ad, negp, nc, csr, fl);
     memcpy(out + i * w, &r, w);
 }
