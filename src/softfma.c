@@ -204,7 +204,7 @@ FAST_ROUND_FN(fast_round_d, u128, msb128, 53, 1023, 63)
 FAST_ROUND_FN(fast_round_s, uint64_t, msb64, 24, 127, 31)
 
 /* binary64: the 106-bit product at bit 125 or 126 of a u128, the addend's 53 bits at bit 125. */
-__attribute__((always_inline)) static inline int fast_d(uint64_t x, uint64_t y, uint64_t z, uint64_t *out, int *fl) {
+static int fast_d(uint64_t x, uint64_t y, uint64_t z, uint64_t *out, int *fl) {
     const uint64_t M = (1ull << 52) - 1;
     unsigned ex = (unsigned)(x >> 52) & 0x7ff, ey = (unsigned)(y >> 52) & 0x7ff, ez = (unsigned)(z >> 52) & 0x7ff;
     if ((ex - 1 >= 0x7fe && (x << 1)) || (ey - 1 >= 0x7fe && (y << 1)) || (ez - 1 >= 0x7fe && (z << 1)))
@@ -228,7 +228,7 @@ __attribute__((always_inline)) static inline int fast_d(uint64_t x, uint64_t y, 
 }
 
 /* binary32: the 48-bit product at bit 61 or 62 of a u64, the addend's 24 bits at bit 61. */
-__attribute__((always_inline)) static inline int fast_s(uint64_t x, uint64_t y, uint64_t z, uint64_t *out, int *fl) {
+static int fast_s(uint64_t x, uint64_t y, uint64_t z, uint64_t *out, int *fl) {
     const uint64_t M = (1u << 23) - 1;
     unsigned ex = (unsigned)(x >> 23) & 0xff, ey = (unsigned)(y >> 23) & 0xff, ez = (unsigned)(z >> 23) & 0xff;
     uint64_t mag = 0x7fffffffu;
@@ -488,6 +488,18 @@ HW_INLINE void hw_count(int dbl, int n, hwmask m) {
 #endif
 }
 
+/* The kernel stage of a packed form: writes the lanes it proves to out and returns them as a mask. A
+ * function of its own, so the scalar forms run the code they ran before the kernel existed. */
+__attribute__((noinline)) static unsigned hw_stage(int dbl, int order, int negp, int negc, int alt, int n,
+                      const uint8_t *a, const uint8_t *b, const uint8_t *c, uint8_t *out, uint32_t csr, int *fl) {
+    if (((csr >> 13) & 3) || ((csr >> 7) & 0x3F) != 0x3F || !SOFTFMA_HW_ON()) return 0;   /* nearest, all masked */
+    const uint8_t *p1 = order == 0 ? c : a, *p2 = order == 1 ? c : b, *p3 = order == 0 ? a : order == 1 ? b : c;
+    hwmask hm = dbl ? hw_run_d(n, p1, p2, p3, negp, negc, alt, out) : hw_run_s(n, p1, p2, p3, negp, negc, alt, out);
+    hw_count(dbl, n, hm);
+    if (hm.inex) *fl |= F_PE;           /* only proven lanes set a bit */
+    return hm.ok;
+}
+
 #endif /* SOFTFMA_NO_FAST */
 
 /* DE is not reported when the element also raises IE or propagates a NaN. */
@@ -501,28 +513,17 @@ __attribute__((noinline)) static uint64_t fma1(ffmt f, uint64_t m1b, uint64_t m2
 }
 
 /* alt: 1 subtracts the addend in even elements (vfmaddsub), 2 in odd ones (vfmsubadd).
- * Inlined per format so the element width is a constant. */
+ * Inlined per format so the element width is a constant. `done` are the lanes already in out. */
 __attribute__((always_inline)) static inline void fma_lanes(ffmt f, int order, int negp, int negc, int alt, int n,
                       const uint8_t *a, const uint8_t *b, const uint8_t *c, uint8_t *out,
-                      uint32_t csr, int *fl) {
+                      uint32_t csr, int *fl, unsigned done) {
     int w = (f.mb + f.eb + 1) / 8;
 #ifndef SOFTFMA_NO_FAST
     int fast = ((csr >> 13) & 3) == 0, dbl = w == 8;   /* round to nearest */
     uint64_t sign = 1ull << (w * 8 - 1);
-    unsigned hok = 0;
-    if (fast && ((csr >> 7) & 0x3F) == 0x3F && hw_use(dbl, n) && SOFTFMA_HW_ON()) {   /* every exception masked */
-        const uint8_t *p1 = order == 0 ? c : a, *p2 = order == 1 ? c : b, *p3 = order == 0 ? a : order == 1 ? b : c;
-        hwmask hm = dbl ? hw_run_d(n, p1, p2, p3, negp, negc, alt, out) : hw_run_s(n, p1, p2, p3, negp, negc, alt, out);
-        hw_count(dbl, n, hm);
-        hok = hm.ok;
-        if (hm.inex) *fl |= F_PE;           /* only proven lanes set a bit */
-        if (hok == (1u << n) - 1) return;
-    }
 #endif
     for (int i = 0; i < n; i++) {
-#ifndef SOFTFMA_NO_FAST
-        if (hok >> i & 1) continue;
-#endif
+        if (done >> i & 1) continue;
         uint64_t av = 0, bv = 0, cv = 0, m1, m2, ad;
         memcpy(&av, a + i * w, w); memcpy(&bv, b + i * w, w); memcpy(&cv, c + i * w, w);
         switch (order) {
@@ -576,26 +577,23 @@ int fma_exec(vex_op op, int type,
     default: return 0;
     }
     int scalar = type == FT_SD || type == FT_SS, dbl = type == FT_SD || type == FT_PD;
-    int fl = 0;
+    int n = scalar ? 1 : dbl ? 4 : 8, fl = 0;
     uint32_t csr = *mxcsr;
-    ymm256 tmp __attribute__((aligned(32)));
+    ymm256 tmp;
     if (scalar) { memcpy(tmp.b, c->b, 16); memset(tmp.b + 16, 0, 16); }   /* keep dst's upper bits, zero 255:128 */
     else memset(tmp.b, 0, 32);
-    /* a constant lane count per call, so the scalar copies carry no kernel */
-    if (dbl && scalar) fma_lanes(FD, order, negp, negc, alt, 1, a->b, b->b, c->b, tmp.b, csr, &fl);
-    else if (dbl) fma_lanes(FD, order, negp, negc, alt, 4, a->b, b->b, c->b, tmp.b, csr, &fl);
-    else if (scalar) fma_lanes(FS, order, negp, negc, alt, 1, a->b, b->b, c->b, tmp.b, csr, &fl);
-    else fma_lanes(FS, order, negp, negc, alt, 8, a->b, b->b, c->b, tmp.b, csr, &fl);
+    unsigned done = 0;
+#ifndef SOFTFMA_NO_FAST
+    if (!scalar && hw_use(dbl, n)) done = hw_stage(dbl, order, negp, negc, alt, n, a->b, b->b, c->b, tmp.b, csr, &fl);
+#endif
+    if (done != (1u << n) - 1) {
+        if (dbl) fma_lanes(FD, order, negp, negc, alt, n, a->b, b->b, c->b, tmp.b, csr, &fl, done);
+        else fma_lanes(FS, order, negp, negc, alt, n, a->b, b->b, c->b, tmp.b, csr, &fl, done);
+    }
     /* An unmasked IE or DE stops silicon before it computes: the MXCSR then holds those two only,
      * not the OE/UE/PE other lanes would have raised (test/fma_pending.c). */
     if ((fl & 3) & ~(csr >> 7) & 3) fl &= 3;
     if (!fp_raise(mxcsr, (uint32_t)fl)) return AVXEMU_FP_PENDING;
-#ifndef SOFTFMA_NO_FAST
-    /* In 8-byte moves: the lanes were stored 8, 16 or 4 bytes at a time, and one 32-byte load across several
-     * stores cannot be forwarded from them, which stalls the load. */
-    for (int i = 0; i < 4; i++) _mm_storel_epi64((__m128i *)(out->b + 8 * i), _mm_loadl_epi64((const __m128i *)(tmp.b + 8 * i)));
-#else
     *out = tmp;
-#endif
     return 1;
 }
