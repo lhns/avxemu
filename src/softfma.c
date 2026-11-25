@@ -593,6 +593,12 @@ int fma_exec(vex_op op, int type,
      * not the OE/UE/PE other lanes would have raised (test/fma_pending.c). */
     if ((fl & 3) & ~(csr >> 7) & 3) fl &= 3;
     if (!fp_raise(mxcsr, (uint32_t)fl)) return AVXEMU_FP_PENDING;
+#ifndef SOFTFMA_NO_FAST
+    /* In 8-byte moves: the lanes were stored 4, 8 or 16 bytes at a time, and one 32-byte load across several stores
+     * is not forwarded from them but waits for them to retire. */
+    for (int i = 0; i < 4; i++) _mm_storel_epi64((__m128i *)(out->b + 8 * i), _mm_loadl_epi64((const __m128i *)(tmp.b + 8 * i)));
+#else
     *out = tmp;
+#endif
     return 1;
 }
