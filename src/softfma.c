@@ -274,7 +274,20 @@ __attribute__((always_inline)) static inline void fma_lanes(ffmt f, int order, i
         int nc = negc ^ (alt == 1 ? !(i & 1) : alt == 2 ? (i & 1) : 0);
         uint64_t r;
 #ifndef SOFTFMA_NO_FAST
-        if (fast && (dbl ? fast_d : fast_s)(m1 ^ (negp ? sign : 0), m2, ad ^ (nc ? sign : 0), &r, fl)) {
+        if (fast) {   /* LAB ONLY, WRONG ON PURPOSE: naive a*b+c in native arithmetic, for timing the ceiling */
+            if (dbl) {
+                double x, y, z, q; uint64_t m1n = m1 ^ (negp ? sign : 0), adn = ad ^ (nc ? sign : 0);
+                memcpy(&x, &m1n, 8); memcpy(&y, &m2, 8); memcpy(&z, &adn, 8);
+                q = x * y + z; memcpy(&r, &q, 8);
+            } else {
+                float x, y, z, q; uint32_t m1n = (uint32_t)(m1 ^ (negp ? sign : 0)), m2n = (uint32_t)m2, adn = (uint32_t)(ad ^ (nc ? sign : 0)), o;
+                memcpy(&x, &m1n, 4); memcpy(&y, &m2n, 4); memcpy(&z, &adn, 4);
+                q = x * y + z; memcpy(&o, &q, 4); r = o;
+            }
+            memcpy(out + i * w, &r, w);
+            continue;
+        }
+        if (0 && (dbl ? fast_d : fast_s)(m1 ^ (negp ? sign : 0), m2, ad ^ (nc ? sign : 0), &r, fl)) {
             memcpy(out + i * w, &r, w);
             continue;
         }
