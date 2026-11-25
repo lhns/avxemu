@@ -559,7 +559,9 @@ static long silicon_packed(long n) {
         const fmt *f = dbl ? &FMT_D : &FMT_S;
         int type = dbl ? FT_PD : FT_PS;
         ymm256 abc[3], out, hwout;
-        fill(f, oi % 3, type, -1, abc);
+        /* half of the vectors of one kernel-friendly kind (the kernel is taken only when every lane is proven) */
+        static const int friendly[] = {G_NORM, G_CANCEL, G_ALIGN, G_MID, G_POW2, G_CANC, G_EXACT, G_TIE};
+        fill(f, oi % 3, type, below(2) ? -1 : friendly[below(8)], abc);
         if (!ymm) for (int r = 0; r < 3; r++) memset(abc[r].b + 16, 0, 16);   /* a 128-bit form: the caller zeroes the upper lanes */
         uint32_t csr = below(10) < 8 ? 0x1F80u : 0x1F80u | (uint32_t)(rnd() & 0xE040);
         uint32_t hwfl, mx = csr;
