@@ -468,9 +468,9 @@ static void run_ref_hw(long n) {
             fill(f, oi % 3, type, kinds[k], abc);
             unsigned long long l0 = hits[H_LIVE];
             compare(ops[oi], type, kernel_csr(), abc);
-            if (hits[H_LIVE] == l0) lane_counts(type, f, &lanes);    /* not a call the live MXCSR kept off the kernel */
+            if (type > FT_SD && hits[H_LIVE] == l0) lane_counts(type, f, &lanes);   /* packed, and not kept off the kernel by the live MXCSR */
         }
-        printf("ref (kernel): %-12s %llu of %ld lanes proven\n", kname[kinds[k]], kernel_hits() - k0, lanes);
+        printf("ref (kernel): %-12s %llu of %ld packed lanes proven\n", kname[kinds[k]], kernel_hits() - k0, lanes);
         if (kinds[k] == G_NORM && (kernel_hits() - k0) < (unsigned long long)lanes * 9 / 10) {
             printf("FAIL: the kernel rarely takes normal-range lanes\n"); fails++;
         }
@@ -547,8 +547,9 @@ static void silicon_scalar(long n, unsigned long long (*path)(void), long *taken
     }
 }
 
-/* All 18 ops on ps and pd, xmm and ymm, every lane its own kind. */
-static void silicon_packed(long n) {
+/* All 18 ops on ps and pd, xmm and ymm, every lane its own kind; returns the cases that took the kernel. */
+static long silicon_packed(long n) {
+    long taken = 0;
     for (long i = 0; i < n; i++) {
         int oi = below(18), dbl = below(2), ymm = below(2);
         const fmt *f = dbl ? &FMT_D : &FMT_S;
@@ -560,7 +561,9 @@ static void silicon_packed(long n) {
         uint32_t hwfl, mx = csr;
         fma_fast_hw_p(oi, dbl, ymm, &abc[0], &abc[1], &abc[2], &hwout, csr, &hwfl);
         memset(&out, 0, 32);
+        unsigned long long before = kernel_hits();
         int ret = call_fast(ops[oi], type, abc, &out, &mx);
+        taken += kernel_hits() != before;
         size_t cmp = ymm ? 32 : 16;
         if (ret != 1 || memcmp(&out, &hwout, cmp) || (mx & 0x3F) != hwfl) {
             if (fails < 10) {
@@ -575,6 +578,7 @@ static void silicon_packed(long n) {
             fail("emulator != cpu (packed)", ops[oi], type, csr, abc);
         }
     }
+    return taken;
 }
 
 static int run_silicon(long n) {
@@ -591,13 +595,15 @@ static int run_silicon(long n) {
     hw_on = 1;
     memset(hits, 0, sizeof hits);
     kernel_calls = kernel_exact_calls = live_calls = live_declined = 0;
-    long kernel_cases = 0;
-    silicon_scalar(n / 4, kernel_hits, &kernel_cases);
-    silicon_packed(n / 16);
-    printf("silicon (kernel): %ld scalar cases, %ld through the kernel; %ld packed cases\n", n / 4, kernel_cases, n / 16);
+    long scalar_cases = 0;
+    silicon_scalar(n / 8, kernel_hits, &scalar_cases);        /* scalar forms stay on the integer path */
+    long kernel_cases = silicon_packed(n / 8);
+    printf("silicon (kernel): %ld scalar cases (%ld took the kernel), %ld packed cases, %ld through the kernel\n",
+           n / 8, scalar_cases, n / 8, kernel_cases);
+    if (scalar_cases) { printf("FAIL: the kernel ran for a scalar form\n"); fails++; }
     report("silicon (kernel)", H_KD, 23);
     report("silicon (kernel)", 25, 26);
-    if (kernel_cases < n / 16) { printf("FAIL: kernel rarely taken\n"); fails++; }
+    if (kernel_cases < n / 32) { printf("FAIL: kernel rarely taken\n"); fails++; }
     report_live("silicon (kernel)", 1);
     return fails;
 }

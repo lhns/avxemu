@@ -344,11 +344,12 @@ HW_INLINE void hw_pair_s(__m128d a, __m128d b, __m128d c, __m128 *res, __m128d *
     *res = f;
 }
 
-/* Does the kernel pay for its MXCSR round trip at this width? n == 1 is the scalar forms. */
-HW_INLINE int hw_use(int dbl, int n) { (void)dbl; (void)n; return 1; }
+/* The kernel's dependent chain (about 25 FP operations, plus two MXCSR reads) costs more than the integer path
+ * for one lane: the scalar forms stay on it. Packed forms run their pairs side by side and win. */
+HW_INLINE int hw_use(int dbl, int n) { (void)dbl; return n >= 2; }
 
 /*
- * The kernel over n <= 8 lanes of x1*x2 + x3, where x1, x2, x3 are the lanes at p1, p2, p3 (the op's
+ * The kernel over n = 2, 4 or 8 lanes of x1*x2 + x3, where x1, x2, x3 are the lanes at p1, p2, p3 (the op's
  * m1, m2 and addend by its order) with the op's negations applied: all of x1 when negp, the addend's
  * even or odd lanes by negc and alt. Lanes it proves are stored to out and set in .ok; the rest of
  * out is not written. A lane whose three operands are all zero has a result that needs no arithmetic
@@ -393,22 +394,15 @@ HW_INLINE hwmask hw_run_d(int n, const uint8_t *p1, const uint8_t *p2, const uin
     HW_MASKS;
     for (int i = 0; i < n; i += 2) {
         size_t o = (size_t)i * 8;
-        int two = i + 1 < n;
-        __m128i ia, ib, ic;
-        if (two) {
-            ia = _mm_loadu_si128((const __m128i *)(p1 + o)); ib = _mm_loadu_si128((const __m128i *)(p2 + o));
-            ic = _mm_loadu_si128((const __m128i *)(p3 + o));
-        } else {
-            ia = _mm_loadl_epi64((const __m128i *)(p1 + o)); ib = _mm_loadl_epi64((const __m128i *)(p2 + o));
-            ic = _mm_loadl_epi64((const __m128i *)(p3 + o));
-        }
+        __m128i ia = _mm_loadu_si128((const __m128i *)(p1 + o)), ib = _mm_loadu_si128((const __m128i *)(p2 + o)),
+                ic = _mm_loadu_si128((const __m128i *)(p3 + o));
         __m128d a = _mm_castsi128_pd(_mm_xor_si128(ia, m1m)), b = _mm_castsi128_pd(ib),
                 c = _mm_castsi128_pd(_mm_xor_si128(ic, adm)), r;
         HWB(a); HWB(b); HWB(c);
         unsigned ok2, inex2 = 0, rng2 = 0, nz2 = 0, g2 = 0, zero2 = 0;
         if (hw_zero_pair(a, b, c)) {
             r = hw_zero_result(a, b, c);
-            ok2 = two ? 3 : 1; zero2 = ok2;
+            ok2 = zero2 = 3;
             HWB(r);
         } else {
             __m128d rng, nz, grd, inex;
@@ -422,14 +416,12 @@ HW_INLINE hwmask hw_run_d(int n, const uint8_t *p1, const uint8_t *p2, const uin
             g2 = (unsigned)_mm_movemask_pd(grd);
 #endif
         }
-        if (two) _mm_storeu_si128((__m128i *)(out + o), _mm_castpd_si128(r));
-        else _mm_storel_epi64((__m128i *)(out + o), _mm_castpd_si128(r));
+        _mm_storeu_si128((__m128i *)(out + o), _mm_castpd_si128(r));
         m.ok |= ok2 << i; m.inex |= inex2 << i;
         HW_NOTE(i, ok2, rng2, nz2, g2, 0, zero2);
     }
     HW_END(live, after);
-    unsigned all = (1u << n) - 1;
-    m.ok &= all; m.inex &= m.ok;
+    m.inex &= m.ok;
     return m;
 }
 
@@ -441,18 +433,9 @@ HW_INLINE hwmask hw_run_s(int n, const uint8_t *p1, const uint8_t *p2, const uin
     HW_MASKS;
     for (int i = 0; i < n; i += 2) {
         size_t o = (size_t)i * 4;
-        int two = i + 1 < n;
-        __m128 fa, fb, fc;
-        if (two) {
-            fa = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i *)(p1 + o)));
-            fb = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i *)(p2 + o)));
-            fc = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i *)(p3 + o)));
-        } else {
-            int x, y, z;
-            memcpy(&x, p1 + o, 4); memcpy(&y, p2 + o, 4); memcpy(&z, p3 + o, 4);
-            fa = _mm_castsi128_ps(_mm_cvtsi32_si128(x)); fb = _mm_castsi128_ps(_mm_cvtsi32_si128(y));
-            fc = _mm_castsi128_ps(_mm_cvtsi32_si128(z));
-        }
+        __m128 fa = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i *)(p1 + o))),
+               fb = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i *)(p2 + o))),
+               fc = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i *)(p3 + o)));
         HWB(fa); HWB(fb); HWB(fc);
         __m128d a = _mm_xor_pd(_mm_cvtps_pd(fa), _mm_castsi128_pd(m1m)), b = _mm_cvtps_pd(fb),
                 c = _mm_xor_pd(_mm_cvtps_pd(fc), _mm_castsi128_pd(adm));
@@ -461,7 +444,7 @@ HW_INLINE hwmask hw_run_s(int n, const uint8_t *p1, const uint8_t *p2, const uin
         /* tested on the raw bits: under DAZ the widening reads a subnormal as zero */
         if (_mm_testz_si128(_mm_castps_si128(_mm_or_ps(_mm_or_ps(fa, fb), fc)), _mm_set_epi32(0, 0, 0x7fffffff, 0x7fffffff))) {
             f = _mm_cvtpd_ps(hw_zero_result(a, b, c));
-            ok2 = two ? 3 : 1; zero2 = ok2;
+            ok2 = zero2 = 3;
             HWB(f);
         } else {
             __m128d rng, nz, grd, mid, inex;
@@ -475,14 +458,12 @@ HW_INLINE hwmask hw_run_s(int n, const uint8_t *p1, const uint8_t *p2, const uin
             g2 = (unsigned)_mm_movemask_pd(grd); mid2 = (unsigned)_mm_movemask_pd(mid);
 #endif
         }
-        if (two) _mm_storel_epi64((__m128i *)(out + o), _mm_castps_si128(f));
-        else { int r = _mm_cvtsi128_si32(_mm_castps_si128(f)); memcpy(out + o, &r, 4); }
+        _mm_storel_epi64((__m128i *)(out + o), _mm_castps_si128(f));
         m.ok |= ok2 << i; m.inex |= inex2 << i;
         HW_NOTE(i, ok2, rng2, nz2, g2, mid2, zero2);
     }
     HW_END(live, after);
-    unsigned all = (1u << n) - 1;
-    m.ok &= all; m.inex &= m.ok;
+    m.inex &= m.ok;
     return m;
 }
 
