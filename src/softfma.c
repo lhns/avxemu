@@ -204,7 +204,7 @@ FAST_ROUND_FN(fast_round_d, u128, msb128, 53, 1023, 63)
 FAST_ROUND_FN(fast_round_s, uint64_t, msb64, 24, 127, 31)
 
 /* binary64: the 106-bit product at bit 125 or 126 of a u128, the addend's 53 bits at bit 125. */
-static int fast_d(uint64_t x, uint64_t y, uint64_t z, uint64_t *out, int *fl) {
+__attribute__((always_inline)) static inline int fast_d(uint64_t x, uint64_t y, uint64_t z, uint64_t *out, int *fl) {
     const uint64_t M = (1ull << 52) - 1;
     unsigned ex = (unsigned)(x >> 52) & 0x7ff, ey = (unsigned)(y >> 52) & 0x7ff, ez = (unsigned)(z >> 52) & 0x7ff;
     if ((ex - 1 >= 0x7fe && (x << 1)) || (ey - 1 >= 0x7fe && (y << 1)) || (ez - 1 >= 0x7fe && (z << 1)))
@@ -228,7 +228,7 @@ static int fast_d(uint64_t x, uint64_t y, uint64_t z, uint64_t *out, int *fl) {
 }
 
 /* binary32: the 48-bit product at bit 61 or 62 of a u64, the addend's 24 bits at bit 61. */
-static int fast_s(uint64_t x, uint64_t y, uint64_t z, uint64_t *out, int *fl) {
+__attribute__((always_inline)) static inline int fast_s(uint64_t x, uint64_t y, uint64_t z, uint64_t *out, int *fl) {
     const uint64_t M = (1u << 23) - 1;
     unsigned ex = (unsigned)(x >> 23) & 0xff, ey = (unsigned)(y >> 23) & 0xff, ez = (unsigned)(z >> 23) & 0xff;
     uint64_t mag = 0x7fffffffu;
@@ -352,7 +352,6 @@ HW_INLINE void hw_pair_s(__m128d a, __m128d b, __m128d c, __m128 *res, __m128d *
 HW_INLINE int hw_use(int dbl, int n) { (void)dbl; return n >= 2; }
 
 /*
- * (Not inlined: the kernel's code beside the scalar and fallback code slowed the scalar forms by up to a tenth.)
  * The kernel over n = 2, 4 or 8 lanes of x1*x2 + x3, where x1, x2, x3 are the lanes at p1, p2, p3 (the op's
  * m1, m2 and addend by its order) with the op's negations applied: all of x1 when negp, the addend's
  * even or odd lanes by negc and alt. Lanes it proves are stored to out and set in .ok; the rest of
@@ -390,7 +389,7 @@ HW_INLINE __m128d hw_zero_result(__m128d a, __m128d b, __m128d c) {    /* sign o
     return _mm_and_pd(_mm_and_pd(_mm_xor_pd(a, b), c), _mm_castsi128_pd(_mm_set1_epi64x((long long)0x8000000000000000ull)));
 }
 
-__attribute__((noinline)) static hwmask hw_run_d(int n, const uint8_t *p1, const uint8_t *p2, const uint8_t *p3, int negp, int negc,
+HW_INLINE hwmask hw_run_d(int n, const uint8_t *p1, const uint8_t *p2, const uint8_t *p3, int negp, int negc,
                           int alt, uint8_t *out) {
     hwmask m = {0};
     uint32_t live, after;
@@ -429,7 +428,7 @@ __attribute__((noinline)) static hwmask hw_run_d(int n, const uint8_t *p1, const
     return m;
 }
 
-__attribute__((noinline)) static hwmask hw_run_s(int n, const uint8_t *p1, const uint8_t *p2, const uint8_t *p3, int negp, int negc,
+HW_INLINE hwmask hw_run_s(int n, const uint8_t *p1, const uint8_t *p2, const uint8_t *p3, int negp, int negc,
                           int alt, uint8_t *out) {
     hwmask m = {0};
     uint32_t live, after;
