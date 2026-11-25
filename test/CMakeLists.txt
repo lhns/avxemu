@@ -67,6 +67,12 @@ add_test(NAME fma-fast COMMAND fma-fast ref)
 add_test(NAME fma-fast-silicon COMMAND fma-fast silicon 50000000)
 set_tests_properties(fma-fast PROPERTIES LABELS hermetic)
 set_tests_properties(fma-fast-silicon PROPERTIES LABELS hardware SKIP_RETURN_CODE 77)
+# The same with softfma.c compiled as the helper archive is (AVX1, VEX encodings): needs AVX, as the -vex replays do.
+avxemu_test_exe(fma-fast-vex SOURCES fma_fast.c LINK t_softfma_ref t_fma_fast_hw t_cpu FLAGS ${AVXEMU_HELPER_FLAGS})
+add_test(NAME fma-fast-vex COMMAND fma-fast-vex ref)
+add_test(NAME fma-fast-vex-silicon COMMAND fma-fast-vex silicon 50000000)
+set_tests_properties(fma-fast-vex PROPERTIES LABELS hermetic)
+set_tests_properties(fma-fast-vex-silicon PROPERTIES LABELS hardware SKIP_RETURN_CODE 77)
 
 # Recorded hardware references: replay runs anywhere, record needs the silicon.
 avxemu_objects(t_refdigest refdigest.c cpu.c)

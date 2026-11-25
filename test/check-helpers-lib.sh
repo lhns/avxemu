@@ -5,6 +5,8 @@
 #          check-helpers-lib.sh --selftest prove the checks fire on deliberately bad objects
 #          The CI CPU runs AVX2/BMI/FMA happily and the Ivy Bridge target does not, so only this
 #          guard stops such an instruction from entering libavxemu_helpers.a.
+#          FP arithmetic and MXCSR access are rejected everywhere but in softfma.c's object, whose
+#          FMA kernel brackets its native operations with its own stmxcsr/ldmxcsr.
 set -eu
 NM=${NM:-nm}
 OBJDUMP=${OBJDUMP:-objdump}
@@ -22,15 +24,17 @@ scan() {
     {
       m = $2; ops = ""
       for (i = 3; i <= NF; i++) ops = ops (i > 3 ? " " : "") $i
-      bad = ""
+      bad = ""; kernel = member ~ /(^|\/)softfma\.c\.o:?$/
       if (m ~ /^\(bad\)$/) bad = "undecodable"
       else if ((m == "rep" || m == "repz") && $3 ~ /^(bsf|bsr)/) bad = "rep bsf/bsr (tzcnt/lzcnt)"
       else if (m ~ /^(lzcnt|tzcnt|movbe|andn|bextr|blsi|blsr|blsmsk|bzhi|mulx|pdep|pext|rorx|sarx|shlx|shrx|adcx|adox|rdseed)[bwlq]?$/) bad = "BMI/LZCNT/MOVBE/ADX"
       else if (ops ~ /%zmm|%k[0-7]/) bad = "AVX-512"
+      else if (m ~ /^vcvt(ph2ps|ps2ph)$/) bad = "F16C"
+      else if (kernel && m ~ /^v?(ld|st)mxcsr$/) { }     # the kernel brackets its own
       else if (m ~ /^v?(ld|st)mxcsr$/) bad = "live MXCSR (contract: passed by value)"
+      else if (kernel && m ~ /^v?(add|sub|mul|div|sqrt|min|max|rcp|rsqrt|round|dp|hadd|hsub|addsub|cvt|ucomi|comi|cmp)[a-z0-9]*(ss|sd|ps|pd|si|dq)2?[a-z0-9]*$/ && m !~ /^v?cmp[bwlq]$/) { }   # the kernel
       else if (m ~ /^v?(add|sub|mul|div|sqrt|min|max|rcp|rsqrt|round|dp|hadd|hsub|addsub|cvt|ucomi|comi|cmp)[a-z0-9]*(ss|sd|ps|pd|si|dq)2?[a-z0-9]*$/ && m !~ /^v?cmp[bwlq]$/) bad = "FP arithmetic (reads live MXCSR, can raise #XM)"
       else if (m ~ /^vfn?m/) bad = "FMA"
-      else if (m ~ /^vcvt(ph2ps|ps2ph)$/) bad = "F16C"
       else if (m ~ /^vp?gather/) bad = "gather"
       else if (m ~ /^vpbroadcast/) bad = "AVX2 broadcast"
       else if (m ~ /^(vbroadcasti128|vinserti128|vextracti128|vperm2i128|vpblendd)$/) bad = "AVX2 128-bit lane op"
@@ -113,6 +117,36 @@ vcvttss2si %xmm0, %rax
 vucomisd %xmm0, %xmm1
 vcmpltps %ymm0, %ymm1, %ymm2
 call __udivti3
+EOF
+  # FP arithmetic and MXCSR access are accepted in softfma.c.o only; FMA, F16C and BMI stay rejected there
+  mkdir "$dir/m"
+  cat > "$dir/m/kernel.S" <<'EOF'
+.text
+f:
+	addss %xmm0, %xmm1
+	vmulpd %ymm0, %ymm1, %ymm2
+	vcvtpd2ps %xmm0, %xmm1
+	vcmpltpd %xmm0, %xmm1, %xmm2
+	stmxcsr (%rax)
+	ldmxcsr (%rax)
+	ret
+EOF
+  "$cc" -c "$dir/m/kernel.S" -o "$dir/m/softfma.c.o"
+  [ -z "$(scan "$dir/m/softfma.c.o")" ] || { echo "selftest: kernel instructions rejected in softfma.c.o" >&2; exit 1; }
+  ( cd "$dir/m" && ar rcs lib.a softfma.c.o )
+  [ -z "$(scan "$dir/m/lib.a")" ] || { echo "selftest: kernel instructions rejected in softfma.c.o of an archive" >&2; exit 1; }
+  cp "$dir/m/softfma.c.o" "$dir/m/exec.c.o"
+  [ -n "$(scan "$dir/m/exec.c.o")" ] || { echo "selftest: FP arithmetic not caught outside softfma.c.o" >&2; exit 1; }
+  n=$((n + 1))
+  while IFS= read -r insn; do
+    printf '.text\nf:\n\t%s\n\tret\n' "$insn" > "$dir/m/bad.S"
+    "$cc" -c "$dir/m/bad.S" -o "$dir/m/softfma.c.o"
+    [ -n "$(scan "$dir/m/softfma.c.o")" ] || { echo "selftest: not caught in softfma.c.o: $insn" >&2; exit 1; }
+    n=$((n + 1))
+  done <<'EOF'
+vfmadd213ps %xmm0, %xmm1, %xmm2
+vcvtph2ps %xmm0, %xmm1
+lzcnt %rax, %rax
 EOF
   cat > "$dir/ok.S" <<'EOF'
 .text

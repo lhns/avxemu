@@ -20,6 +20,12 @@
  *   - *mxcsr is the guest MXCSR, passed in and out; it must be non-NULL. Rounding mode, FTZ, DAZ
  *     and the exception masks are read from it; the exception flags an op raises (bits 0-5) are
  *     ORed into it. Only FMA and VCVTPH2PS read or write it; every other op leaves it alone.
+ *   - FMA ops are exact integer arithmetic, with one exception: when every exception is masked and the
+ *     rounding is to nearest in *mxcsr and in the live MXCSR, a lane is computed by native SSE arithmetic
+ *     where that provably gives the correctly rounded result (softfma.c). Such a call reads the live
+ *     MXCSR and restores it, so no flag the native operations set reaches the caller; PE is computed
+ *     and ORed into *mxcsr as for any other lane. FTZ and DAZ do not matter. Under any other live
+ *     MXCSR no native operation runs.
  *   - An unmasked exception returns AVXEMU_FP_PENDING (negative): `out` is not written, and
  *     *mxcsr holds the input with the raised flags ORed in. The caller raises the #XM, picking
  *     the exception from the raised flags that its masks (bits 7-12) leave unmasked; to isolate
