@@ -22,8 +22,9 @@
 
 /* softfma.c: 0-7 integer path taken, 8-16 its boundary events; 17/18 kernel taken (d/s), 19 operand
  * out of range, 20 H guard (d), 21 float midpoint, 22 zero result, 23 float result out of range,
- * 24 live MXCSR declined the kernel, 25 vector with kernel and fallback lanes, 26 all-zero lanes (no arithmetic),
- * 27 kernel ran, 28 binary64 lane inexact through the low sum alone (z == 0, w != 0). The kernel is taken for a vector only if it proves every lane: 17, 18, 26 count such lanes. */
+ * 24 live MXCSR declined the kernel, 25 vector partly from the kernel, partly from the fallback, 26 all-zero lanes (no arithmetic),
+ * 27 kernel ran, 28 binary64 lane inexact through the low sum alone (z == 0, w != 0).
+ * 17, 18, 26 count each lane the kernel proved, in a mixed vector too. */
 enum { NHIT = 29, H_KD = 17, H_KS = 18, H_LIVE = 24, H_RAN = 27, H_LAST = 28 };
 static unsigned long long hits[NHIT];
 static int hw_on;                       /* the kernel is switched off to test the integer path alone */
@@ -412,7 +413,7 @@ static const char *const hit_name[NHIT] = {"d:zero-product", "d:zero-addend", "d
     "s:zero-product", "s:zero-addend", "s:cancel", "s:sum", "declined-tiny", "tie-up", "tie-even",
     "half+sticky", "carry", "declined-overflow", "result-min-normal", "result-max-binade", "sub-sticky",
     "kernel-d", "kernel-s", "range", "H-guard", "float-midpoint", "zero-result", "float-result-range",
-    "live-declined", "mixed-vector", "zero-lanes", "kernel-ran", "w-only-inexact"};
+    "live-declined", "partly-fallback", "zero-lanes", "kernel-ran", "w-only-inexact"};
 
 static void report(const char *mode, int lo, int hi) {
     printf("%s: events:", mode);
@@ -506,7 +507,7 @@ static void run_ref_hw(long n) {
             printf("FAIL: the kernel rarely takes normal-range lanes\n"); fails++;
         }
     }
-    /* mixed vectors: every lane its own kind */
+    /* mixed vectors: every lane its own kind (kernel for some lanes, the fallback for the rest) */
     for (long i = 0; i < n / 4; i++) {
         int oi = below(18), type = FT_PS + below(2);
         const fmt *f = type == FT_PD ? &FMT_D : &FMT_S;
@@ -619,7 +620,7 @@ static long silicon_packed(long n) {
         const fmt *f = dbl ? &FMT_D : &FMT_S;
         int type = dbl ? FT_PD : FT_PS;
         ymm256 abc[3], out, hwout;
-        /* half of the vectors of one kernel-friendly kind (the kernel is taken only when every lane is proven) */
+        /* half of the vectors of one kernel-friendly kind (the other half has lanes of every kind, so a vector is often partly fallback) */
         static const int friendly[] = {G_NORM, G_CANCEL, G_ALIGN, G_MID, G_POW2, G_CANC, G_EXACT, G_TIE};
         fill(f, oi % 3, type, below(2) ? -1 : friendly[below(8)], abc);
         if (!ymm) for (int r = 0; r < 3; r++) memset(abc[r].b + 16, 0, 16);   /* a 128-bit form: the caller zeroes the upper lanes */

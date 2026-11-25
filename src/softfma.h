@@ -18,7 +18,7 @@ int fp_raise(uint32_t *mxcsr, uint32_t flags);
  * mode, FTZ, DAZ and exception masks come from *mxcsr, raised flags are ORed into it, and an
  * unmasked one returns AVXEMU_FP_PENDING with `out` unwritten. One exception: a packed form with every
  * mask set and round to nearest in both *mxcsr and the live MXCSR is first computed with native SSE
- * arithmetic, and that result is used if it is provably the correctly rounded one for every lane. The
+ * arithmetic, and that result is used for each lane where it is provably the correctly rounded one, the others taking the integer path. The
  * function then reads the live MXCSR and writes it back unchanged, so the native operations' flags never
  * reach the caller.
  */

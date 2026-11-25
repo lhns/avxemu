@@ -22,7 +22,7 @@
  *     ORed into it. Only FMA and VCVTPH2PS read or write it; every other op leaves it alone.
  *   - FMA ops are exact integer arithmetic, with one exception: a packed form (not a scalar one) with every
  *     exception masked and round to nearest in *mxcsr and in the live MXCSR is first computed by native SSE
- *     arithmetic, and that result is used when it provably is the correctly rounded one in every lane
+ *     arithmetic, and that result is used for each lane where it provably is the correctly rounded one (the other lanes take the integer path)
  *     (softfma.c). Such a call reads the live MXCSR and restores it, so no flag the native operations set
  *     reaches the caller; PE is computed and ORed into *mxcsr as for any other lane. FTZ and DAZ do not
  *     matter. Under any other live MXCSR no native operation runs.

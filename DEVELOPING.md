@@ -13,7 +13,7 @@ ctest --test-dir build -L 'hermetic|replay' --output-on-failure   # about a minu
 
 | path | what |
 |---|---|
-| `src/exec.c`, `exec_bmi.c`, `softfma.c` | the emulation core. Vector ops, FMA (exact integer arithmetic, not libm `fma()`, so results, NaN choice and flags match hardware; with every exception masked and round to nearest, packed forms try a kernel of native SSE arithmetic first and use it if it proves every lane, else the integer path and the exact code; scalar forms the latter two only) and scalar BMI. |
+| `src/exec.c`, `exec_bmi.c`, `softfma.c` | the emulation core. Vector ops, FMA (exact integer arithmetic, not libm `fma()`, so results, NaN choice and flags match hardware; with every exception masked and round to nearest, packed forms try a kernel of native SSE arithmetic first and use it for the lanes it proves, the integer path and the exact code for the others; scalar forms the latter two only) and scalar BMI. |
 | `test/fma_fast.c` | those fast paths against softfma without them (`fma-fast`, any CPU) and against this CPU's FMA with flags (`fma-fast-silicon`: scalar and packed, all 18 ops); `fma-fast-vex` is the same built as the helper archive is. Counts hits per path and per fallback reason, and checks the live MXCSR across calls |
 | `cmake/helpers.cmake` | defines `libavxemu_helpers.a`: sources, flags, target |
 | `src/avxemu_helpers.h` | the contract of `libavxemu_helpers.a`: those three sources built AVX1-only, needing nothing from libc but `memcpy`/`memset`/`memmove` |
