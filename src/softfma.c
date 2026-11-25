@@ -349,7 +349,7 @@ HW_INLINE void hw_pair_s(__m128d a, __m128d b, __m128d c, __m128 *res, __m128d *
 
 /* The kernel's dependent chain (about 25 FP operations, plus two MXCSR reads) costs more than the integer path
  * for one lane: the scalar forms stay on it. Packed forms run their pairs side by side and win. */
-HW_INLINE int hw_use(int dbl, int n) { (void)dbl; return n >= 2; }
+HW_INLINE int hw_use(int dbl, int n) { (void)dbl; (void)n; return 0; }   /* LAB CONTROL */
 
 /*
  * The kernel over n = 2, 4 or 8 lanes of x1*x2 + x3, where x1, x2, x3 are the lanes at p1, p2, p3 (the op's
