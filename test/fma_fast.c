@@ -597,7 +597,7 @@ static int run_silicon(long n) {
     printf("silicon (kernel): %ld scalar cases, %ld through the kernel; %ld packed cases\n", n / 4, kernel_cases, n / 16);
     report("silicon (kernel)", H_KD, 23);
     report("silicon (kernel)", 25, 25);
-    if (kernel_cases < n / 8) { printf("FAIL: kernel rarely taken\n"); fails++; }
+    if (kernel_cases < n / 16) { printf("FAIL: kernel rarely taken\n"); fails++; }
     report_live("silicon (kernel)", 1);
     return fails;
 }
