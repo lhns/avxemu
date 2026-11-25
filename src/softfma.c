@@ -252,6 +252,114 @@ static int fast_s(uint64_t x, uint64_t y, uint64_t z, uint64_t *out, int *fl) {
     return fast_round_s(r, e0, s, sticky, out, fl);
 }
 
+/* The kernel stage of a packed form (below, after the scalar code): writes the lanes it proves to out and
+ * returns them as a mask. */
+__attribute__((noinline, section(".text.softfma_kernel"))) static unsigned hw_stage(int dbl, int order, int negp, int negc, int alt, int n,
+                         const uint8_t *a, const uint8_t *b, const uint8_t *c, uint8_t *out, uint32_t csr, int *fl);
+
+#endif /* SOFTFMA_NO_FAST */
+
+/* DE is not reported when the element also raises IE or propagates a NaN. */
+__attribute__((noinline)) static uint64_t fma1(ffmt f, uint64_t m1b, uint64_t m2b, uint64_t adb,
+                     int negp, int negc, uint32_t csr, int *fl) {
+    int l = 0, den = 0;
+    uint64_t r = fma1x(f, m1b, m2b, adb, negp, negc, csr, &l, &den);
+    if (den && !(l & F_IE)) l |= F_DE;
+    *fl |= l;
+    return r;
+}
+
+/* alt: 1 subtracts the addend in even elements (vfmaddsub), 2 in odd ones (vfmsubadd).
+ * Inlined per format so the element width is a constant. `done` are the lanes already in out. */
+__attribute__((always_inline)) static inline void fma_lanes(ffmt f, int order, int negp, int negc, int alt, int n,
+                      const uint8_t *a, const uint8_t *b, const uint8_t *c, uint8_t *out,
+                      uint32_t csr, int *fl, unsigned done) {
+    int w = (f.mb + f.eb + 1) / 8;
+#ifndef SOFTFMA_NO_FAST
+    int fast = ((csr >> 13) & 3) == 0, dbl = w == 8;   /* round to nearest */
+    uint64_t sign = 1ull << (w * 8 - 1);
+#endif
+    for (int i = 0; i < n; i++) {
+        if (done >> i & 1) continue;
+        uint64_t av = 0, bv = 0, cv = 0, m1, m2, ad;
+        memcpy(&av, a + i * w, w); memcpy(&bv, b + i * w, w); memcpy(&cv, c + i * w, w);
+        switch (order) {
+        case 0: m1 = cv; m2 = bv; ad = av; break;      /* 132: dst*src3 + src2 */
+        case 1: m1 = av; m2 = cv; ad = bv; break;      /* 213: src2*dst + src3 */
+        default: m1 = av; m2 = bv; ad = cv; break;     /* 231: src2*src3 + dst */
+        }
+        int nc = negc ^ (alt == 1 ? !(i & 1) : alt == 2 ? (i & 1) : 0);
+        uint64_t r;
+#ifndef SOFTFMA_NO_FAST
+        if (fast && (dbl ? fast_d : fast_s)(m1 ^ (negp ? sign : 0), m2, ad ^ (nc ? sign : 0), &r, fl)) {
+            memcpy(out + i * w, &r, w);
+            continue;
+        }
+#endif
+        r = fma1(f, m1, m2, ad, negp, nc, csr, fl);
+        memcpy(out + i * w, &r, w);
+    }
+}
+
+int fp_raise(uint32_t *mxcsr, uint32_t fl) {
+    if (!fl) return 1;
+    uint32_t csr = *mxcsr;
+    *mxcsr = csr | fl;
+    return !(fl & ~(csr >> 7) & 0x3F);
+}
+
+int fma_exec(vex_op op, int type,
+             const ymm256 *a, const ymm256 *b, const ymm256 *c, ymm256 *out,
+             uint32_t *mxcsr) {
+    int order, negp, negc, alt = 0;
+    switch (op) {
+    case VFMADDSUB132: order=0; negp=0; negc=0; alt=1; break;
+    case VFMADDSUB213: order=1; negp=0; negc=0; alt=1; break;
+    case VFMADDSUB231: order=2; negp=0; negc=0; alt=1; break;
+    case VFMSUBADD132: order=0; negp=0; negc=0; alt=2; break;
+    case VFMSUBADD213: order=1; negp=0; negc=0; alt=2; break;
+    case VFMSUBADD231: order=2; negp=0; negc=0; alt=2; break;
+    case VFMADD132: order=0; negp=0; negc=0; break;
+    case VFMADD213: order=1; negp=0; negc=0; break;
+    case VFMADD231: order=2; negp=0; negc=0; break;
+    case VFMSUB132: order=0; negp=0; negc=1; break;
+    case VFMSUB213: order=1; negp=0; negc=1; break;
+    case VFMSUB231: order=2; negp=0; negc=1; break;
+    case VFNMADD132:order=0; negp=1; negc=0; break;
+    case VFNMADD213:order=1; negp=1; negc=0; break;
+    case VFNMADD231:order=2; negp=1; negc=0; break;
+    case VFNMSUB132:order=0; negp=1; negc=1; break;
+    case VFNMSUB213:order=1; negp=1; negc=1; break;
+    case VFNMSUB231:order=2; negp=1; negc=1; break;
+    default: return 0;
+    }
+    int scalar = type == FT_SD || type == FT_SS, dbl = type == FT_SD || type == FT_PD;
+    int n = scalar ? 1 : dbl ? 4 : 8, fl = 0;
+    uint32_t csr = *mxcsr;
+    ymm256 tmp;
+    if (scalar) { memcpy(tmp.b, c->b, 16); memset(tmp.b + 16, 0, 16); }   /* keep dst's upper bits, zero 255:128 */
+    else memset(tmp.b, 0, 32);
+    unsigned done = 0;
+#ifndef SOFTFMA_NO_FAST
+    if (!scalar) done = hw_stage(dbl, order, negp, negc, alt, n, a->b, b->b, c->b, tmp.b, csr, &fl);
+#endif
+    if (done != (1u << n) - 1) {
+        if (dbl) fma_lanes(FD, order, negp, negc, alt, n, a->b, b->b, c->b, tmp.b, csr, &fl, done);
+        else fma_lanes(FS, order, negp, negc, alt, n, a->b, b->b, c->b, tmp.b, csr, &fl, done);
+    }
+    /* An unmasked IE or DE stops silicon before it computes: the MXCSR then holds those two only,
+     * not the OE/UE/PE other lanes would have raised (test/fma_pending.c). */
+    if ((fl & 3) & ~(csr >> 7) & 3) fl &= 3;
+    if (!fp_raise(mxcsr, (uint32_t)fl)) return AVXEMU_FP_PENDING;
+    *out = tmp;
+    return 1;
+}
+
+/*
+ * The kernel stage is in a section of its own on purpose: its size in front of fma_exec moved the scalar code's
+ * addresses, and the scalar forms ran up to a fifth slower on AMD for it (the instruction count was the same).
+ */
+#ifndef SOFTFMA_NO_FAST
 /*
  * Hardware-arithmetic kernel: a lane's result by native SSE arithmetic where that is provably the
  * correctly rounded FMA, else "not ok" and the lane takes fast_* and fma1. It runs only when the
@@ -346,10 +454,6 @@ HW_INLINE void hw_pair_s(__m128d a, __m128d b, __m128d c, __m128 *res, __m128d *
     *inex = _mm_or_pd(errnz, _mm_cmpneq_pd(_mm_cvtps_pd(f), d));
     *res = f;
 }
-
-/* The kernel's dependent chain (about 25 FP operations, plus two MXCSR reads) costs more than the integer path
- * for one lane: the scalar forms stay on it. Packed forms run their pairs side by side and win. */
-HW_INLINE int hw_use(int dbl, int n) { (void)dbl; return n >= 2; }
 
 /*
  * The kernel over n = 2, 4 or 8 lanes of x1*x2 + x3, where x1, x2, x3 are the lanes at p1, p2, p3 (the op's
@@ -490,7 +594,7 @@ HW_INLINE void hw_count(int dbl, int n, hwmask m) {
 
 /* The kernel stage of a packed form: writes the lanes it proves to out and returns them as a mask. A
  * function of its own, so the scalar forms run the code they ran before the kernel existed. */
-__attribute__((noinline)) static unsigned hw_stage(int dbl, int order, int negp, int negc, int alt, int n,
+static unsigned hw_stage(int dbl, int order, int negp, int negc, int alt, int n,
                       const uint8_t *a, const uint8_t *b, const uint8_t *c, uint8_t *out, uint32_t csr, int *fl) {
     if (((csr >> 13) & 3) || ((csr >> 7) & 0x3F) != 0x3F || !SOFTFMA_HW_ON()) return 0;   /* nearest, all masked */
     const uint8_t *p1 = order == 0 ? c : a, *p2 = order == 1 ? c : b, *p3 = order == 0 ? a : order == 1 ? b : c;
@@ -501,99 +605,3 @@ __attribute__((noinline)) static unsigned hw_stage(int dbl, int order, int negp,
 }
 
 #endif /* SOFTFMA_NO_FAST */
-
-/* DE is not reported when the element also raises IE or propagates a NaN. */
-__attribute__((noinline)) static uint64_t fma1(ffmt f, uint64_t m1b, uint64_t m2b, uint64_t adb,
-                     int negp, int negc, uint32_t csr, int *fl) {
-    int l = 0, den = 0;
-    uint64_t r = fma1x(f, m1b, m2b, adb, negp, negc, csr, &l, &den);
-    if (den && !(l & F_IE)) l |= F_DE;
-    *fl |= l;
-    return r;
-}
-
-/* alt: 1 subtracts the addend in even elements (vfmaddsub), 2 in odd ones (vfmsubadd).
- * Inlined per format so the element width is a constant. `done` are the lanes already in out. */
-__attribute__((always_inline)) static inline void fma_lanes(ffmt f, int order, int negp, int negc, int alt, int n,
-                      const uint8_t *a, const uint8_t *b, const uint8_t *c, uint8_t *out,
-                      uint32_t csr, int *fl, unsigned done) {
-    int w = (f.mb + f.eb + 1) / 8;
-#ifndef SOFTFMA_NO_FAST
-    int fast = ((csr >> 13) & 3) == 0, dbl = w == 8;   /* round to nearest */
-    uint64_t sign = 1ull << (w * 8 - 1);
-#endif
-    for (int i = 0; i < n; i++) {
-        if (done >> i & 1) continue;
-        uint64_t av = 0, bv = 0, cv = 0, m1, m2, ad;
-        memcpy(&av, a + i * w, w); memcpy(&bv, b + i * w, w); memcpy(&cv, c + i * w, w);
-        switch (order) {
-        case 0: m1 = cv; m2 = bv; ad = av; break;      /* 132: dst*src3 + src2 */
-        case 1: m1 = av; m2 = cv; ad = bv; break;      /* 213: src2*dst + src3 */
-        default: m1 = av; m2 = bv; ad = cv; break;     /* 231: src2*src3 + dst */
-        }
-        int nc = negc ^ (alt == 1 ? !(i & 1) : alt == 2 ? (i & 1) : 0);
-        uint64_t r;
-#ifndef SOFTFMA_NO_FAST
-        if (fast && (dbl ? fast_d : fast_s)(m1 ^ (negp ? sign : 0), m2, ad ^ (nc ? sign : 0), &r, fl)) {
-            memcpy(out + i * w, &r, w);
-            continue;
-        }
-#endif
-        r = fma1(f, m1, m2, ad, negp, nc, csr, fl);
-        memcpy(out + i * w, &r, w);
-    }
-}
-
-int fp_raise(uint32_t *mxcsr, uint32_t fl) {
-    if (!fl) return 1;
-    uint32_t csr = *mxcsr;
-    *mxcsr = csr | fl;
-    return !(fl & ~(csr >> 7) & 0x3F);
-}
-
-int fma_exec(vex_op op, int type,
-             const ymm256 *a, const ymm256 *b, const ymm256 *c, ymm256 *out,
-             uint32_t *mxcsr) {
-    int order, negp, negc, alt = 0;
-    switch (op) {
-    case VFMADDSUB132: order=0; negp=0; negc=0; alt=1; break;
-    case VFMADDSUB213: order=1; negp=0; negc=0; alt=1; break;
-    case VFMADDSUB231: order=2; negp=0; negc=0; alt=1; break;
-    case VFMSUBADD132: order=0; negp=0; negc=0; alt=2; break;
-    case VFMSUBADD213: order=1; negp=0; negc=0; alt=2; break;
-    case VFMSUBADD231: order=2; negp=0; negc=0; alt=2; break;
-    case VFMADD132: order=0; negp=0; negc=0; break;
-    case VFMADD213: order=1; negp=0; negc=0; break;
-    case VFMADD231: order=2; negp=0; negc=0; break;
-    case VFMSUB132: order=0; negp=0; negc=1; break;
-    case VFMSUB213: order=1; negp=0; negc=1; break;
-    case VFMSUB231: order=2; negp=0; negc=1; break;
-    case VFNMADD132:order=0; negp=1; negc=0; break;
-    case VFNMADD213:order=1; negp=1; negc=0; break;
-    case VFNMADD231:order=2; negp=1; negc=0; break;
-    case VFNMSUB132:order=0; negp=1; negc=1; break;
-    case VFNMSUB213:order=1; negp=1; negc=1; break;
-    case VFNMSUB231:order=2; negp=1; negc=1; break;
-    default: return 0;
-    }
-    int scalar = type == FT_SD || type == FT_SS, dbl = type == FT_SD || type == FT_PD;
-    int n = scalar ? 1 : dbl ? 4 : 8, fl = 0;
-    uint32_t csr = *mxcsr;
-    ymm256 tmp;
-    if (scalar) { memcpy(tmp.b, c->b, 16); memset(tmp.b + 16, 0, 16); }   /* keep dst's upper bits, zero 255:128 */
-    else memset(tmp.b, 0, 32);
-    unsigned done = 0;
-#ifndef SOFTFMA_NO_FAST
-    if (!scalar && hw_use(dbl, n)) done = hw_stage(dbl, order, negp, negc, alt, n, a->b, b->b, c->b, tmp.b, csr, &fl);
-#endif
-    if (done != (1u << n) - 1) {
-        if (dbl) fma_lanes(FD, order, negp, negc, alt, n, a->b, b->b, c->b, tmp.b, csr, &fl, done);
-        else fma_lanes(FS, order, negp, negc, alt, n, a->b, b->b, c->b, tmp.b, csr, &fl, done);
-    }
-    /* An unmasked IE or DE stops silicon before it computes: the MXCSR then holds those two only,
-     * not the OE/UE/PE other lanes would have raised (test/fma_pending.c). */
-    if ((fl & 3) & ~(csr >> 7) & 3) fl &= 3;
-    if (!fp_raise(mxcsr, (uint32_t)fl)) return AVXEMU_FP_PENDING;
-    *out = tmp;
-    return 1;
-}
