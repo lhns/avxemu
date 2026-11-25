@@ -23,8 +23,8 @@
 /* softfma.c: 0-7 integer path taken, 8-16 its boundary events; 17/18 kernel taken (d/s), 19 operand
  * out of range, 20 H guard (d), 21 float midpoint, 22 zero result, 23 float result out of range,
  * 24 live MXCSR declined the kernel, 25 vector with kernel and fallback lanes, 26 all-zero lanes (no arithmetic),
- * 27 kernel ran. The kernel is taken for a vector only if it proves every lane: 17, 18, 26 count such lanes. */
-enum { NHIT = 28, H_KD = 17, H_KS = 18, H_LIVE = 24, H_RAN = 27 };
+ * 27 kernel ran, 28 binary64 lane inexact through the low sum alone (z == 0, w != 0). The kernel is taken for a vector only if it proves every lane: 17, 18, 26 count such lanes. */
+enum { NHIT = 29, H_KD = 17, H_KS = 18, H_LIVE = 24, H_RAN = 27, H_LAST = 28 };
 static unsigned long long hits[NHIT];
 static int hw_on;                       /* the kernel is switched off to test the integer path alone */
 #define SOFTFMA_HIT(k) (hits[k]++)
@@ -297,6 +297,33 @@ static void fill(const fmt *f, int order, int type, int kind, ymm256 abc[3]) {
     }
 }
 
+/* Like fill, but lane `probe` takes kind `pk` and the others kind `base`: the kernel takes a vector only if every
+ * lane is proven, so an adversarial lane is compared at full strength only among lanes that are proven. */
+static void fill_probe(const fmt *f, int order, int type, int base, int pk, ymm256 abc[3]) {
+    int w = f->dbl ? 8 : 4, n = 32 / w;
+    fill(f, order, type, base, abc);
+    static const int role[3][3] = {{2, 1, 0}, {0, 2, 1}, {0, 1, 2}};
+    uint64_t v[3];
+    int lane = below(n);
+    gen(f, pk, v);
+    for (int r = 0; r < 3; r++) put(abc[role[order][r]].b, w, lane, v[r]);
+}
+
+/* Every operand zero except one lane pair: lane 2p of kind `pk`, lane 2p+1 exact. The zero pairs are exact too, so
+ * the vector's PE is that of the one lane, and a wrong inexact bit in a single lane cannot hide behind another's. */
+static void fill_pair(const fmt *f, int order, int type, int pk, ymm256 abc[3]) {
+    int w = f->dbl ? 8 : 4, n = 32 / w;
+    fill(f, order, type, G_ZERO, abc);
+    for (int r = 0; r < 3; r++) memset(abc[r].b, 0, 32);
+    static const int role[3][3] = {{2, 1, 0}, {0, 2, 1}, {0, 1, 2}};
+    int lane = 2 * below(n / 2);
+    for (int l = 0; l < 2; l++) {
+        uint64_t v[3];
+        gen(f, l ? G_EXACT : pk, v);
+        for (int r = 0; r < 3; r++) put(abc[role[order][r]].b, w, lane + l, v[r]);
+    }
+}
+
 static int fails;
 
 static unsigned long long int_hits(void) {      /* the integer path's taken counters */
@@ -385,7 +412,7 @@ static const char *const hit_name[NHIT] = {"d:zero-product", "d:zero-addend", "d
     "s:zero-product", "s:zero-addend", "s:cancel", "s:sum", "declined-tiny", "tie-up", "tie-even",
     "half+sticky", "carry", "declined-overflow", "result-min-normal", "result-max-binade", "sub-sticky",
     "kernel-d", "kernel-s", "range", "H-guard", "float-midpoint", "zero-result", "float-result-range",
-    "live-declined", "mixed-vector", "zero-lanes", "kernel-ran"};
+    "live-declined", "mixed-vector", "zero-lanes", "kernel-ran", "w-only-inexact"};
 
 static void report(const char *mode, int lo, int hi) {
     printf("%s: events:", mode);
@@ -487,7 +514,40 @@ static void run_ref_hw(long n) {
         fill(f, oi % 3, type, -1, abc);
         compare(ops[oi], type, kernel_csr(), abc);
     }
-    report("ref (kernel)", H_KD, 27);
+    /* one adversarial lane among normal ones: the guard edges, ties, midpoints, powers of two, zeros, specials */
+    static const int probes[] = {G_EDGE, G_RANGE, G_TIE, G_MID, G_POW2, G_CANC, G_CANCEL, G_ZERO, G_EXACT, G_RAND, G_SPECIAL};
+    for (size_t k = 0; k < sizeof probes / sizeof probes[0]; k++) {
+        unsigned long long k0 = kernel_hits();
+        long cases = n / 20;
+        for (long i = 0; i < cases; i++) {
+            int oi = below(18), type = FT_PS + below(2);
+            const fmt *f = type == FT_PD ? &FMT_D : &FMT_S;
+            ymm256 abc[3];
+            fill_probe(f, oi % 3, type, G_NORM, probes[k], abc);
+            compare(ops[oi], type, kernel_csr(), abc);
+        }
+        printf("ref (kernel): one %-12s lane among normal ones: %llu lanes proven in %ld vectors\n", kname[probes[k]],
+               kernel_hits() - k0, cases);
+    }
+    /* one live lane pair among zeros: the vector's PE is that pair's alone */
+    static const int pair_kinds[] = {G_NORM, G_CANC, G_ALIGN, G_CANCEL, G_MID, G_POW2, G_TIE, G_EXACT};
+    for (long i = 0; i < n / 2; i++) {
+        int oi = below(18), type = FT_PS + below(2);
+        const fmt *f = type == FT_PD ? &FMT_D : &FMT_S;
+        ymm256 abc[3];
+        fill_pair(f, oi % 3, type, pair_kinds[below(8)], abc);
+        compare(ops[oi], type, kernel_csr() & ~0x20u, abc);     /* PE clear in: a PE out is this pair's */
+    }
+    /* the shape of a 128-bit form: upper 16 bytes of every operand zero (their lanes need no arithmetic), all 32 bytes compared */
+    for (long i = 0; i < n / 4; i++) {
+        int oi = below(18), type = FT_PS + below(2);
+        const fmt *f = type == FT_PD ? &FMT_D : &FMT_S;
+        ymm256 abc[3];
+        fill(f, oi % 3, type, below(2) ? G_NORM : G_NORM + below(3), abc);
+        for (int r = 0; r < 3; r++) memset(abc[r].b + 16, 0, 16);
+        compare(ops[oi], type, kernel_csr(), abc);
+    }
+    report("ref (kernel)", H_KD, H_LAST);
     report_live("ref (kernel)", 1);
     /* never the kernel (nor the integer path) with a special operand, or outside round to nearest */
     memset(hits, 0, sizeof hits);
@@ -608,7 +668,7 @@ static int run_silicon(long n) {
            n / 8, scalar_cases, n / 8, kernel_cases);
     if (scalar_cases) { printf("FAIL: the kernel ran for a scalar form\n"); fails++; }
     report("silicon (kernel)", H_KD, 23);
-    report("silicon (kernel)", 25, 27);
+    report("silicon (kernel)", 25, H_LAST);
     if (kernel_cases < n / 32) { printf("FAIL: kernel rarely taken\n"); fails++; }
     report_live("silicon (kernel)", 1);
     return fails;

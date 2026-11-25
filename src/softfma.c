@@ -332,8 +332,9 @@ static inline int decode_op(vex_op op, int *order_, int *negp_, int *negc_, int 
 
 #ifndef SOFTFMA_NO_FAST
 static int fma_packed_hw(const ymm256 *a, const ymm256 *b, const ymm256 *c, ymm256 *out, uint32_t *mxcsr,
-                         unsigned opinfo);    /* the kernel, below, in a section of its own: its size in front of
-                                               * fma_exec moved the scalar code, which then ran slower on AMD */
+                         unsigned opinfo);    /* the kernel, below, apart from fma_exec: scalar forms ran up to a fifth
+                                               * slower on AMD whenever the kernel's code was in or next to the function
+                                               * that runs them (cause not identified; see the PR) */
 #endif
 
 int fma_exec(vex_op op, int type,
@@ -365,7 +366,8 @@ int fma_exec(vex_op op, int type,
 #ifndef SOFTFMA_NO_FAST
 /*
  * Hardware-arithmetic kernel: a lane's result by native SSE arithmetic where that is provably the
- * correctly rounded FMA, else "not ok" and the lane takes fast_* and fma1. It runs only when the
+ * correctly rounded FMA, else "not ok". fma_exec takes the kernel's result only if every lane of the
+ * vector is ok; otherwise the whole vector goes to the integer path and the exact code. It runs only when the
  * incoming MXCSR and the live one both have every exception masked and round to nearest, so the
  * native operations neither trap nor round differently. The flags they set are discarded: the live
  * MXCSR is read first and written back if it changed. PE comes from the inexact bit alone. FTZ and
@@ -414,7 +416,7 @@ HW_INLINE __m128d hw_between(__m128d v, double lo, double hi) {    /* lo <= |v| 
 
 /* Two binary64 lanes. */
 HW_INLINE void hw_pair_d(__m128d a, __m128d b, __m128d c, __m128d *res, __m128d *rng, __m128d *nz,
-                         __m128d *grd, __m128d *inex) {
+                         __m128d *grd, __m128d *inex, __m128d *wonly) {
     const __m128d K = _mm_set1_pd(134217729.0), zero = _mm_setzero_pd();
     __m128d t, ah, al, bh, bl, uh, ul, th, tl, v, w, r, z;
     *rng = _mm_and_pd(_mm_and_pd(hw_between(a, 0x1p-400, 0x1p401), hw_between(b, 0x1p-400, 0x1p401)),
@@ -436,6 +438,7 @@ HW_INLINE void hw_pair_d(__m128d a, __m128d b, __m128d c, __m128d *res, __m128d 
     *grd = _mm_or_pd(_mm_cmpeq_pd(w, zero), _mm_cmplt_pd(s, H));
     *nz = _mm_cmpneq_pd(r, zero);
     *inex = _mm_cmpneq_pd(_mm_add_pd(z, w), zero);
+    *wonly = _mm_and_pd(_mm_cmpeq_pd(z, zero), _mm_cmpneq_pd(w, zero));      /* inexact through w alone (test counter) */
     *res = r;
 }
 
@@ -509,26 +512,26 @@ HW_INLINE hwmask hw_run_d(int n, const uint8_t *p1, const uint8_t *p2, const uin
         __m128d a = _mm_castsi128_pd(_mm_xor_si128(ia, m1m)), b = _mm_castsi128_pd(ib),
                 c = _mm_castsi128_pd(_mm_xor_si128(ic, adm)), r;
         HWB(a); HWB(b); HWB(c);
-        unsigned ok2, inex2 = 0, rng2 = 0, nz2 = 0, g2 = 0, zero2 = 0;
+        unsigned ok2, inex2 = 0, rng2 = 0, nz2 = 0, g2 = 0, mid2 = 0, zero2 = 0;
         if (hw_zero_pair(a, b, c)) {
             r = hw_zero_result(a, b, c);
             ok2 = zero2 = 3;
             HWB(r);
         } else {
-            __m128d rng, nz, grd, inex;
-            hw_pair_d(a, b, c, &r, &rng, &nz, &grd, &inex);
+            __m128d rng, nz, grd, inex, wonly;
+            hw_pair_d(a, b, c, &r, &rng, &nz, &grd, &inex, &wonly);
             __m128d ok = _mm_and_pd(_mm_and_pd(rng, nz), grd);
             HWB(r); HWB(ok); HWB(inex);
             ok2 = (unsigned)_mm_movemask_pd(ok); inex2 = (unsigned)_mm_movemask_pd(inex);
 #ifdef SOFTFMA_REASONS
-            HWB(rng); HWB(nz); HWB(grd);
+            HWB(rng); HWB(nz); HWB(grd); HWB(wonly);
             rng2 = (unsigned)_mm_movemask_pd(rng); nz2 = (unsigned)_mm_movemask_pd(nz);
-            g2 = (unsigned)_mm_movemask_pd(grd);
+            g2 = (unsigned)_mm_movemask_pd(grd); mid2 = (unsigned)_mm_movemask_pd(wonly);   /* binary64 has no midpoint */
 #endif
         }
         _mm_storeu_si128((__m128i *)(out + o), _mm_castpd_si128(r));
         m.ok |= ok2 << i; m.inex |= inex2 << i;
-        HW_NOTE(i, ok2, rng2, nz2, g2, 0, zero2);
+        HW_NOTE(i, ok2, rng2, nz2, g2, mid2, zero2);
     }
     HW_END(live, after);
     m.inex &= m.ok;
@@ -584,7 +587,10 @@ HW_INLINE void hw_count(int dbl, int n, hwmask m) {
     unsigned all = (1u << n) - 1;
     SOFTFMA_HIT(27);
     for (int i = 0; i < n; i++) {
-        if (m.ok >> i & 1) { if (m.ok == all) SOFTFMA_HIT(m.zero >> i & 1 ? 26 : dbl ? 17 : 18); }
+        if (m.ok >> i & 1) {
+            if (m.ok == all) SOFTFMA_HIT(m.zero >> i & 1 ? 26 : dbl ? 17 : 18);
+            if (m.ok == all && dbl && (m.mid >> i & 1)) SOFTFMA_HIT(28);
+        }
         else if (!(m.rng >> i & 1)) SOFTFMA_HIT(19);
         else if (!(m.nz >> i & 1)) SOFTFMA_HIT(22);
         else if (!(m.g >> i & 1)) SOFTFMA_HIT(dbl ? 20 : 23);
