@@ -576,13 +576,16 @@ int fma_exec(vex_op op, int type,
     default: return 0;
     }
     int scalar = type == FT_SD || type == FT_SS, dbl = type == FT_SD || type == FT_PD;
-    int n = scalar ? 1 : dbl ? 4 : 8, fl = 0;
+    int fl = 0;
     uint32_t csr = *mxcsr;
     ymm256 tmp;
     if (scalar) { memcpy(tmp.b, c->b, 16); memset(tmp.b + 16, 0, 16); }   /* keep dst's upper bits, zero 255:128 */
     else memset(tmp.b, 0, 32);
-    if (dbl) fma_lanes(FD, order, negp, negc, alt, n, a->b, b->b, c->b, tmp.b, csr, &fl);
-    else fma_lanes(FS, order, negp, negc, alt, n, a->b, b->b, c->b, tmp.b, csr, &fl);
+    /* a constant lane count per call, so the scalar copies carry no kernel */
+    if (dbl && scalar) fma_lanes(FD, order, negp, negc, alt, 1, a->b, b->b, c->b, tmp.b, csr, &fl);
+    else if (dbl) fma_lanes(FD, order, negp, negc, alt, 4, a->b, b->b, c->b, tmp.b, csr, &fl);
+    else if (scalar) fma_lanes(FS, order, negp, negc, alt, 1, a->b, b->b, c->b, tmp.b, csr, &fl);
+    else fma_lanes(FS, order, negp, negc, alt, 8, a->b, b->b, c->b, tmp.b, csr, &fl);
     /* An unmasked IE or DE stops silicon before it computes: the MXCSR then holds those two only,
      * not the OE/UE/PE other lanes would have raised (test/fma_pending.c). */
     if ((fl & 3) & ~(csr >> 7) & 3) fl &= 3;
