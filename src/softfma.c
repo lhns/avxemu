@@ -352,6 +352,7 @@ HW_INLINE void hw_pair_s(__m128d a, __m128d b, __m128d c, __m128 *res, __m128d *
 HW_INLINE int hw_use(int dbl, int n) { (void)dbl; return n >= 2; }
 
 /*
+ * (Not inlined: the kernel's code beside the scalar and fallback code slowed the scalar forms by up to a tenth.)
  * The kernel over n = 2, 4 or 8 lanes of x1*x2 + x3, where x1, x2, x3 are the lanes at p1, p2, p3 (the op's
  * m1, m2 and addend by its order) with the op's negations applied: all of x1 when negp, the addend's
  * even or odd lanes by negc and alt. Lanes it proves are stored to out and set in .ok; the rest of
@@ -389,7 +390,7 @@ HW_INLINE __m128d hw_zero_result(__m128d a, __m128d b, __m128d c) {    /* sign o
     return _mm_and_pd(_mm_and_pd(_mm_xor_pd(a, b), c), _mm_castsi128_pd(_mm_set1_epi64x((long long)0x8000000000000000ull)));
 }
 
-HW_INLINE hwmask hw_run_d(int n, const uint8_t *p1, const uint8_t *p2, const uint8_t *p3, int negp, int negc,
+__attribute__((noinline)) static hwmask hw_run_d(int n, const uint8_t *p1, const uint8_t *p2, const uint8_t *p3, int negp, int negc,
                           int alt, uint8_t *out) {
     hwmask m = {0};
     uint32_t live, after;
@@ -428,7 +429,7 @@ HW_INLINE hwmask hw_run_d(int n, const uint8_t *p1, const uint8_t *p2, const uin
     return m;
 }
 
-HW_INLINE hwmask hw_run_s(int n, const uint8_t *p1, const uint8_t *p2, const uint8_t *p3, int negp, int negc,
+__attribute__((noinline)) static hwmask hw_run_s(int n, const uint8_t *p1, const uint8_t *p2, const uint8_t *p3, int negp, int negc,
                           int alt, uint8_t *out) {
     hwmask m = {0};
     uint32_t live, after;
