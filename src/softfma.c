@@ -578,7 +578,7 @@ int fma_exec(vex_op op, int type,
     int scalar = type == FT_SD || type == FT_SS, dbl = type == FT_SD || type == FT_PD;
     int fl = 0;
     uint32_t csr = *mxcsr;
-    ymm256 tmp;
+    ymm256 tmp __attribute__((aligned(32)));
     if (scalar) { memcpy(tmp.b, c->b, 16); memset(tmp.b + 16, 0, 16); }   /* keep dst's upper bits, zero 255:128 */
     else memset(tmp.b, 0, 32);
     /* a constant lane count per call, so the scalar copies carry no kernel */
@@ -590,6 +590,12 @@ int fma_exec(vex_op op, int type,
      * not the OE/UE/PE other lanes would have raised (test/fma_pending.c). */
     if ((fl & 3) & ~(csr >> 7) & 3) fl &= 3;
     if (!fp_raise(mxcsr, (uint32_t)fl)) return AVXEMU_FP_PENDING;
+#ifndef SOFTFMA_NO_FAST
+    /* In 8-byte moves: the lanes were stored 8, 16 or 4 bytes at a time, and one 32-byte load across several
+     * stores cannot be forwarded from them, which stalls the load. */
+    for (int i = 0; i < 4; i++) _mm_storel_epi64((__m128i *)(out->b + 8 * i), _mm_loadl_epi64((const __m128i *)(tmp.b + 8 * i)));
+#else
     *out = tmp;
+#endif
     return 1;
 }
