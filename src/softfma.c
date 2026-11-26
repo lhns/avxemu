@@ -13,6 +13,7 @@
  */
 
 #include "softfma.h"
+#include "avxemu_helpers.h"
 #include <string.h>
 
 float half_to_float(uint16_t h) {
@@ -78,9 +79,9 @@ static fop unpack(ffmt f, uint64_t bits, int daz, int *denorm) {
     up_ = rm == 0 ? (above_ || (eq_ && (q_ & 1))) : rm == 1 ? (sign && (INEX)) : rm == 2 ? (!sign && (INEX)) : 0; \
     (QOUT) = q_ + up_; } while (0)
 
-static uint64_t round_pack(ffmt f, int sign, u128 r, int e0, int sticky, int rm, int ftz, int um, int *fl) {
+static uint64_t round_pack(ffmt f, int sign, u128 r, int e0, int sticky, int rm, int ftz, int um, int om, int *fl) {
     int bias = (1 << (f.eb - 1)) - 1, p = f.mb + 1, emin = 1 - bias, emax = bias;
-    int ev = msb128(r) + e0;                       /* value in [2^ev, 2^(ev+1)) */
+    int ev = msb128(r) + e0, ev0 = ev;             /* value in [2^ev, 2^(ev+1)) */
     int lsb = (ev > emin ? ev : emin) - f.mb;      /* exponent of the last kept bit */
     uint64_t signbit = (uint64_t)sign << (f.mb + f.eb);
     int inexact, tiny;
@@ -92,8 +93,10 @@ static uint64_t round_pack(ffmt f, int sign, u128 r, int e0, int sticky, int rm,
     if (q >> p) { q >>= 1; ev++; }                 /* rounding carried out of the top */
     if (tiny && !um && ftz) { *fl |= F_UE | F_PE; return signbit; }
     if (tiny && (inexact || um)) *fl |= F_UE;
+    /* An unmasked UE is judged on the result rounded with an unbounded exponent: PE only if that is inexact. */
+    if (tiny && um) { u128 qx; ROUND(ev0 - f.mb - e0, qx, inexact); (void)qx; }
     if (ev > emax) {
-        *fl |= F_OE | F_PE;
+        *fl |= F_OE | ((om && !inexact) ? 0 : F_PE);     /* masked: the infinity or max is always inexact */
         int inf = rm == 0 || (rm == 1 && sign) || (rm == 2 && !sign);
         return signbit | (inf ? ((uint64_t)((1u << f.eb) - 1) << f.mb)
                               : (((uint64_t)((1u << f.eb) - 2) << f.mb) | ((1ull << f.mb) - 1)));
@@ -107,7 +110,7 @@ static uint64_t round_pack(ffmt f, int sign, u128 r, int e0, int sticky, int rm,
 /* One element: (+-)(m1*m2) (+-) ad. *den: a denormal operand was read (and DAZ is off). */
 static uint64_t fma1x(ffmt f, uint64_t m1b, uint64_t m2b, uint64_t adb,
                       int negp, int negc, uint32_t csr, int *fl, int *den) {
-    int rm = (csr >> 13) & 3, ftz = (csr >> 15) & 1, daz = (csr >> 6) & 1, um = !((csr >> 11) & 1);
+    int rm = (csr >> 13) & 3, ftz = (csr >> 15) & 1, daz = (csr >> 6) & 1, um = !((csr >> 11) & 1), om = !((csr >> 10) & 1);
     int anynan;
     uint64_t qbit = 1ull << (f.mb - 1);
     fop a = unpack(f, m1b, daz, den), b = unpack(f, m2b, daz, den), c = unpack(f, adb, daz, den);
@@ -145,7 +148,7 @@ static uint64_t fma1x(ffmt f, uint64_t m1b, uint64_t m2b, uint64_t adb,
         else { r = y - x; sign = sy; }
         if (r == 0 && !sticky) return (uint64_t)(rm == 1) << (f.mb + f.eb);     /* exact cancellation */
     }
-    return round_pack(f, sign, r, e0, sticky, rm, ftz, um, fl);
+    return round_pack(f, sign, r, e0, sticky, rm, ftz, um, om, fl);
 }
 
 /*
@@ -306,6 +309,17 @@ __attribute__((always_inline)) static inline void fma_lanes(ffmt f, int order, i
         r = fma1(f, m1, m2, ad, negp, nc, csr, fl);
         memcpy(out + i * w, &r, w);
     }
+}
+
+/* One divss that raises exactly one flag, in any rounding mode: IE, DE and ZE are decided before a result
+ * exists; the UE quotient is tiny and exact (unmasked, tiny alone traps), so no PE comes with it. */
+void fp_pending_operands(uint32_t ex, uint32_t *x, uint32_t *y) {
+    if (ex & 1)       { *x = 0;          *y = 0; }             /* IE: 0/0 */
+    else if (ex & 2)  { *x = 1;          *y = 0x3f800000u; }   /* DE: denormal / 1.0 */
+    else if (ex & 4)  { *x = 0x3f800000u; *y = 0; }            /* ZE: 1/0 */
+    else if (ex & 8)  { *x = 0x7f000000u; *y = 0x3f000000u; }  /* OE: 2^127 / 0.5 */
+    else if (ex & 16) { *x = 0x00800000u; *y = 0x40000000u; }  /* UE: 2^-126 / 2, a tiny exact result */
+    else              { *x = 0x3f800000u; *y = 0x40400000u; }  /* PE: 1/3 */
 }
 
 int fp_raise(uint32_t *mxcsr, uint32_t fl) {

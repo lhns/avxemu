@@ -1,7 +1,14 @@
 /*
  * semantics: every `tested`/`failing` manifest form is executed through the real decoder and
  * avxemu_emulate(), from the same inputs as the real CPU, and the whole machine state is compared:
- * all 16 ymm, 16 GPRs, flags, MXCSR status, the memory arena, and whether (and where) it faulted.
+ * all 16 ymm, 16 GPRs, flags, MXCSR, the memory arena, and whether (and where) it faulted.
+ *
+ * MXCSR is varied for every form, not only the FP ones: a form that does not touch it must leave it exactly
+ * as it was, and no emulation path may clobber or raise a flag. The whole register is compared, at the end
+ * of a case and, from the signal frame, at a fault (Linux derives si_code from it). The first NCELLS cases
+ * of a form walk a table of MXCSR cells (rounding, FTZ/DAZ, sticky flags, unmasked exceptions, combined);
+ * the rest draw one at random. main fails the run if an FP exception kind FMA can raise never faulted, or a
+ * cell was never generated.
  *
  *   semtest self   [smoke|full]            emulator only: decodes, runs, is deterministic
  *   semtest check  REF [smoke|full]        emulator only, digests against REF (recorded on silicon)
@@ -43,7 +50,7 @@ static uint64_t FLAGS_MASK = FLAGS_ALL;      /* per form: only the flags the SDM
 static uint8_t *g_gl, *g_data, *g_gh, *g_code, *g_stk;     /* guard, 2 data pages, guard, code, scratch stack */
 
 typedef struct {
-    int kind; uint64_t fault_page;
+    int kind; uint64_t fault_page; uint32_t fcsr;      /* fcsr: MXCSR at a fault, from the signal frame */
     sem_state st; uint64_t mem_hash;
     /* gather forms only: the ymm file at the fault (partial progress), and the outcome of re-running
      * from that state with the guard pages readable (the restart) */
@@ -51,14 +58,14 @@ typedef struct {
 } sem_out;
 
 typedef struct {
-    const specform *f; uint8_t code[32]; int len; sem_state in;
+    const specform *f; uint8_t code[32]; int len; sem_state in; int cell;
     uint8_t mem[2 * PAGE]; int idx, place; uint64_t ea; int vvvv, reg, rm;
 } sem_case;
 
 typedef void (*sem_runner)(const sem_case *c, sem_out *o);
 
 static sigjmp_buf g_jb; static volatile int g_sig; static volatile uintptr_t g_addr;
-static uint8_t g_fymm[16][32]; static volatile int g_fymm_ok;
+static uint8_t g_fymm[16][32]; static volatile int g_fymm_ok; static volatile uint32_t g_fcsr;
 /* ymm at the fault, from the XSAVE area of the signal frame: xmm in the legacy area (offset 160), the
  * upper halves at 576 (standard format), each only when its XSTATE_BV bit says it is not in its init state. */
 static void capture_ymm(const void *ucv) {
@@ -80,7 +87,10 @@ static void on_ill(int sig, siginfo_t *si, void *uc) {
     (void)si; (void)uc; (void)sig;
     fprintf(stderr, "SIGILL on the real CPU: %s\n", g_curcase); fflush(stdout); _exit(3);
 }
-static void on_fault(int sig, siginfo_t *si, void *uc) { capture_ymm(uc); g_sig = sig; g_addr = (uintptr_t)si->si_addr; siglongjmp(g_jb, 1); }
+static void on_fault(int sig, siginfo_t *si, void *uc) {
+    const fpregset_t fp = ((ucontext_t *)uc)->uc_mcontext.fpregs; g_fcsr = fp ? fp->mxcsr : 0;
+    capture_ymm(uc); g_sig = sig; g_addr = (uintptr_t)si->si_addr; siglongjmp(g_jb, 1);
+}
 
 static void install_handlers(void) {
     static uint8_t stack[65536];
@@ -121,8 +131,8 @@ static void dump_case(FILE *d, const specform *f, const sem_case *c, const sem_o
     long off = f->mem ? (long)(c->ea - (uintptr_t)g_data) : -1;
     int mn = off < 0 || off >= 2 * PAGE ? 0 : off + 32 <= 2 * PAGE ? 32 : 2 * PAGE - off;
     if (mn) { fprintf(d, ",mem="); dump_hex(d, c->mem + off, mn); }
-    fprintf(d, "\t%d\t%llx\t%llx\t%llx\t%x\t%llx\t", o->kind, (unsigned long long)o->fault_page, (unsigned long long)(o->st.rflags & FLAGS_MASK),
-            (unsigned long long)o->st.rflags, o->st.mxcsr, (unsigned long long)o->mem_hash);
+    fprintf(d, "\t%d\t%llx\t%llx\t%llx\t%x\t%x\t%llx\t", o->kind, (unsigned long long)o->fault_page, (unsigned long long)(o->st.rflags & FLAGS_MASK),
+            (unsigned long long)o->st.rflags, o->st.mxcsr, o->fcsr, (unsigned long long)o->mem_hash);
     if (mn && memcmp(g_data + off, c->mem + off, mn)) { fprintf(d, "mem="); dump_hex(d, g_data + off, mn); fputc(' ', d); }
     if (o->kind == K_OK) {
         for (int r = 0; r < 16; r++) if (memcmp(o->st.ymm[r], c->in.ymm[r], 32)) { fprintf(d, "y%d=", r); dump_hex(d, o->st.ymm[r], 32); fputc(' ', d); }
@@ -140,10 +150,10 @@ static void run_hw(const sem_case *c, sem_out *o) {
     uintptr_t after = (uintptr_t)sem_hw_after; memcpy(g_code + c->len + 6, &after, 8);
     o->st = c->in;
     { int n = snprintf(g_curcase, sizeof g_curcase, "%s case %d: ", c->f->name, c->idx); for (int b = 0; b < c->len && n < (int)sizeof g_curcase - 3; b++) n += snprintf(g_curcase + n, sizeof g_curcase - n, "%02x", c->code[b]); }
-    g_sig = 0;
+    g_sig = 0; g_fcsr = 0;
     if (!sigsetjmp(g_jb, 1)) sem_hw_call(&o->st, g_code);
     else {
-        o->kind = g_sig == SIGFPE ? K_FPE : K_SEGV; o->fault_page = g_sig == SIGFPE ? 0 : (uint64_t)(g_addr & ~(uintptr_t)(PAGE - 1)); memset(&o->st, 0, sizeof o->st);
+        o->kind = g_sig == SIGFPE ? K_FPE : K_SEGV; o->fault_page = g_sig == SIGFPE ? 0 : (uint64_t)(g_addr & ~(uintptr_t)(PAGE - 1)); memset(&o->st, 0, sizeof o->st); o->fcsr = g_fcsr;
         if (g_fymm_ok) memcpy(o->fymm, g_fymm, sizeof o->fymm);
     }
     _mm_setcsr(0x1F80);
@@ -161,7 +171,7 @@ static void run_emu(const sem_case *c, sem_out *o) {
     static avxemu_regfile rf; memset(&rf, 0, sizeof rf);      /* static: its state at a fault is read after the longjmp */
     memcpy(rf.ymm, c->in.ymm, sizeof rf.ymm); memcpy(rf.gpr, c->in.gpr, sizeof rf.gpr);
     rf.rflags = c->in.rflags; rf.rip = (uintptr_t)g_code;
-    int ok = 0; g_sig = 0;
+    int ok = 0; g_sig = 0; g_fcsr = 0;
     if (!sigsetjmp(g_jb, 1)) {
         _mm_setcsr(c->in.mxcsr);
         __asm__ volatile("" ::: "memory");
@@ -174,7 +184,7 @@ static void run_emu(const sem_case *c, sem_out *o) {
     } else {
         _mm_setcsr(0x1F80);
         o->kind = g_sig == SIGFPE ? K_FPE : K_SEGV; o->fault_page = g_sig == SIGFPE ? 0 : (uint64_t)(g_addr & ~(uintptr_t)(PAGE - 1));
-        memcpy(o->fymm, rf.ymm, sizeof o->fymm);
+        o->fcsr = g_fcsr; memcpy(o->fymm, rf.ymm, sizeof o->fymm);
     }
     collect(o);
 }
@@ -229,11 +239,14 @@ static size_t pack(const sem_out *o, uint8_t *buf) {
         memcpy(buf + n, o->st.ymm, 512); n += 512;
         memcpy(buf + n, o->st.gpr, 128); n += 128;
         uint64_t fl = o->st.rflags & FLAGS_MASK; memcpy(buf + n, &fl, 8); n += 8;
-        uint32_t mx = o->st.mxcsr & 0x3F; memcpy(buf + n, &mx, 4); n += 4;
-    } else if (o->gather && o->kind == K_SEGV) {
-        memcpy(buf + n, o->fymm, 512); n += 512;
-        memcpy(buf + n, o->rymm, 512); n += 512;
-        buf[n++] = (uint8_t)o->rkind;
+        memcpy(buf + n, &o->st.mxcsr, 4); n += 4;
+    } else if (o->kind == K_FPE || o->kind == K_SEGV) {
+        memcpy(buf + n, &o->fcsr, 4); n += 4;
+        if (o->gather && o->kind == K_SEGV) {
+            memcpy(buf + n, o->fymm, 512); n += 512;
+            memcpy(buf + n, o->rymm, 512); n += 512;
+            buf[n++] = (uint8_t)o->rkind;
+        }
     }
     return n;
 }
@@ -244,6 +257,7 @@ static void describe_diff(const sem_out *h, const sem_out *e, char *out, size_t 
     if (h->kind != K_OK) {
         snprintf(out, cap, "fault page hw=%llx emu=%llx", (unsigned long long)h->fault_page, (unsigned long long)e->fault_page);
         if (h->mem_hash != e->mem_hash) strncat(out, " memory differs", cap - strlen(out) - 1);
+        if (h->fcsr != e->fcsr) { size_t l = strlen(out); snprintf(out + l, cap - l, " mxcsr at fault hw=%x emu=%x", h->fcsr, e->fcsr); }
         if (h->gather && h->kind == K_SEGV) {
             for (int r = 0; r < 16; r++) for (int b = 0; b < 32; b++) if (h->fymm[r][b] != e->fymm[r][b]) {
                 size_t l = strlen(out); snprintf(out + l, cap - l, " state at fault: ymm%d byte %d hw=%02x emu=%02x", r, b, h->fymm[r][b], e->fymm[r][b]); return;
@@ -257,7 +271,7 @@ static void describe_diff(const sem_out *h, const sem_out *e, char *out, size_t 
     for (int r = 0; r < 16; r++)
         if (h->st.gpr[r] != e->st.gpr[r]) { snprintf(out, cap, "gpr%d hw=%llx emu=%llx", r, (unsigned long long)h->st.gpr[r], (unsigned long long)e->st.gpr[r]); return; }
     if ((h->st.rflags ^ e->st.rflags) & FLAGS_MASK) { snprintf(out, cap, "rflags hw=%llx emu=%llx", (unsigned long long)(h->st.rflags & FLAGS_MASK), (unsigned long long)(e->st.rflags & FLAGS_MASK)); return; }
-    if ((h->st.mxcsr ^ e->st.mxcsr) & 0x3F) { snprintf(out, cap, "mxcsr flags hw=%x emu=%x", h->st.mxcsr & 0x3F, e->st.mxcsr & 0x3F); return; }
+    if (h->st.mxcsr != e->st.mxcsr) { snprintf(out, cap, "mxcsr hw=%x emu=%x", h->st.mxcsr, e->st.mxcsr); return; }
     if (h->mem_hash != e->mem_hash) snprintf(out, cap, "memory differs");
 }
 
@@ -374,11 +388,51 @@ static void gather_operands(const specform *f, int idx, specenc *e, sem_state *s
     }
 }
 
+/* MXCSR cells. Reserved bits stay 0. unm: bit i unmasks exception i (IE DE ZE OE UE PE), UNM_SOME a few at random. */
+#define MXCSR_DEFAULT 0x1F80u
+#define UNM_SOME 0x80
+typedef struct { uint8_t rc, ftz, daz, sticky, unm; } mx_cell;
+static const mx_cell cells[] = {
+    {0, 0, 0, 0, 0},                       /* 0 default */
+    {1, 0, 0, 0, 0}, {2, 0, 0, 0, 0}, {3, 0, 0, 0, 0},                  /* round down, up, to zero */
+    {0, 1, 0, 0, 0}, {0, 0, 1, 0, 0}, {0, 1, 1, 0, 0},                  /* FTZ, DAZ, both */
+    {0, 0, 0, 1, 0},                       /* preset sticky flags */
+    {0, 0, 0, 0, 1}, {0, 0, 0, 0, 2}, {0, 0, 0, 0, 4}, {0, 0, 0, 0, 8}, {0, 0, 0, 0, 16}, {0, 0, 0, 0, 32},   /* one unmasked */
+    {0, 1, 0, 0, 16},                      /* UE with FTZ */
+    {0, 0, 1, 0, 2},                       /* DE with DAZ */
+    {3, 0, 0, 0, 8},                       /* OE, round to zero */
+    {2, 0, 0, 1, 32},                      /* PE, round up, sticky */
+    {0, 0, 0, 1, 1}, {0, 0, 0, 1, 16}, {0, 1, 1, 1, 2},                 /* IE / UE / DE with sticky flags */
+    {0, 0, 0, 0, UNM_SOME}, {1, 1, 0, 0, UNM_SOME},                     /* several unmasked */
+    {0, 0, 0, 0, 0x3F}, {3, 1, 1, 1, 0x3F},                             /* all unmasked */
+};
+#define NCELLS ((int)(sizeof cells / sizeof cells[0]))
+static uint32_t g_cells_seen;
+
+static uint64_t g_mrng;       /* its own stream: the operands of a case do not depend on its MXCSR */
+static uint64_t mrnd(void) { return spec_rng(&g_mrng); }
+static uint32_t pick_unmasked(int k) { uint32_t u = 0; while (__builtin_popcount(u) < k) u |= 1u << (mrnd() % 6); return u; }
+
+static uint32_t gen_mxcsr(uint64_t h, int idx, int *cell) {
+    g_mrng = h ^ ((uint64_t)(idx + 1) * 0xC2B2AE3D27D4EB4Full); mrnd(); mrnd();
+    mx_cell m;
+    if (idx < NCELLS) { m = cells[idx]; *cell = idx; }
+    else {   /* any rounding mode, FTZ, DAZ, sticky flags; unmasked exceptions in a quarter of the cases, 1-6 of them */
+        *cell = -1;
+        m.rc = mrnd() & 3; m.ftz = mrnd() & 1; m.daz = mrnd() & 1; m.sticky = mrnd() & 1;
+        m.unm = mrnd() % 4 == 0 ? (uint8_t)pick_unmasked(1 + (int)(mrnd() % 6)) : 0;
+    }
+    uint32_t unm = m.unm == UNM_SOME ? pick_unmasked(2 + (int)(mrnd() % 4)) : m.unm;
+    uint32_t sticky = 0;
+    if (m.sticky) { sticky = (uint32_t)mrnd() & 0x3F; if (!sticky) sticky = 1u << (mrnd() % 6); }
+    return (MXCSR_DEFAULT & ~(unm << 7)) | ((uint32_t)m.rc << 13) | ((uint32_t)m.ftz << 15) | ((uint32_t)m.daz << 6) | sticky;
+}
+
 /* Build case #idx of form f. The same (form, idx) always yields the same case. */
 static int gen_case(const specform *f, int idx, sem_case *c) {
     uint64_t h = REF_FNV_OFFSET; h = fnv(f->name, strlen(f->name), h);
     g_rng = h ^ ((uint64_t)(idx + 1) * 0x9E3779B97F4A7C15ull); rnd(); rnd();
-    memset(c, 0, sizeof *c); c->f = f; c->idx = idx;
+    memset(c, 0, sizeof *c); c->f = f; c->idx = idx; c->cell = -1;
     int fpw = fp_width(f);
     int rv = (int)(rnd() % (sizeof regv / sizeof regv[0]));
     specenc e = {.reg = regv[rv][0], .vvvv = regv[rv][1], .rm = regv[rv][2], .base = -1, .index = -1, .scale = 1,
@@ -408,15 +462,12 @@ static int gen_case(const specform *f, int idx, sem_case *c) {
         uint64_t r1 = rnd(); s->gpr[r] = r1 & 3 ? (r1 & 4 ? rnd() : gv[(r1 >> 8) % 16]) : (rnd() % 130);
     }
     s->rflags = (rnd() & FLAGS_ALL) | 0x202;
-    s->mxcsr = 0x1F80;
-    if (fpw && !getenv("SEM_FPDEFAULT")) {     /* SEM_FPDEFAULT=1: default MXCSR only (debug knob) */
-        uint64_t m = rnd() % 16;
-        s->mxcsr = 0x1F80 | ((uint32_t)(rnd() & 3) << 13);                 /* rounding mode */
-        if (m & 1) s->mxcsr |= 0x8000;                                  /* FTZ */
-        if (m & 2) s->mxcsr |= 0x0040;                                  /* DAZ */
-        if (m & 4) s->mxcsr |= (uint32_t)(rnd() & 0x3F);                /* sticky flags already set */
-        if ((m & 15) == 8) s->mxcsr &= ~(uint32_t)(1 << (7 + rnd() % 6));   /* one exception unmasked */
-    }
+    if (!getenv("SEM_FPDEFAULT")) {     /* SEM_FPDEFAULT=1: default MXCSR only (debug knob) */
+        /* The FP forms used to draw their MXCSR from this stream: 2 values, one more for sticky flags and one
+         * for an unmasked exception. Draw as many still, so no later operand of an FP form moves. */
+        if (fpw) { uint64_t m = rnd() % 16; rnd(); if (m & 4) rnd(); if ((m & 15) == 8) rnd(); }
+        s->mxcsr = gen_mxcsr(h, idx, &c->cell);
+    } else s->mxcsr = MXCSR_DEFAULT;
     /* memory operand */
     fill_bytes(c->mem, sizeof c->mem, fpw, fpw ? fpw : 1 << (rnd() & 3));
     uint64_t ea = 0; c->ea = 0; int mw = f->memw > 0 ? f->memw : 1;
@@ -516,7 +567,7 @@ static uint64_t flags_mask(const specform *f) {
 
 static int is_smoke(int idx) {
     uint64_t x = (uint64_t)(idx + 1) * 0x9E3779B97F4A7C15ull;
-    return idx < 10 || ((x >> 40) & 7) == 0;
+    return idx < NCELLS || ((x >> 40) & 7) == 0;     /* every MXCSR cell, and (idx < 10) every memory placement */
 }
 static int full_cases(const specform *f) { return f->imm8 ? 768 : 400; }
 
@@ -554,6 +605,7 @@ int main(int argc, char **argv) {
     FILE *dump = live && getenv("SEM_DUMP") ? fopen(getenv("SEM_DUMP"), "w") : NULL;
     if (live && getenv("SEM_DUMP") && !dump) { perror("SEM_DUMP"); return 1; }
     long ncases = 0, nforms = 0; int deterministic_bad = 0;
+    long fpe_cause[6] = {0};      /* K_FPE of the FP forms by cause: IE DE ZE OE UE PE */
     for (int i = 0; i < nf; i++) {
         const specform *f = &forms[i];
         if (!strcmp(f->status, "refused")) continue;
@@ -569,6 +621,11 @@ int main(int argc, char **argv) {
             sem_case c; gen_case(f, k, &c);
             sem_out eo, ho; uint8_t pe[2048], ph[2048];
             run_case(emu, &c, &eo, &rst_emu);
+            if (c.cell >= 0) g_cells_seen |= 1u << c.cell;
+            if (fp_width(f) && eo.kind == K_FPE) {      /* the exception that faulted: raised by this op, not preset, and unmasked */
+                uint32_t nw = eo.fcsr & ~c.in.mxcsr & ~(c.in.mxcsr >> 7) & 0x3F;
+                for (int b = 0; b < 6; b++) if (nw >> b & 1) fpe_cause[b]++;
+            }
             if (getenv("SEM_TRACE")) printf("%s case %d place %d ea+%lld kind %d\n", f->name, k, c.place, (long long)(c.ea - (uintptr_t)g_data), eo.kind);
             size_t ne = pack(&eo, pe);
             if (eo.kind == K_NODECODE || eo.kind == K_BADLEN || eo.kind == K_REFUSED) {
@@ -585,7 +642,7 @@ int main(int argc, char **argv) {
                 dh_f = fnv(ph, nh, dh_f); if (smoke) dh_s = fnv(ph, nh, dh_s);
                 if ((nh != ne || memcmp(ph, pe, ne)) && getenv("SEM_DIFFMAX") && diffs++ < atoi(getenv("SEM_DIFFMAX"))) {
                     /* debug: every differing case with its inputs and both outcomes, beyond the first repro */
-                    printf("  diff %s case %d mxcsr_in=%04x kind hw=%d emu=%d mxcsr hw=%x emu=%x\n", f->name, k, c.in.mxcsr, ho.kind, eo.kind, ho.st.mxcsr & 0x3F, eo.st.mxcsr & 0x3F);
+                    printf("  diff %s case %d mxcsr_in=%04x kind hw=%d emu=%d mxcsr hw=%x emu=%x fault mxcsr hw=%x emu=%x\n", f->name, k, c.in.mxcsr, ho.kind, eo.kind, ho.st.mxcsr, eo.st.mxcsr, ho.fcsr, eo.fcsr);
                     int rg[3] = {c.reg, c.vvvv, c.rm}; static const char *rn[3] = {"dst", "vvvv", "rm"};
                     for (int q = 0; q < 3; q++) { printf("    %s(in)=", rn[q]); for (int b = 31; b >= 0; b--) printf("%02x", c.in.ymm[rg[q] & 15][b]); putchar('\n'); }
                     if (f->mem) { long off = (long)(c.ea - (uintptr_t)g_data); printf("    mem@%ld=", off); for (int b = 31; b >= 0; b--) printf("%02x", off >= 0 && off + b < 2 * PAGE ? c.mem[off + b] : 0); putchar('\n'); }
@@ -596,7 +653,7 @@ int main(int argc, char **argv) {
                     if (!bad_hw) {
                         char why[200], hx[80] = ""; describe_diff(&ho, &eo, why, sizeof why);
                         for (int b = 0; b < c.len; b++) sprintf(hx + 2 * b, "%02x", c.code[b]);
-                        int o = 0; o = snprintf(repro, sizeof repro, "  repro semantics/%s/hw: %s (case %d, place %d, ea+%lld, mxcsr %04x): %s", f->name, hx, k, c.place, (long long)(c.ea - (uintptr_t)g_data), c.in.mxcsr, why);
+                        int o = 0; o = snprintf(repro, sizeof repro, "  repro semantics/%s/hw: %s (case %d, place %d, ea+%lld, mxcsr in %04x): %s", f->name, hx, k, c.place, (long long)(c.ea - (uintptr_t)g_data), c.in.mxcsr, why);
                         if (fp_width(f)) { int rg[3] = {c.reg, c.vvvv, c.rm}; for (int q = 0; q < (f->mem ? 2 : 3); q++) { o += snprintf(repro + o, sizeof repro - o, " r%d=", rg[q]); for (int b = 15; b >= 0; b--) o += snprintf(repro + o, sizeof repro - o, "%02x", c.in.ymm[rg[q] & 15][b]); } }
                         if (is_gather(f)) { o += snprintf(repro + o, sizeof repro - o, " mask(y%d)=", c.vvvv); for (int b = 31; b >= 0 && o < 480; b--) o += snprintf(repro + o, sizeof repro - o, "%02x", c.in.ymm[c.vvvv & 15][b]);
                             o += snprintf(repro + o, sizeof repro - o, " index(y%d)=", c.rm); for (int b = 31; b >= 0 && o < 560; b--) o += snprintf(repro + o, sizeof repro - o, "%02x", c.in.ymm[c.rm & 15][b]); }
@@ -646,6 +703,14 @@ int main(int argc, char **argv) {
     printf("semantics (%s%s): %ld forms, %ld cases\n", mode, full ? ", full" : "", nforms, ncases);
     int rc = known_finish("semantics");
     if (deterministic_bad) { printf("emulator results are not deterministic across two passes\n"); rc++; }
+    if (!getenv("SEM_ONLY") && !getenv("SEM_FPDEFAULT")) {     /* a filtered or default-MXCSR run cannot cover everything */
+        static const char *kn[6] = {"IE", "DE", "ZE", "OE", "UE", "PE"};
+        printf("mxcsr coverage: %d/%d cells; FP faults by cause", __builtin_popcount(g_cells_seen), NCELLS);
+        for (int b = 0; b < 6; b++) printf(" %s %ld", kn[b], fpe_cause[b]);
+        putchar('\n');
+        for (int b = 0; b < 6; b++) if (b != 2 && !fpe_cause[b]) { printf("FAIL: no FP form ever faulted with %s unmasked (ZE cannot arise from FMA)\n", kn[b]); rc++; }
+        if (g_cells_seen != (1u << NCELLS) - 1) { printf("FAIL: MXCSR cell mask %x of %x was generated\n", g_cells_seen, (1u << NCELLS) - 1); rc++; }
+    }
     if (refpath) rc += ref_finish();
     if (dump) fclose(dump);
     return rc != 0;

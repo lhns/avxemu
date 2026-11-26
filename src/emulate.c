@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <xmmintrin.h>
+#include "avxemu_helpers.h"
 #include "decode.h"
 #include "regs.h"
 #include "regfile.h"
@@ -9,13 +10,10 @@
 /* An unmasked exception is #XM on silicon: no result is written. Provoke the real SSE fault of
  * the same kind (MXCSR still has the application's masks) so the application sees a SIGFPE. */
 static void fp_fault(uint32_t t) {
-    float x, y;
-    if (t & 1)        { x = 0.0f;    y = 0.0f;    __asm__ volatile("divss %1, %0" : "+x"(x) : "x"(y)); }   /* IE */
-    else if (t & 2)   { x = 1e-40f;  y = 0.0f;    __asm__ volatile("addss %1, %0" : "+x"(x) : "x"(y)); }   /* DE */
-    else if (t & 8)   { x = 3e38f;   y = 3e38f;   __asm__ volatile("mulss %1, %0" : "+x"(x) : "x"(y)); }   /* OE */
-    else if (t & 16)  { x = 1e-30f;  y = 1e-30f;  __asm__ volatile("mulss %1, %0" : "+x"(x) : "x"(y)); }   /* UE */
-    else if (t & 4)   { x = 1.0f;    y = 0.0f;    __asm__ volatile("divss %1, %0" : "+x"(x) : "x"(y)); }   /* ZE */
-    else              { x = 1.0f;    y = 3.0f;    __asm__ volatile("divss %1, %0" : "+x"(x) : "x"(y)); }   /* PE */
+    uint32_t xb, yb; float x, y;
+    fp_pending_operands(t, &xb, &yb);
+    memcpy(&x, &xb, 4); memcpy(&y, &yb, 4);
+    __asm__ volatile("divss %1, %0" : "+x"(x) : "x"(y));
 }
 
 /*

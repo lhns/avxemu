@@ -34,7 +34,7 @@
  *     PE), so ORing the raised flags into the live MXCSR and then executing any SSE op that raises
  *     one of the unmasked ones gives the si_code of that MXCSR at that op's pc. emulate.c's fp_fault
  *     and v3compat's client do this. As on silicon, an unmasked IE or DE raises only IE and DE
- *     (test/fma_pending.c); the suite does not compare si_code at a fault.
+ *     (test/fma_pending.c). The semantic suite compares the MXCSR at a fault, from which Linux derives si_code.
  *   - gpr_out is written only by VPMOVMSKB.
  *
  * bmi_exec
@@ -47,5 +47,13 @@
  */
 
 #include "vexops.h"
+
+/*
+ * fp_pending_operands: the operands for the divss that makes the #XM real. For the unmasked flags `ex`
+ * (MXCSR bit order, non-zero) it gives the binary32 bit patterns *x, *y of ONE `divss y, x` that raises
+ * the highest-priority kind in `ex` (IE, DE, ZE, OE, UE, PE) and no other flag, in any rounding mode, so the
+ * MXCSR at the fault is the one FMA left. Never faults.
+ */
+void fp_pending_operands(uint32_t ex, uint32_t *x, uint32_t *y);
 
 #endif /* AVXEMU_HELPERS_H */
