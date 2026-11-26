@@ -35,7 +35,7 @@ jobs:
       - name: Emulator against this CPU, every case
         run: |
           mkdir -p "$RUNNER_TEMP/out"
-          SEM_DIFFMAX=40 KNOWN_VERBOSE=1 "$RUNNER_TEMP/b/test/semtest" live full 2>&1 | tee "$RUNNER_TEMP/out/live.log"
+          KNOWN_VERBOSE=1 "$RUNNER_TEMP/b/test/semtest" live full 2>&1 | tee "$RUNNER_TEMP/out/live.log"
           exit "${PIPESTATUS[0]}"
       - name: Helper archive against this CPU, every case
         if: ${{ !cancelled() }}
