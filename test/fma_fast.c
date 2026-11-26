@@ -37,6 +37,7 @@ static int hw_on;                       /* the kernel is switched off to test th
 #include "softfma.c"
 #undef fma_exec
 #undef fp_raise
+#undef fp_pending_operands
 #undef half_to_float
 
 /* softfma.c without the fast path (built with SOFTFMA_NO_FAST) */
