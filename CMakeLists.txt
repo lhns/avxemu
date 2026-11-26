@@ -11,7 +11,7 @@ link_libraries(Threads::Threads m)
 enable_testing()
 
 # The emulator side of the test suite is SSE4.2-only, so it runs on CPUs without AVX.
-set(AVXEMU_CORE_FLAGS -O2 -Wall -std=c11 -msse4.2 -mno-avx -mno-fma)
+set(AVXEMU_CORE_FLAGS -O2 -Wall -std=c11 -msse4.2 -mno-avx -mno-fma -ffp-contract=off)
 set(AVXEMU_HOST_FLAGS -O2 -std=c11 -mavx2 -mfma -mbmi -mbmi2 -mlzcnt -mf16c)
 
 function(avxemu_objects name)

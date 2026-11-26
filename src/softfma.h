@@ -14,9 +14,13 @@ int fp_raise(uint32_t *mxcsr, uint32_t flags);
 /*
  * FMA executor: out = fma-variant(a, b, c) per element.
  * `type` is FT_SS/FT_SD/FT_PS/FT_PD. For scalar types the upper lanes follow
- * Intel's rule (preserve c's upper bits, zero 255:128). Integer arithmetic only:
- * rounding mode, FTZ, DAZ and exception masks come from *mxcsr, raised flags are ORed
- * into it, and an unmasked one returns AVXEMU_FP_PENDING with `out` unwritten.
+ * Intel's rule (preserve c's upper bits, zero 255:128). Exact integer arithmetic: rounding
+ * mode, FTZ, DAZ and exception masks come from *mxcsr, raised flags are ORed into it, and an
+ * unmasked one returns AVXEMU_FP_PENDING with `out` unwritten. One exception: a packed form with every
+ * mask set and round to nearest in both *mxcsr and the live MXCSR is first computed with native SSE
+ * arithmetic, and that result is used for each lane where it is provably the correctly rounded one, the others taking the integer path. The
+ * function then reads the live MXCSR and writes it back unchanged, so the native operations' flags never
+ * reach the caller.
  */
 int fma_exec(vex_op op, int type,
              const ymm256 *a, const ymm256 *b, const ymm256 *c, ymm256 *out,

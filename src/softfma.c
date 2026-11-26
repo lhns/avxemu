@@ -5,6 +5,11 @@
  * depend on the host's MXCSR handling, so it cannot match the CPU under every rounding mode,
  * FTZ/DAZ, sticky flag and unmasked exception. The MXCSR value passed in supplies rounding,
  * FTZ, DAZ and the exception masks; the raised flags are ORed into it.
+ *
+ * Fast paths (absent from SOFTFMA_NO_FAST builds): fma_exec first tries, for the packed forms with every
+ * exception masked and round to nearest, a kernel in native SSE arithmetic; lanes it proves are taken, the others
+ * (and every lane of the scalar forms) take the code below: an integer path per lane, then the exact code.
+ * The kernel reads and restores the live MXCSR itself.
  */
 
 #include "softfma.h"
@@ -154,7 +159,13 @@ static uint64_t fma1x(ffmt f, uint64_t m1b, uint64_t m2b, uint64_t adb,
 #ifndef SOFTFMA_NO_FAST    /* test builds: softfma alone, the reference for the fast path */
 #ifndef SOFTFMA_HIT
 #define SOFTFMA_HIT(k) ((void)0)    /* test builds count fast-path hits by category */
+#else
+#define SOFTFMA_REASONS 1           /* ... and the kernel's outcome per lane */
 #endif
+#ifndef SOFTFMA_HW_ON
+#define SOFTFMA_HW_ON() 1           /* test builds switch the kernel off to exercise the integer path */
+#endif
+#include <immintrin.h>
 
 /* RN-even of (r + sticky fraction) * 2^e0 with sign s, r != 0, to p bits; 0 unless the result is normal. */
 #define FAST_ROUND_FN(name, T, msb, p, bias, sbit)                                                  \
@@ -193,7 +204,7 @@ FAST_ROUND_FN(fast_round_d, u128, msb128, 53, 1023, 63)
 FAST_ROUND_FN(fast_round_s, uint64_t, msb64, 24, 127, 31)
 
 /* binary64: the 106-bit product at bit 125 or 126 of a u128, the addend's 53 bits at bit 125. */
-static int fast_d(uint64_t x, uint64_t y, uint64_t z, uint64_t *out, int *fl) {
+__attribute__((always_inline)) static inline int fast_d_body(uint64_t x, uint64_t y, uint64_t z, uint64_t *out, int *fl) {
     const uint64_t M = (1ull << 52) - 1;
     unsigned ex = (unsigned)(x >> 52) & 0x7ff, ey = (unsigned)(y >> 52) & 0x7ff, ez = (unsigned)(z >> 52) & 0x7ff;
     if ((ex - 1 >= 0x7fe && (x << 1)) || (ey - 1 >= 0x7fe && (y << 1)) || (ez - 1 >= 0x7fe && (z << 1)))
@@ -217,7 +228,7 @@ static int fast_d(uint64_t x, uint64_t y, uint64_t z, uint64_t *out, int *fl) {
 }
 
 /* binary32: the 48-bit product at bit 61 or 62 of a u64, the addend's 24 bits at bit 61. */
-static int fast_s(uint64_t x, uint64_t y, uint64_t z, uint64_t *out, int *fl) {
+__attribute__((always_inline)) static inline int fast_s_body(uint64_t x, uint64_t y, uint64_t z, uint64_t *out, int *fl) {
     const uint64_t M = (1u << 23) - 1;
     unsigned ex = (unsigned)(x >> 23) & 0xff, ey = (unsigned)(y >> 23) & 0xff, ez = (unsigned)(z >> 23) & 0xff;
     uint64_t mag = 0x7fffffffu;
@@ -239,6 +250,19 @@ static int fast_s(uint64_t x, uint64_t y, uint64_t z, uint64_t *out, int *fl) {
     if (r == 0) { SOFTFMA_HIT(6); *out = 0; return 1; }
     SOFTFMA_HIT(7);
     return fast_round_s(r, e0, s, sticky, out, fl);
+}
+
+/* Two entry points per format: the scalar path keeps one call site of fast_d/fast_s, as before (a second caller of
+ * the bodies changed the scalar code's inlining and slowed it on AMD); fast_*_hw is the kernel's own. */
+static int fast_d(uint64_t x, uint64_t y, uint64_t z, uint64_t *out, int *fl) { return fast_d_body(x, y, z, out, fl); }
+static int fast_s(uint64_t x, uint64_t y, uint64_t z, uint64_t *out, int *fl) { return fast_s_body(x, y, z, out, fl); }
+__attribute__((noinline, section(".text.softfma_kernel"))) static int fast_d_hw(uint64_t x, uint64_t y, uint64_t z,
+                                                                                uint64_t *out, int *fl) {
+    return fast_d_body(x, y, z, out, fl);
+}
+__attribute__((noinline, section(".text.softfma_kernel"))) static int fast_s_hw(uint64_t x, uint64_t y, uint64_t z,
+                                                                                uint64_t *out, int *fl) {
+    return fast_s_body(x, y, z, out, fl);
 }
 
 #endif /* SOFTFMA_NO_FAST */
@@ -291,9 +315,8 @@ int fp_raise(uint32_t *mxcsr, uint32_t fl) {
     return !(fl & ~(csr >> 7) & 0x3F);
 }
 
-int fma_exec(vex_op op, int type,
-             const ymm256 *a, const ymm256 *b, const ymm256 *c, ymm256 *out,
-             uint32_t *mxcsr) {
+/* Order (0: 132, 1: 213, 2: 231), negated product, negated addend and the vfmaddsub/vfmsubadd alternation of an op. */
+static inline int decode_op(vex_op op, int *order_, int *negp_, int *negc_, int *alt_) {
     int order, negp, negc, alt = 0;
     switch (op) {
     case VFMADDSUB132: order=0; negp=0; negc=0; alt=1; break;
@@ -316,6 +339,27 @@ int fma_exec(vex_op op, int type,
     case VFNMSUB231:order=2; negp=1; negc=1; break;
     default: return 0;
     }
+    *order_ = order; *negp_ = negp; *negc_ = negc; *alt_ = alt;
+    return 1;
+}
+
+#ifndef SOFTFMA_NO_FAST
+static int fma_packed_hw(const ymm256 *a, const ymm256 *b, const ymm256 *c, ymm256 *out, uint32_t *mxcsr,
+                         unsigned opinfo);    /* the kernel, below, apart from fma_exec: scalar forms ran up to a fifth
+                                               * slower on AMD whenever the kernel's code was in or next to the function
+                                               * that runs them (cause not identified; see the PR) */
+#endif
+
+int fma_exec(vex_op op, int type,
+             const ymm256 *a, const ymm256 *b, const ymm256 *c, ymm256 *out,
+             uint32_t *mxcsr) {
+#ifndef SOFTFMA_NO_FAST
+    /* A packed form with every exception masked and round to nearest: the kernel, the lanes it cannot prove by a lane step. */
+    if (type >= FT_PS && (*mxcsr & 0x7F80u) == 0x1F80u && fma_packed_hw(a, b, c, out, mxcsr, (unsigned)op << 8 | (unsigned)type))
+        return 1;
+#endif
+    int order, negp, negc, alt;
+    if (!decode_op(op, &order, &negp, &negc, &alt)) return 0;
     int scalar = type == FT_SD || type == FT_SS, dbl = type == FT_SD || type == FT_PD;
     int n = scalar ? 1 : dbl ? 4 : 8, fl = 0;
     uint32_t csr = *mxcsr;
@@ -331,3 +375,295 @@ int fma_exec(vex_op op, int type,
     *out = tmp;
     return 1;
 }
+
+#ifndef SOFTFMA_NO_FAST
+/*
+ * Hardware-arithmetic kernel: a lane's result by native SSE arithmetic where that is provably the
+ * correctly rounded FMA, else "not ok". fma_packed_hw takes the ok lanes and sends each other lane through
+ * the integer path and the exact code (a vector with one zero or special lane stays cheap). It runs only when the
+ * incoming MXCSR and the live one both have every exception masked and round to nearest, so the
+ * native operations neither trap nor round differently. The flags they set are discarded: the live
+ * MXCSR is read first and written back if it changed. PE comes from the inexact bit alone. FTZ and
+ * DAZ do not matter: the ranges below keep every operand, intermediate and result normal.
+ *
+ * binary64, a*b+c with |a|,|b| in [2^-400, 2^401) and |c| in [2^-800, 2^801). Veltkamp split and
+ * Dekker's TwoProduct give a*b = uh + ul exactly. TwoSum(c,uh) = (th,tl), TwoSum(tl,ul) = (v,w),
+ * TwoSum(th,v) = (r,z): the exact x = a*b+c = r + z + w. Every nonzero intermediate is in
+ * [2^-904, 2^803), so nothing is subnormal or overflows (the split's a*(2^27+1) included) and every
+ * step is exact. If w == 0, x = th+v and r = RN(x). Otherwise let H = ulp(r)/2, or half that when r
+ * is a power of two (its lower gap is half): H is at most half the gap to either neighbour of r, so
+ * |x-r| <= |z|+|w| < H gives r = RN(x). RN is monotone and H is representable, so
+ * RN(|z|+|w|) < H implies the exact sum is below H. r == 0 is left to the exact code. The result is
+ * inexact iff z+w != 0; a sum of two normal doubles is 0 only if they cancel.
+ * A lane whose three operands are all zero (the unused half of a 128-bit form) needs no arithmetic:
+ * its result is +0, or -0 when the product and the addend are both negative.
+ *
+ * binary32: all three operands normal. p = a*b is exact in double (48 bits); TwoSum(p,c) = (d,err),
+ * d = RN53(x), f = RN24(d). f = RN24(x) unless d is exactly a float rounding midpoint and x is not:
+ * the midpoints are doubles and RN53 is monotone, so x and d lie on the same side of every midpoint
+ * but d itself. That case, d == 0 and |d| outside [2^-125, FLT_MAX] (so f is normal and finite) are
+ * not ok. Inexact iff err != 0 or f != d.
+ */
+#define HWB(v) __asm__ volatile("" : "+x"(v))    /* keeps the compiler's FP ops between the MXCSR accesses */
+
+typedef struct {
+    unsigned ok, inex, ran;     /* lanes proven, lanes inexact, the kernel ran at all */
+#ifdef SOFTFMA_REASONS
+    unsigned rng, nz, g, mid, zero;
+#endif
+} hwmask;
+
+#define HW_INLINE static inline __attribute__((always_inline))
+#define HW_ABSM _mm_castsi128_pd(_mm_set1_epi64x(0x7fffffffffffffffll))
+
+HW_INLINE void hw_twosum(__m128d x, __m128d y, __m128d *s, __m128d *e) {
+    __m128d t = _mm_add_pd(x, y), bb = _mm_sub_pd(t, x);
+    *e = _mm_add_pd(_mm_sub_pd(x, _mm_sub_pd(t, bb)), _mm_sub_pd(y, bb));
+    *s = t;
+}
+
+HW_INLINE __m128d hw_between(__m128d v, double lo, double hi) {    /* lo <= |v| < hi; false for NaN */
+    __m128d a = _mm_and_pd(v, HW_ABSM);
+    return _mm_and_pd(_mm_cmpge_pd(a, _mm_set1_pd(lo)), _mm_cmplt_pd(a, _mm_set1_pd(hi)));
+}
+
+/* Two binary64 lanes. */
+HW_INLINE void hw_pair_d(__m128d a, __m128d b, __m128d c, __m128d *res, __m128d *rng, __m128d *nz,
+                         __m128d *grd, __m128d *inex, __m128d *wonly) {
+    const __m128d K = _mm_set1_pd(134217729.0), zero = _mm_setzero_pd();
+    __m128d t, ah, al, bh, bl, uh, ul, th, tl, v, w, r, z;
+    *rng = _mm_and_pd(_mm_and_pd(hw_between(a, 0x1p-400, 0x1p401), hw_between(b, 0x1p-400, 0x1p401)),
+                      hw_between(c, 0x1p-800, 0x1p801));
+    t = _mm_mul_pd(a, K); ah = _mm_sub_pd(t, _mm_sub_pd(t, a)); al = _mm_sub_pd(a, ah);
+    t = _mm_mul_pd(b, K); bh = _mm_sub_pd(t, _mm_sub_pd(t, b)); bl = _mm_sub_pd(b, bh);
+    uh = _mm_mul_pd(a, b);
+    ul = _mm_add_pd(_mm_add_pd(_mm_add_pd(_mm_sub_pd(_mm_mul_pd(ah, bh), uh), _mm_mul_pd(ah, bl)),
+                               _mm_mul_pd(al, bh)), _mm_mul_pd(al, bl));
+    hw_twosum(c, uh, &th, &tl);
+    hw_twosum(tl, ul, &v, &w);
+    hw_twosum(th, v, &r, &z);
+    /* H = 2^(E-53) from r's exponent bits, one binade lower when r's mantissa field is zero */
+    __m128i rb = _mm_castpd_si128(r);
+    __m128i e = _mm_and_si128(_mm_srli_epi64(rb, 52), _mm_set1_epi64x(0x7ff));
+    __m128i p2 = _mm_cmpeq_epi64(_mm_and_si128(rb, _mm_set1_epi64x(0xfffffffffffffll)), _mm_setzero_si128());
+    __m128d H = _mm_castsi128_pd(_mm_slli_epi64(_mm_add_epi64(_mm_sub_epi64(e, _mm_set1_epi64x(53)), p2), 52));
+    __m128d s = _mm_add_pd(_mm_and_pd(z, HW_ABSM), _mm_and_pd(w, HW_ABSM));
+    *grd = _mm_or_pd(_mm_cmpeq_pd(w, zero), _mm_cmplt_pd(s, H));
+    *nz = _mm_cmpneq_pd(r, zero);
+    *inex = _mm_cmpneq_pd(_mm_add_pd(z, w), zero);
+    *wonly = _mm_and_pd(_mm_cmpeq_pd(z, zero), _mm_cmpneq_pd(w, zero));      /* inexact through w alone (test counter) */
+    *res = r;
+}
+
+/* Two binary32 lanes, already widened to double. */
+HW_INLINE void hw_pair_s(__m128d a, __m128d b, __m128d c, __m128 *res, __m128d *rng, __m128d *nz,
+                         __m128d *grd, __m128d *mid, __m128d *inex) {
+    const __m128d zero = _mm_setzero_pd();
+    __m128d d, err;
+    *rng = _mm_and_pd(_mm_and_pd(hw_between(a, 0x1p-126, 0x1p128), hw_between(b, 0x1p-126, 0x1p128)),
+                      hw_between(c, 0x1p-126, 0x1p128));
+    hw_twosum(_mm_mul_pd(a, b), c, &d, &err);
+    __m128 f = _mm_cvtpd_ps(d);
+    __m128d ad = _mm_and_pd(d, HW_ABSM);
+    *grd = _mm_and_pd(_mm_cmpge_pd(ad, _mm_set1_pd(0x1p-125)), _mm_cmple_pd(ad, _mm_set1_pd(0x1.fffffep127)));
+    __m128d errnz = _mm_cmpneq_pd(err, zero);
+    __m128i lo = _mm_and_si128(_mm_castpd_si128(d), _mm_set1_epi64x(0x1fffffff));
+    *mid = _mm_and_pd(_mm_castsi128_pd(_mm_cmpeq_epi64(lo, _mm_set1_epi64x(0x10000000))), errnz);
+    *nz = _mm_cmpneq_pd(d, zero);
+    *inex = _mm_or_pd(errnz, _mm_cmpneq_pd(_mm_cvtps_pd(f), d));
+    *res = f;
+}
+
+/*
+ * The kernel over n = 4 (binary64) or 8 (binary32) lanes of x1*x2 + x3, where x1, x2, x3 are the lanes at p1, p2, p3 (the op's
+ * m1, m2 and addend by its order) with the op's negations applied: all of x1 when negp, the addend's
+ * even or odd lanes by negc and alt. Lanes it proves are stored to out and set in .ok; the rest of
+ * out is not written. A lane whose three operands are all zero has a result that needs no arithmetic
+ * (the sign is that of both the product and the addend, else +): it is ok, exact.
+ */
+#define HW_BEGIN(live) do {                                                                      \
+        __asm__ volatile("stmxcsr %0" : "=m"(live));                                             \
+        if (((live) & 0x7F80u) != 0x1F80u) { SOFTFMA_HIT(24); return m; }  /* live: not masked, nearest */ \
+        m.ran = 1;                                                                               \
+    } while (0)
+#define HW_END(live, after) do {                                                                 \
+        __asm__ volatile("stmxcsr %0" : "=m"(after));                                            \
+        if ((after) != (live)) __asm__ volatile("ldmxcsr %0" : : "m"(live));                     \
+    } while (0)
+
+#ifdef SOFTFMA_REASONS
+#define HW_NOTE(i, ok2, rng2, nz2, g2, mid2, zero2) do {                                         \
+        m.rng |= (rng2) << (i); m.nz |= (nz2) << (i); m.g |= (g2) << (i); m.mid |= (mid2) << (i); \
+        m.zero |= (zero2) << (i); } while (0)
+#else
+#define HW_NOTE(i, ok2, rng2, nz2, g2, mid2, zero2) ((void)(rng2), (void)(nz2), (void)(g2), (void)(mid2), (void)(zero2))
+#endif
+
+/* Everything a lane pair's loop shares: the sign masks, and the zero-pair test and result. */
+#define HW_MASKS                                                                                 \
+    const __m128i S = _mm_set1_epi64x((long long)0x8000000000000000ull), Z = _mm_setzero_si128(); \
+    const __m128i m1m = negp ? S : Z;                                                            \
+    const __m128i adm = _mm_unpacklo_epi64((negc ^ (alt == 1)) ? S : Z, (negc ^ (alt == 2)) ? S : Z)
+
+HW_INLINE unsigned hw_zero_pair(__m128d a, __m128d b, __m128d c) {
+    return (unsigned)_mm_testz_si128(_mm_castpd_si128(_mm_or_pd(_mm_or_pd(a, b), c)), _mm_castpd_si128(HW_ABSM));
+}
+HW_INLINE __m128d hw_zero_result(__m128d a, __m128d b, __m128d c) {    /* sign of a*b and of c both set, else +0 */
+    return _mm_and_pd(_mm_and_pd(_mm_xor_pd(a, b), c), _mm_castsi128_pd(_mm_set1_epi64x((long long)0x8000000000000000ull)));
+}
+
+HW_INLINE hwmask hw_run_d(int n, const uint8_t *p1, const uint8_t *p2, const uint8_t *p3, int negp, int negc,
+                          int alt, uint8_t *out) {
+    hwmask m = {0};
+    uint32_t live, after;
+    HW_BEGIN(live);
+    HW_MASKS;
+    for (int i = 0; i < n; i += 2) {
+        size_t o = (size_t)i * 8;
+        __m128i ia = _mm_loadu_si128((const __m128i *)(p1 + o)), ib = _mm_loadu_si128((const __m128i *)(p2 + o)),
+                ic = _mm_loadu_si128((const __m128i *)(p3 + o));
+        __m128d a = _mm_castsi128_pd(_mm_xor_si128(ia, m1m)), b = _mm_castsi128_pd(ib),
+                c = _mm_castsi128_pd(_mm_xor_si128(ic, adm)), r;
+        HWB(a); HWB(b); HWB(c);
+        unsigned ok2, inex2 = 0, rng2 = 0, nz2 = 0, g2 = 0, mid2 = 0, zero2 = 0;
+        if (hw_zero_pair(a, b, c)) {
+            r = hw_zero_result(a, b, c);
+            ok2 = zero2 = 3;
+            HWB(r);
+        } else {
+            __m128d rng, nz, grd, inex, wonly;
+            hw_pair_d(a, b, c, &r, &rng, &nz, &grd, &inex, &wonly);
+            __m128d ok = _mm_and_pd(_mm_and_pd(rng, nz), grd);
+            HWB(r); HWB(ok); HWB(inex);
+            ok2 = (unsigned)_mm_movemask_pd(ok); inex2 = (unsigned)_mm_movemask_pd(inex);
+#ifdef SOFTFMA_REASONS
+            HWB(rng); HWB(nz); HWB(grd); HWB(wonly);
+            rng2 = (unsigned)_mm_movemask_pd(rng); nz2 = (unsigned)_mm_movemask_pd(nz);
+            g2 = (unsigned)_mm_movemask_pd(grd); mid2 = (unsigned)_mm_movemask_pd(wonly);   /* binary64 has no midpoint */
+#endif
+        }
+        _mm_storeu_si128((__m128i *)(out + o), _mm_castpd_si128(r));
+        m.ok |= ok2 << i; m.inex |= inex2 << i;
+        HW_NOTE(i, ok2, rng2, nz2, g2, mid2, zero2);
+    }
+    HW_END(live, after);
+    m.inex &= m.ok;
+    return m;
+}
+
+HW_INLINE hwmask hw_run_s(int n, const uint8_t *p1, const uint8_t *p2, const uint8_t *p3, int negp, int negc,
+                          int alt, uint8_t *out) {
+    hwmask m = {0};
+    uint32_t live, after;
+    HW_BEGIN(live);
+    HW_MASKS;
+    for (int i = 0; i < n; i += 2) {
+        size_t o = (size_t)i * 4;
+        __m128 fa = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i *)(p1 + o))),
+               fb = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i *)(p2 + o))),
+               fc = _mm_castsi128_ps(_mm_loadl_epi64((const __m128i *)(p3 + o)));
+        HWB(fa); HWB(fb); HWB(fc);
+        __m128d a = _mm_xor_pd(_mm_cvtps_pd(fa), _mm_castsi128_pd(m1m)), b = _mm_cvtps_pd(fb),
+                c = _mm_xor_pd(_mm_cvtps_pd(fc), _mm_castsi128_pd(adm));
+        __m128 f;
+        unsigned ok2, inex2 = 0, rng2 = 0, nz2 = 0, g2 = 0, mid2 = 0, zero2 = 0;
+        /* tested on the raw bits: under DAZ the widening reads a subnormal as zero */
+        if (_mm_testz_si128(_mm_castps_si128(_mm_or_ps(_mm_or_ps(fa, fb), fc)), _mm_set_epi32(0, 0, 0x7fffffff, 0x7fffffff))) {
+            f = _mm_cvtpd_ps(hw_zero_result(a, b, c));
+            ok2 = zero2 = 3;
+            HWB(f);
+        } else {
+            __m128d rng, nz, grd, mid, inex;
+            hw_pair_s(a, b, c, &f, &rng, &nz, &grd, &mid, &inex);
+            __m128d ok = _mm_andnot_pd(mid, _mm_and_pd(_mm_and_pd(rng, nz), grd));
+            HWB(f); HWB(ok); HWB(inex);
+            ok2 = (unsigned)_mm_movemask_pd(ok); inex2 = (unsigned)_mm_movemask_pd(inex);
+#ifdef SOFTFMA_REASONS
+            HWB(rng); HWB(nz); HWB(grd); HWB(mid);
+            rng2 = (unsigned)_mm_movemask_pd(rng); nz2 = (unsigned)_mm_movemask_pd(nz);
+            g2 = (unsigned)_mm_movemask_pd(grd); mid2 = (unsigned)_mm_movemask_pd(mid);
+#endif
+        }
+        _mm_storel_epi64((__m128i *)(out + o), _mm_castps_si128(f));
+        m.ok |= ok2 << i; m.inex |= inex2 << i;
+        HW_NOTE(i, ok2, rng2, nz2, g2, mid2, zero2);
+    }
+    HW_END(live, after);
+    m.inex &= m.ok;
+    return m;
+}
+
+/* Hit counts: every lane the kernel proved counts; 25 counts a vector with proven and fallback lanes. */
+HW_INLINE void hw_count(int dbl, int n, hwmask m) {
+#ifdef SOFTFMA_REASONS
+    if (!m.ran) return;
+    unsigned all = (1u << n) - 1;
+    SOFTFMA_HIT(27);
+    for (int i = 0; i < n; i++) {
+        if (m.ok >> i & 1) {
+            SOFTFMA_HIT(m.zero >> i & 1 ? 26 : dbl ? 17 : 18);
+            if (dbl && (m.mid >> i & 1)) SOFTFMA_HIT(28);
+        }
+        else if (!(m.rng >> i & 1)) SOFTFMA_HIT(19);
+        else if (!(m.nz >> i & 1)) SOFTFMA_HIT(22);
+        else if (!(m.g >> i & 1)) SOFTFMA_HIT(dbl ? 20 : 23);
+        else SOFTFMA_HIT(21);
+    }
+    if (m.ok && m.ok != all) SOFTFMA_HIT(25);
+#else
+    (void)dbl; (void)n; (void)m;
+#endif
+}
+
+/* fma_lanes' per-element step for one element i (fast_d/fast_s, then fma1), for the kernel's unproven lanes. Round to
+ * nearest holds. Duplicated, not shared with fma_lanes: sharing it slowed the scalar forms on AMD (see the PR). */
+HW_INLINE void fma_lane_hw(ffmt f, int order, int negp, int negc, int alt, int i,
+                           const uint8_t *a, const uint8_t *b, const uint8_t *c, uint8_t *out, uint32_t csr, int *fl) {
+    int w = (f.mb + f.eb + 1) / 8;
+    uint64_t av = 0, bv = 0, cv = 0, m1, m2, ad, r, sign = 1ull << (w * 8 - 1);
+    memcpy(&av, a + i * w, w); memcpy(&bv, b + i * w, w); memcpy(&cv, c + i * w, w);
+    switch (order) {
+    case 0: m1 = cv; m2 = bv; ad = av; break;
+    case 1: m1 = av; m2 = cv; ad = bv; break;
+    default: m1 = av; m2 = bv; ad = cv; break;
+    }
+    int nc = negc ^ (alt == 1 ? !(i & 1) : alt == 2 ? (i & 1) : 0);
+    if (!(w == 8 ? fast_d_hw : fast_s_hw)(m1 ^ (negp ? sign : 0), m2, ad ^ (nc ? sign : 0), &r, fl))
+        r = fma1(f, m1, m2, ad, negp, nc, csr, fl);
+    memcpy(out + i * w, &r, w);
+}
+
+/* Returns 1 with out and *mxcsr done if the kernel ran: lanes it proved are taken, each other lane goes through
+ * the same per-lane step as the integer path. Returns 0 with nothing written if it did not run. */
+__attribute__((noinline, section(".text.softfma_kernel"))) static int fma_packed_hw(const ymm256 *a, const ymm256 *b,
+                                    const ymm256 *c, ymm256 *out, uint32_t *mxcsr, unsigned opinfo) {
+    int order, negp, negc, alt;
+    if (!SOFTFMA_HW_ON() || !decode_op((vex_op)(opinfo >> 8), &order, &negp, &negc, &alt)) return 0;
+    int dbl = (opinfo & 0xff) == FT_PD, n = dbl ? 4 : 8;
+    const uint8_t *p1 = order == 0 ? c->b : a->b, *p2 = order == 1 ? c->b : b->b,
+                  *p3 = order == 0 ? a->b : order == 1 ? b->b : c->b;
+    ymm256 tmp;
+    hwmask hm = dbl ? hw_run_d(n, p1, p2, p3, negp, negc, alt, tmp.b) : hw_run_s(n, p1, p2, p3, negp, negc, alt, tmp.b);
+    hw_count(dbl, n, hm);
+    if (!hm.ran) return 0;
+    int fl = hm.inex ? F_PE : 0;
+    if (hm.ok != (1u << n) - 1) {
+        /* Lanes not proven: fast_d/fast_s, then fma1, as fma_lanes. Round to nearest holds (the gate). */
+        uint32_t csr = *mxcsr;
+        for (int i = 0; i < n; i++) {
+            if (hm.ok >> i & 1) continue;
+            if (dbl) fma_lane_hw(FD, order, negp, negc, alt, i, a->b, b->b, c->b, tmp.b, csr, &fl);
+            else fma_lane_hw(FS, order, negp, negc, alt, i, a->b, b->b, c->b, tmp.b, csr, &fl);
+        }
+    }
+    /* Every exception is masked (the gate in fma_exec, the live-MXCSR check in the kernel), so fp_raise cannot report
+     * pending; if it ever would, leave *mxcsr and out alone and let the integer path redo the vector and report it. */
+    if (fl & ~(*mxcsr >> 7) & 0x3F) return 0;
+    fp_raise(mxcsr, (uint32_t)fl);
+    /* in 8-byte moves: the lanes were stored 8 or 16 bytes at a time, and one wider load across stores is not
+     * forwarded from them but waits for them to retire */
+    for (int i = 0; i < 4; i++)
+        _mm_storel_epi64((__m128i *)(out->b + 8 * i), _mm_loadl_epi64((const __m128i *)(tmp.b + 8 * i)));
+    return 1;
+}
+#endif /* SOFTFMA_NO_FAST */

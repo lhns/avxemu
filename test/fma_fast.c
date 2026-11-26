@@ -1,22 +1,35 @@
 /*
- * fma_fast.c -- softfma's fast path (round to nearest, normal operands and result) against
+ * fma_fast.c -- softfma's fast paths (integer path and hardware-arithmetic kernel; round to nearest,
+ * normal operands and result) against
  *   ref:     softfma.c built with SOFTFMA_NO_FAST, every FMA op and type, random MXCSR including
  *            unmasked exceptions: result bytes, return value and MXCSR must be identical. Any CPU.
- *   silicon: this CPU's vfmadd/vfmsub/vfnmadd/vfnmsub ss/sd under masked MXCSRs: result bits and
- *            raised flags must be identical. Needs FMA.
- * Inputs are structured (ties, cancellation, every alignment, the normal-range edges), not just
- * random bits. Fast-path hits are counted so a pass cannot come from the fallback alone.
+ *            First with the kernel off (the integer path alone), then with it on.
+ *   silicon: this CPU's FMA, scalar and packed, ps/pd xmm/ymm, all 18 ops, under masked MXCSRs: result
+ *            bits and raised flags must be identical. Needs FMA.
+ * Inputs are structured (ties, midpoints, cancellation, powers of two, every alignment, the range
+ * edges), not just random bits. Hits are counted per path and per fallback reason so a pass cannot
+ * come from the fallback alone. The live MXCSR is set before and compared after every call: the
+ * kernel runs native arithmetic and must leave it as it found it.
  *   usage: fma-fast ref|silicon [cases (default 2000000)] [seed]
  */
 #include "vexops.h"
 #include "cpu.h"
 #include "fma_fast_hw.h"
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-static unsigned long long hits[17];   /* softfma.c: 0-7 taken, 8-16 boundary events */
+/* softfma.c: 0-7 integer path taken, 8-16 its boundary events; 17/18 kernel taken (d/s), 19 operand
+ * out of range, 20 H guard (d), 21 float midpoint, 22 zero result, 23 float result out of range,
+ * 24 live MXCSR declined the kernel, 25 vector partly from the kernel, partly from the fallback, 26 all-zero lanes (no arithmetic),
+ * 27 kernel ran, 28 binary64 lane inexact through the low sum alone (z == 0, w != 0).
+ * 17, 18, 26 count each lane the kernel proved, in a mixed vector too. */
+enum { NHIT = 29, H_KD = 17, H_KS = 18, H_LIVE = 24, H_RAN = 27, H_LAST = 28 };
+static unsigned long long hits[NHIT];
+static int hw_on;                       /* the kernel is switched off to test the integer path alone */
 #define SOFTFMA_HIT(k) (hits[k]++)
+#define SOFTFMA_HW_ON() (hw_on)
 #define fma_exec fast_fma_exec
 #define fp_raise fast_fp_raise
 #define half_to_float fast_half_to_float
@@ -87,7 +100,27 @@ static uint64_t special(const fmt *f) {
     }
 }
 
-enum { G_RAND, G_NORM, G_CANCEL, G_ALIGN, G_EDGE, G_ZERO, G_TIE, G_SPECIAL, G_N };
+/* A mantissa field with `bits` significant bits (the implicit one included), the low ones zero. */
+static uint64_t fracbits(const fmt *f, int bits) {
+    if (bits <= 1) return 0;
+    return (rnd() & ((1ull << (bits - 1)) - 1)) << (f->mb - (bits - 1));
+}
+static uint64_t flip(const fmt *f, uint64_t v, int s) { return v ^ (s ? smask(f) : 0); }
+static double tod(const fmt *f, uint64_t v) {
+    if (f->dbl) { double d; memcpy(&d, &v, 8); return d; }
+    float x; uint32_t u = (uint32_t)v; memcpy(&x, &u, 4); return x;
+}
+static uint64_t fromd(const fmt *f, double d) {
+    if (f->dbl) { uint64_t v; memcpy(&v, &d, 8); return v; }
+    float x = (float)d; uint32_t u; memcpy(&u, &x, 4); return u;
+}
+/* the gap below / above a positive normal v, as a biased exponent of the power of two (half of it when `half`) */
+static int gapexp(const fmt *f, uint64_t v, int below_) {
+    return bexp(f, v) - f->p + 1 - (below_ && !(v & ((1ull << f->mb) - 1)));
+}
+
+enum { G_RAND, G_NORM, G_CANCEL, G_ALIGN, G_EDGE, G_ZERO, G_TIE, G_SPECIAL,
+       G_MID, G_CANC, G_POW2, G_RANGE, G_EXACT, G_N };
 
 /* One element's m1, m2, addend. */
 static void gen(const fmt *f, int kind, uint64_t v[3]) {
@@ -151,6 +184,92 @@ static void gen(const fmt *f, int kind, uint64_t v[3]) {
         v[0] = normal(f, near); v[1] = normal(f, near); v[2] = normal(f, near);
         for (int i = 0; i < 3; i++) if (below(2)) v[i] = mk(f, (int)(rnd() & 1), 0, 0);
         break;
+    case G_MID: {      /* x at, or a few units of 2^-2p from, a midpoint of the result's grid, from both sides */
+        int p = f->p, sa = (int)(rnd() & 1), sb = (int)(rnd() & 1), dn = (int)(rnd() & 1);
+        int e1 = b - 10 + below(21), e2 = b - 10 + below(21);
+        uint64_t x, y, c;
+        switch (below(3)) {
+        case 0: {      /* few-bit x, y: x*y = T is exact; c = half the gap above or below T: an exact tie */
+            x = mk(f, 0, e1, fracbits(f, 1 + below(p / 2)));
+            y = mk(f, 0, e2, fracbits(f, 1 + below(p / 2)));
+            uint64_t T = host_mul(f, x, y);
+            c = mk(f, dn, gapexp(f, T, dn) - 1, 0);          /* half of the gap */
+            if (below(2)) c = ulps(f, c, below(5) - 2);      /* a few ulps of c off the tie */
+            break;
+        }
+        case 1: {      /* x*y within about 2^-2p of T plus or minus half a gap: c = RN(gap/2 - (x*y - T)) */
+            uint64_t T = normal(f, b - 10 + below(21)) & ~smask(f);
+            y = mk(f, 0, e2, mant(f));
+            x = fromd(f, tod(f, T) / tod(f, y));
+            double delta = f->dbl ? fma(tod(f, x), tod(f, y), -tod(f, T)) : tod(f, x) * tod(f, y) - tod(f, T);
+            double h = ldexp(1.0, gapexp(f, T, dn) - 1 - f->bias);
+            c = fromd(f, (dn ? -h : h) - delta);
+            if (below(2)) c = ulps(f, c, below(7) - 3);
+            c = flip(f, c, 0);
+            break;
+        }
+        default: {     /* x*y an odd integer of p+1 bits: itself a midpoint; c a tiny addend of either sign */
+            int qa = (p + 2) / 2, qb = p + 1 - qa;
+            uint64_t A, B;
+            do {
+                A = (1ull << (qa - 1)) | (rnd() & ((1ull << (qa - 1)) - 1)) | 1;
+                B = (1ull << (qb - 1)) | (rnd() & ((1ull << (qb - 1)) - 1)) | 1;
+            } while (!((A * B) >> p));
+            x = mk(f, 0, e1, (A << (f->mb - (qa - 1))) & ((1ull << f->mb) - 1));
+            y = mk(f, 0, e2, (B << (f->mb - (qb - 1))) & ((1ull << f->mb) - 1));
+            int j = 1 + below(2 * p + 10);
+            c = mk(f, dn, clampe(f, bexp(f, host_mul(f, x, y)) - j), mant(f));
+            break;
+        }
+        }
+        v[0] = flip(f, x, sa); v[1] = flip(f, y, sb); v[2] = flip(f, c, sa ^ sb);
+        break;
+    }
+    case G_CANC: {     /* c = -RN(x*y) with its low bits cleared, x and y of 1..p bits: 1..2p bits survive */
+        int sa = (int)(rnd() & 1), sb = (int)(rnd() & 1);
+        uint64_t x = mk(f, 0, b - 10 + below(21), fracbits(f, 1 + below(f->p)));
+        uint64_t y = mk(f, 0, b - 10 + below(21), fracbits(f, 1 + below(f->p)));
+        uint64_t c = host_mul(f, x, y) ^ smask(f);
+        c &= ~((1ull << below(f->mb + 1)) - 1);
+        if (below(3) == 0) c = ulps(f, c, below(5) - 2);
+        v[0] = flip(f, x, sa); v[1] = flip(f, y, sb); v[2] = flip(f, c, sa ^ sb);
+        break;
+    }
+    case G_POW2: {     /* (1+2^-s)(1-2^-s) + 2^-2s = 1: results at a power of two and a few ulps either side */
+        int s = 1 + below(f->p / 2 - 1), sa = (int)(rnd() & 1), sb = (int)(rnd() & 1);
+        int da = below(41) - 20, db = below(41) - 20;
+        uint64_t x = mk(f, 0, b + da, 1ull << (f->mb - s));
+        uint64_t y = mk(f, 0, b - 1 + db, s > 1 ? (((1ull << (s - 1)) - 1) << (f->mb - (s - 1))) : 0);
+        uint64_t c = mk(f, 0, b - 2 * s + da + db, 0);
+        if (below(4)) c = ulps(f, c, below(7) - 3);
+        v[0] = flip(f, x, sa); v[1] = flip(f, y, sb); v[2] = flip(f, c, sa ^ sb);
+        break;
+    }
+    case G_RANGE: {    /* operands just inside and just outside the kernel's ranges */
+        static const int dxy[4] = {400, 401, -400, -401}, dz[4] = {800, 801, -800, -801}, fe[6] = {0, 1, 2, 253, 254, 255};
+        for (int i = 0; i < 3; i++) {
+            int be = f->dbl ? b + (i < 2 ? dxy : dz)[below(4)] : fe[below(6)];
+            if (!f->dbl || below(4)) v[i] = mk(f, (int)(rnd() & 1), be, below(3) ? mant(f) : below(2) ? 0 : (1ull << f->mb) - 1);
+            else v[i] = normal(f, b - 30 + below(60));
+        }
+        if (below(4) == 0) {   /* c = -RN(x*y) when it fits, so the range edge meets a cancellation */
+            uint64_t pr = host_mul(f, v[0], v[1]);
+            if (bexp(f, pr) > 1 && bexp(f, pr) < 2 * b) v[2] = pr ^ smask(f);
+        }
+        break;
+    }
+    case G_EXACT: {    /* small integers: x*y + c exact, so no PE; sometimes exactly zero */
+        int pb = f->dbl ? 20 : 11, sh = below(61) - 30;
+        double x = (double)(1 + (int)(rnd() % (1u << pb))), y = (double)(1 + (int)(rnd() % (1u << pb)));
+        double c = (double)(int64_t)(rnd() % (1ull << (f->dbl ? 40 : 22)));
+        if (below(4) == 0) c = x * y;
+        if (rnd() & 1) x = -x;
+        if (rnd() & 1) y = -y;
+        if (rnd() & 1) c = -c;
+        if (below(4) == 0) c = -x * y;
+        v[0] = fromd(f, ldexp(x, sh)); v[1] = fromd(f, y); v[2] = fromd(f, ldexp(c, sh));
+        break;
+    }
     default:           /* at least one Inf, NaN or subnormal */
         v[0] = normal(f, near); v[1] = normal(f, near); v[2] = normal(f, near);
         int k = below(3);
@@ -179,13 +298,41 @@ static void fill(const fmt *f, int order, int type, int kind, ymm256 abc[3]) {
     }
 }
 
+/* Like fill, but lane `probe` takes kind `pk` and the others kind `base`: the kernel takes a vector only if every
+ * lane is proven, so an adversarial lane is compared at full strength only among lanes that are proven. */
+static void fill_probe(const fmt *f, int order, int type, int base, int pk, ymm256 abc[3]) {
+    int w = f->dbl ? 8 : 4, n = 32 / w;
+    fill(f, order, type, base, abc);
+    static const int role[3][3] = {{2, 1, 0}, {0, 2, 1}, {0, 1, 2}};
+    uint64_t v[3];
+    int lane = below(n);
+    gen(f, pk, v);
+    for (int r = 0; r < 3; r++) put(abc[role[order][r]].b, w, lane, v[r]);
+}
+
+/* Every operand zero except one lane pair: lane 2p of kind `pk`, lane 2p+1 exact. The zero pairs are exact too, so
+ * the vector's PE is that of the one lane, and a wrong inexact bit in a single lane cannot hide behind another's. */
+static void fill_pair(const fmt *f, int order, int type, int pk, ymm256 abc[3]) {
+    int w = f->dbl ? 8 : 4, n = 32 / w;
+    fill(f, order, type, G_ZERO, abc);
+    for (int r = 0; r < 3; r++) memset(abc[r].b, 0, 32);
+    static const int role[3][3] = {{2, 1, 0}, {0, 2, 1}, {0, 1, 2}};
+    int lane = 2 * below(n / 2);
+    for (int l = 0; l < 2; l++) {
+        uint64_t v[3];
+        gen(f, l ? G_EXACT : pk, v);
+        for (int r = 0; r < 3; r++) put(abc[role[order][r]].b, w, lane + l, v[r]);
+    }
+}
+
 static int fails;
 
-static unsigned long long total_hits(void) {
+static unsigned long long int_hits(void) {      /* the integer path's taken counters */
     unsigned long long t = 0;
     for (int i = 0; i < 8; i++) t += hits[i];
     return t;
 }
+static unsigned long long kernel_hits(void) { return hits[H_KD] + hits[H_KS]; }
 
 static void fail(const char *what, vex_op op, int type, uint32_t csr, const ymm256 abc[3]) {
     if (fails++ >= 10) return;
@@ -197,12 +344,58 @@ static void fail(const char *what, vex_op op, int type, uint32_t csr, const ymm2
     }
 }
 
+/* The live MXCSR: the kernel runs native arithmetic and must leave it exactly as it found it. */
+static uint32_t live_get(void) { uint32_t v; __asm__ volatile("stmxcsr %0" : "=m"(v) : : "memory"); return v; }
+static void live_set(uint32_t v) { __asm__ volatile("ldmxcsr %0" : : "m"(v) : "memory"); }
+#define LIVE_DEFAULT 0x1F80u
+
+/* Flags clear or set, FTZ/DAZ on or off, all masked and nearest: the kernel may run. Else (2 in 10): an unmasked
+ * exception or a rounding mode: it must not, or its first native operation traps or rounds wrongly. */
+static uint32_t pick_live(int *may_run) {
+    uint32_t v = LIVE_DEFAULT;
+    *may_run = 1;
+    switch (below(10)) {
+    case 0: case 1: v |= (uint32_t)(rnd() & 0x3F); break;
+    case 2: case 3: v |= (uint32_t)(rnd() & 0x3F) | (uint32_t)(rnd() & 0x8040); break;
+    case 4: v |= (uint32_t)(rnd() & 0x8040); break;
+    case 5: v &= ~(1u << (7 + below(6))); *may_run = 0; break;
+    case 6: v |= (uint32_t)(1 + below(3)) << 13; *may_run = 0; break;
+    default: break;
+    }
+    return v;
+}
+
+static unsigned long long kernel_ran, kernel_calls, kernel_exact_calls, live_calls, live_declined;
+
+/* fast_fma_exec under a chosen live MXCSR, which must be unchanged afterwards. */
+static int call_fast(vex_op op, int type, const ymm256 abc[3], ymm256 *out, uint32_t *mx) {
+    int may_run;
+    uint32_t live = pick_live(&may_run), in = *mx, after;
+    unsigned long long k0 = kernel_hits(), r0 = hits[H_RAN], l0 = hits[H_LIVE];
+    live_set(live);
+    int r = fast_fma_exec(op, type, &abc[0], &abc[1], &abc[2], out, mx);
+    after = live_get();
+    live_set(LIVE_DEFAULT);
+    live_calls++;
+    if (after != live) { printf("  live MXCSR %#x -> %#x\n", live, after); fail("live MXCSR changed", op, type, in, abc); }
+    if (hits[H_RAN] != r0) {
+        kernel_ran++;
+        if (!may_run) fail("kernel ran under a live MXCSR that forbids it", op, type, in, abc);
+    }
+    if (kernel_hits() != k0) {
+        kernel_calls++;
+        if (!(in & 0x20) && !(*mx & 0x20)) kernel_exact_calls++;
+    }
+    if (hits[H_LIVE] != l0) live_declined++;
+    return r;
+}
+
 /* One op on both implementations; returns 1 if they agree. */
 static int compare(vex_op op, int type, uint32_t csr, const ymm256 abc[3]) {
     ymm256 o1, o2;
     uint32_t m1 = csr, m2 = csr;
     memset(&o1, 0xCC, 32); memset(&o2, 0xCC, 32);
-    int r1 = fast_fma_exec(op, type, &abc[0], &abc[1], &abc[2], &o1, &m1);
+    int r1 = call_fast(op, type, abc, &o1, &m1);
     int r2 = fma_exec(op, type, &abc[0], &abc[1], &abc[2], &o2, &m2);
     if (r1 != r2 || m1 != m2 || memcmp(&o1, &o2, 32)) { fail("fast != softfma", op, type, csr, abc); return 0; }
     return 1;
@@ -213,19 +406,36 @@ static uint32_t random_csr(void) {
     return (uint32_t)(rnd() & 0xFFFF);
 }
 
-static void report(const char *mode) {
-    static const char *const nm[17] = {"d:zero-product", "d:zero-addend", "d:cancel", "d:sum",
-        "s:zero-product", "s:zero-addend", "s:cancel", "s:sum", "declined-tiny", "tie-up", "tie-even",
-        "half+sticky", "carry", "declined-overflow", "result-min-normal", "result-max-binade", "sub-sticky"};
-    printf("%s: fast-path events:", mode);
-    for (int i = 0; i < 17; i++) printf(" %s=%llu", nm[i], hits[i]);
+/* masked, nearest, any sticky flags, FTZ and DAZ either way: the kernel's domain */
+static uint32_t kernel_csr(void) { return 0x1F80u | (uint32_t)(rnd() & 0x3F) | (uint32_t)(rnd() & 0x8040); }
+
+static const char *const hit_name[NHIT] = {"d:zero-product", "d:zero-addend", "d:cancel", "d:sum",
+    "s:zero-product", "s:zero-addend", "s:cancel", "s:sum", "declined-tiny", "tie-up", "tie-even",
+    "half+sticky", "carry", "declined-overflow", "result-min-normal", "result-max-binade", "sub-sticky",
+    "kernel-d", "kernel-s", "range", "H-guard", "float-midpoint", "zero-result", "float-result-range",
+    "live-declined", "partly-fallback", "zero-lanes", "kernel-ran", "w-only-inexact"};
+
+static void report(const char *mode, int lo, int hi) {
+    printf("%s: events:", mode);
+    for (int i = lo; i <= hi; i++) printf(" %s=%llu", hit_name[i], hits[i]);
     printf("\n");
-    for (int i = 0; i < 17; i++)
-        if (!hits[i]) { printf("FAIL: fast-path event %s never seen\n", nm[i]); fails++; }
+    for (int i = lo; i <= hi; i++)
+        if (!hits[i]) { printf("FAIL: event %s never seen\n", hit_name[i]); fails++; }
 }
 
-static int run_ref(long n) {
-    /* 1: everything, random MXCSRs */
+static void report_live(const char *mode, int need_declined) {
+    printf("%s: %llu calls with a chosen live MXCSR, the kernel ran in %llu and was taken in %llu (%llu of them with no PE), "
+           "%llu declined by the live MXCSR\n", mode, live_calls, kernel_ran, kernel_calls, kernel_exact_calls, live_declined);
+    if (!kernel_calls || !kernel_exact_calls || (need_declined && !live_declined)) {
+        printf("FAIL: the live MXCSR checks did not cover the kernel\n"); fails++;
+    }
+}
+
+static void lane_counts(int type, const fmt *f, long *lanes) { *lanes += type <= FT_SD ? 1 : f->dbl ? 4 : 8; }
+
+/* The integer path alone (the kernel off): the phases of lhns/avxemu#11. */
+static void run_ref_int(long n) {
+    hw_on = 0;
     for (long i = 0; i < n; i++) {
         int oi = below(18), type = oi >= 12 ? FT_PS + below(2) : below(4);
         const fmt *f = type == FT_SD || type == FT_PD ? &FMT_D : &FMT_S;
@@ -233,9 +443,9 @@ static int run_ref(long n) {
         fill(f, oi % 3, type, -1, abc);
         compare(ops[oi], type, random_csr(), abc);
     }
-    printf("ref: %ld random cases\n", n);
-    report("ref");
-    /* 2: normal-range sets in round to nearest must almost always take the fast path */
+    printf("ref (integer path): %ld random cases\n", n);
+    report("ref (integer path)", 0, 16);
+    /* normal-range sets in round to nearest must almost always take the fast path */
     memset(hits, 0, sizeof hits);
     long m = n / 4, lanes = 0;
     for (long i = 0; i < m; i++) {
@@ -243,12 +453,12 @@ static int run_ref(long n) {
         const fmt *f = type == FT_SD || type == FT_PD ? &FMT_D : &FMT_S;
         ymm256 abc[3];
         fill(f, oi % 3, type, kind, abc);
-        lanes += type <= FT_SD ? 1 : f->dbl ? 4 : 8;
+        lane_counts(type, f, &lanes);
         compare(ops[oi], type, 0x1F80u | (uint32_t)(rnd() & 0x3F), abc);
     }
-    printf("ref: %ld normal-range cases, %llu of %ld elements fast\n", m, total_hits(), lanes);
-    if (total_hits() < (unsigned long long)lanes * 9 / 10) { printf("FAIL: fast path rarely taken\n"); fails++; }
-    /* 3: never fast with a special operand, or outside round to nearest */
+    printf("ref (integer path): %ld normal-range cases, %llu of %ld elements fast\n", m, int_hits(), lanes);
+    if (int_hits() < (unsigned long long)lanes * 9 / 10) { printf("FAIL: fast path rarely taken\n"); fails++; }
+    /* never fast with a special operand, or outside round to nearest */
     memset(hits, 0, sizeof hits);
     for (long i = 0; i < m; i++) {
         int oi = below(18), type = oi >= 12 ? FT_PS + below(2) : below(4), sp = below(2);
@@ -259,15 +469,122 @@ static int run_ref(long n) {
         if (!sp && !(csr & 0x6000)) csr |= (uint32_t)(1 + below(3)) << 13;
         compare(ops[oi], type, csr, abc);
     }
-    printf("ref: %ld special or directed-rounding cases, %llu fast\n", m, total_hits());
-    if (total_hits()) { printf("FAIL: fast path taken where it must not be\n"); fails++; }
+    printf("ref (integer path): %ld special or directed-rounding cases, %llu fast\n", m, int_hits());
+    if (int_hits()) { printf("FAIL: fast path taken where it must not be\n"); fails++; }
+}
+
+/* The kernel on, ahead of the integer path. */
+static void run_ref_hw(long n) {
+    hw_on = 1;
+    memset(hits, 0, sizeof hits);
+    kernel_ran = kernel_calls = kernel_exact_calls = live_calls = live_declined = 0;
+    for (long i = 0; i < n; i++) {
+        int oi = below(18), type = oi >= 12 ? FT_PS + below(2) : below(4);
+        const fmt *f = type == FT_SD || type == FT_PD ? &FMT_D : &FMT_S;
+        ymm256 abc[3];
+        fill(f, oi % 3, type, -1, abc);
+        compare(ops[oi], type, below(2) ? random_csr() : kernel_csr(), abc);
+    }
+    printf("ref (kernel): %ld random cases\n", n);
+    /* kind by kind, scalar and packed: what the kernel proves of each */
+    static const char *const kname[G_N] = {"random", "normal", "cancel", "align", "edge", "zero", "tie", "special",
+        "midpoint", "cancel-bits", "power-of-two", "range-edge", "exact"};
+    static const int kinds[] = {G_NORM, G_CANCEL, G_ALIGN, G_EDGE, G_TIE, G_MID, G_CANC, G_POW2, G_RANGE, G_EXACT};
+    for (size_t k = 0; k < sizeof kinds / sizeof kinds[0]; k++) {
+        unsigned long long k0 = kernel_hits();
+        long lanes = 0, m = n / 10;
+        for (long i = 0; i < m; i++) {
+            int oi = below(18), type = oi >= 12 ? FT_PS + below(2) : below(4);
+            const fmt *f = type == FT_SD || type == FT_PD ? &FMT_D : &FMT_S;
+            ymm256 abc[3];
+            fill(f, oi % 3, type, kinds[k], abc);
+            unsigned long long l0 = hits[H_LIVE];
+            compare(ops[oi], type, kernel_csr(), abc);
+            if (type > FT_SD && hits[H_LIVE] == l0) lane_counts(type, f, &lanes);   /* packed, and not kept off the kernel by the live MXCSR */
+        }
+        printf("ref (kernel): %-12s %llu of %ld packed lanes proven\n", kname[kinds[k]], kernel_hits() - k0, lanes);
+        if (kinds[k] == G_NORM && (kernel_hits() - k0) < (unsigned long long)lanes * 9 / 10) {
+            printf("FAIL: the kernel rarely takes normal-range lanes\n"); fails++;
+        }
+    }
+    /* mixed vectors: every lane its own kind (kernel for some lanes, the fallback for the rest) */
+    for (long i = 0; i < n / 4; i++) {
+        int oi = below(18), type = FT_PS + below(2);
+        const fmt *f = type == FT_PD ? &FMT_D : &FMT_S;
+        ymm256 abc[3];
+        fill(f, oi % 3, type, -1, abc);
+        compare(ops[oi], type, kernel_csr(), abc);
+    }
+    /* one adversarial lane among normal ones: the guard edges, ties, midpoints, powers of two, zeros, specials */
+    static const int probes[] = {G_EDGE, G_RANGE, G_TIE, G_MID, G_POW2, G_CANC, G_CANCEL, G_ZERO, G_EXACT, G_RAND, G_SPECIAL};
+    for (size_t k = 0; k < sizeof probes / sizeof probes[0]; k++) {
+        unsigned long long k0 = kernel_hits();
+        long cases = n / 20;
+        for (long i = 0; i < cases; i++) {
+            int oi = below(18), type = FT_PS + below(2);
+            const fmt *f = type == FT_PD ? &FMT_D : &FMT_S;
+            ymm256 abc[3];
+            fill_probe(f, oi % 3, type, G_NORM, probes[k], abc);
+            compare(ops[oi], type, kernel_csr(), abc);
+        }
+        printf("ref (kernel): one %-12s lane among normal ones: %llu lanes proven in %ld vectors\n", kname[probes[k]],
+               kernel_hits() - k0, cases);
+    }
+    /* one live lane pair among zeros: the vector's PE is that pair's alone */
+    static const int pair_kinds[] = {G_NORM, G_CANC, G_ALIGN, G_CANCEL, G_MID, G_POW2, G_TIE, G_EXACT};
+    for (long i = 0; i < n / 2; i++) {
+        int oi = below(18), type = FT_PS + below(2);
+        const fmt *f = type == FT_PD ? &FMT_D : &FMT_S;
+        ymm256 abc[3];
+        fill_pair(f, oi % 3, type, pair_kinds[below(8)], abc);
+        compare(ops[oi], type, kernel_csr() & ~0x20u, abc);     /* PE clear in: a PE out is this pair's */
+    }
+    /* the shape of a 128-bit form: upper 16 bytes of every operand zero (their lanes need no arithmetic), all 32 bytes compared */
+    for (long i = 0; i < n / 4; i++) {
+        int oi = below(18), type = FT_PS + below(2);
+        const fmt *f = type == FT_PD ? &FMT_D : &FMT_S;
+        ymm256 abc[3];
+        fill(f, oi % 3, type, below(2) ? G_NORM : G_NORM + below(3), abc);
+        for (int r = 0; r < 3; r++) memset(abc[r].b + 16, 0, 16);
+        compare(ops[oi], type, kernel_csr(), abc);
+    }
+    report("ref (kernel)", H_KD, H_LAST);
+    report_live("ref (kernel)", 1);
+    /* never the kernel (nor the integer path) with a special operand, or outside round to nearest */
+    memset(hits, 0, sizeof hits);
+    long m = n / 4;
+    for (long i = 0; i < m; i++) {
+        int oi = below(18), type = oi >= 12 ? FT_PS + below(2) : below(4), sp = below(2);
+        const fmt *f = type == FT_SD || type == FT_PD ? &FMT_D : &FMT_S;
+        ymm256 abc[3];
+        fill(f, oi % 3, type, sp ? G_SPECIAL : -1, abc);
+        uint32_t csr = random_csr();
+        if (!sp && !(csr & 0x6000)) csr |= (uint32_t)(1 + below(3)) << 13;
+        compare(ops[oi], type, csr, abc);
+    }
+    printf("ref (kernel): %ld special or directed-rounding cases, %llu integer path, %llu kernel\n", m, int_hits(), kernel_hits());
+    if (int_hits() || kernel_hits()) { printf("FAIL: fast path taken where it must not be\n"); fails++; }
+    /* an unmasked exception in the incoming MXCSR: never the kernel */
+    memset(hits, 0, sizeof hits);
+    for (long i = 0; i < m; i++) {
+        int oi = below(18), type = oi >= 12 ? FT_PS + below(2) : below(4);
+        const fmt *f = type == FT_SD || type == FT_PD ? &FMT_D : &FMT_S;
+        ymm256 abc[3];
+        fill(f, oi % 3, type, G_NORM + below(3), abc);
+        compare(ops[oi], type, 0x1F80u ^ (1u << (7 + below(6))), abc);
+    }
+    printf("ref (kernel): %ld cases with an exception unmasked, kernel ran %llu times\n", m, hits[H_RAN]);
+    if (hits[H_RAN]) { printf("FAIL: the kernel ran with an exception unmasked\n"); fails++; }
+}
+
+static int run_ref(long n) {
+    run_ref_int(n);
+    run_ref_hw(n);
     return fails;
 }
 
-static int run_silicon(long n) {
-    if (!(cpu_features() & CPU_FMA)) { printf("SKIP: no FMA on this CPU\n"); return 77; }
-    memset(hits, 0, sizeof hits);
-    long fast_cases = 0;
+/* Scalar vfmadd/vfmsub/vfnmadd/vfnmsub (231) on this CPU against the emulator; *taken counts the cases for which path() grew. */
+static void silicon_scalar(long n, unsigned long long (*path)(void), long *taken) {
     for (long i = 0; i < n; i++) {
         int dbl = below(2), variant = below(4);
         const fmt *f = dbl ? &FMT_D : &FMT_S;
@@ -280,22 +597,81 @@ static int run_silicon(long n) {
         ymm256 abc[3], out;
         memset(abc, 0, sizeof abc);
         for (int r = 0; r < 3; r++) put(abc[r].b, dbl ? 8 : 4, 0, v[r]);   /* 231: m1=a m2=b addend=c */
-        unsigned long long before = total_hits();
-        int ret = fast_fma_exec(ops[3 * variant + 2], dbl ? FT_SD : FT_SS, &abc[0], &abc[1], &abc[2], &out, &mx);
-        fast_cases += total_hits() != before;
+        unsigned long long before = path();
+        int ret = call_fast(ops[3 * variant + 2], dbl ? FT_SD : FT_SS, abc, &out, &mx);
+        *taken += path() != before;
         uint64_t got = 0;
         memcpy(&got, out.b, dbl ? 8 : 4);
         if (ret != 1 || got != hw || (mx & 0x3F) != hwfl) {
             if (fails < 10)
                 printf("  %s: cpu %016llx flags %#x, emu %016llx flags %#x ret %d\n",
-                       total_hits() != before ? "FAST PATH" : "general code", (unsigned long long)hw, hwfl,
+                       path() != before ? "FAST PATH" : "general code", (unsigned long long)hw, hwfl,
                        (unsigned long long)got, mx & 0x3F, ret);
             fail("emulator != cpu", ops[3 * variant + 2], dbl ? FT_SD : FT_SS, csr, abc);
         }
     }
-    printf("silicon: %ld cases, %ld through the fast path\n", n, fast_cases);
-    report("silicon");
-    if (fast_cases < n / 4) { printf("FAIL: fast path rarely taken\n"); fails++; }
+}
+
+/* All 18 ops on ps and pd, xmm and ymm, every lane its own kind; returns the cases that took the kernel. */
+static long silicon_packed(long n) {
+    long taken = 0;
+    for (long i = 0; i < n; i++) {
+        int oi = below(18), dbl = below(2), ymm = below(2);
+        const fmt *f = dbl ? &FMT_D : &FMT_S;
+        int type = dbl ? FT_PD : FT_PS;
+        ymm256 abc[3], out, hwout;
+        /* half of the vectors of one kernel-friendly kind (the other half has lanes of every kind, so a vector is often partly fallback) */
+        static const int friendly[] = {G_NORM, G_CANCEL, G_ALIGN, G_MID, G_POW2, G_CANC, G_EXACT, G_TIE};
+        fill(f, oi % 3, type, below(2) ? -1 : friendly[below(8)], abc);
+        if (!ymm) for (int r = 0; r < 3; r++) memset(abc[r].b + 16, 0, 16);   /* a 128-bit form: the caller zeroes the upper lanes */
+        uint32_t csr = below(10) < 8 ? 0x1F80u : 0x1F80u | (uint32_t)(rnd() & 0xE040);
+        uint32_t hwfl, mx = csr;
+        fma_fast_hw_p(oi, dbl, ymm, &abc[0], &abc[1], &abc[2], &hwout, csr, &hwfl);
+        memset(&out, 0, 32);
+        unsigned long long before = kernel_hits();
+        int ret = call_fast(ops[oi], type, abc, &out, &mx);
+        taken += kernel_hits() != before;
+        size_t cmp = ymm ? 32 : 16;
+        if (ret != 1 || memcmp(&out, &hwout, cmp) || (mx & 0x3F) != hwfl) {
+            if (fails < 10) {
+                printf("  packed %s %s op %d: flags cpu %#x emu %#x ret %d\n", dbl ? "pd" : "ps", ymm ? "ymm" : "xmm", oi,
+                       hwfl, mx & 0x3F, ret);
+                for (size_t k = 0; k < cmp; k += 8) {
+                    uint64_t x, y;
+                    memcpy(&x, hwout.b + k, 8); memcpy(&y, out.b + k, 8);
+                    if (x != y) printf("    bytes %zu: cpu %016llx emu %016llx\n", k, (unsigned long long)x, (unsigned long long)y);
+                }
+            }
+            fail("emulator != cpu (packed)", ops[oi], type, csr, abc);
+        }
+    }
+    return taken;
+}
+
+static int run_silicon(long n) {
+    if (!(cpu_features() & CPU_FMA)) { printf("SKIP: no FMA on this CPU\n"); return 77; }
+    /* the integer path alone, scalar */
+    hw_on = 0;
+    memset(hits, 0, sizeof hits);
+    long fast_cases = 0;
+    silicon_scalar(n / 2, int_hits, &fast_cases);
+    printf("silicon (integer path): %ld scalar cases, %ld through the fast path\n", n / 2, fast_cases);
+    report("silicon (integer path)", 0, 16);
+    if (fast_cases < n / 8) { printf("FAIL: fast path rarely taken\n"); fails++; }
+    /* the kernel: scalar and packed */
+    hw_on = 1;
+    memset(hits, 0, sizeof hits);
+    kernel_ran = kernel_calls = kernel_exact_calls = live_calls = live_declined = 0;
+    long scalar_cases = 0;
+    silicon_scalar(n / 8, kernel_hits, &scalar_cases);        /* scalar forms stay on the integer path */
+    long kernel_cases = silicon_packed(n / 8);
+    printf("silicon (kernel): %ld scalar cases (%ld took the kernel), %ld packed cases, %ld through the kernel\n",
+           n / 8, scalar_cases, n / 8, kernel_cases);
+    if (scalar_cases) { printf("FAIL: the kernel ran for a scalar form\n"); fails++; }
+    report("silicon (kernel)", H_KD, 23);
+    report("silicon (kernel)", 25, H_LAST);
+    if (kernel_cases < n / 32) { printf("FAIL: kernel rarely taken\n"); fails++; }
+    report_live("silicon (kernel)", 1);
     return fails;
 }
 

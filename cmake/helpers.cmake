@@ -7,9 +7,11 @@
 # archive, since the CI CPU would run anything above it. -Wall is on; a consumer may add -w.
 get_filename_component(_avxemu_root "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
 set(AVXEMU_EXEC_SOURCES "${_avxemu_root}/src/exec.c" "${_avxemu_root}/src/exec_bmi.c" "${_avxemu_root}/src/softfma.c")
+# AVXEMU_HELPER_FLAGS is also what the tests compile the fast paths with (test/CMakeLists.txt).
+set(AVXEMU_HELPER_FLAGS -O2 -Wall -std=c11
+  -mavx -mno-avx2 -mno-fma -mno-f16c -mno-bmi -mno-bmi2 -mno-lzcnt -mno-movbe -ffp-contract=off
+  -mtune=ivybridge -fPIC -fno-stack-protector -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0)
 add_library(avxemu_helpers STATIC ${AVXEMU_EXEC_SOURCES})
 target_include_directories(avxemu_helpers PUBLIC "${_avxemu_root}/src")
-target_compile_options(avxemu_helpers PRIVATE -O2 -Wall -std=c11
-  -mavx -mno-avx2 -mno-fma -mno-f16c -mno-bmi -mno-bmi2 -mno-lzcnt -mno-movbe
-  -mtune=ivybridge -fPIC -fno-stack-protector -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=0)
+target_compile_options(avxemu_helpers PRIVATE ${AVXEMU_HELPER_FLAGS})
 unset(_avxemu_root)
