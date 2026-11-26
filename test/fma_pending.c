@@ -48,6 +48,11 @@ static const fcase cases[] = {
     {"ps IE+DE, SNaN l0, denormal l1", 0, IE | DE, {NAN_S, DEN_S}, {ONE_S, ONE_S}, {0}},
     {"ps IE only, SNaN l0, denormal l1", 0, IE, {NAN_S, DEN_S}, {ONE_S, ONE_S}, {0}},
     {"ps DE only, denormal l0, SNaN l1", 0, DE, {DEN_S, NAN_S}, {ONE_S, ONE_S}, {0}},
+    /* an unmasked OE or UE sets PE only if the result rounded with an unbounded exponent is inexact */
+    {"ps OE, exact result 2*max",   0, OE, {0x7f7fffffu}, {ONE_S}, {0x7f7fffffu}},
+    {"ps UE, exact tiny",           0, UE, {TINY_S}, {TINY_S}, {0x80000000u}},
+    {"ps UE, exact unbounded only", 0, UE, {TINY_S}, {0x1e000001u}, {0x80000000u}},
+    {"ps UE, inexact tiny",         0, UE, {0x1e000001u}, {0x1e000001u}, {0x80000000u}},
     {"pd IE lane0, OE lane1",       1, IE, {NAN_D, BIG_D}, {ONE_D, BIG_D}, {0}},
     {"pd DE lane0, OE lane1",       1, DE, {DEN_D, BIG_D}, {ONE_D, BIG_D}, {0}},
 };
