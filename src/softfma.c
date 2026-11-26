@@ -79,7 +79,7 @@ static fop unpack(ffmt f, uint64_t bits, int daz, int *denorm) {
     up_ = rm == 0 ? (above_ || (eq_ && (q_ & 1))) : rm == 1 ? (sign && (INEX)) : rm == 2 ? (!sign && (INEX)) : 0; \
     (QOUT) = q_ + up_; } while (0)
 
-static uint64_t round_pack(ffmt f, int sign, u128 r, int e0, int sticky, int rm, int ftz, int um, int *fl) {
+static uint64_t round_pack(ffmt f, int sign, u128 r, int e0, int sticky, int rm, int ftz, int um, int om, int *fl) {
     int bias = (1 << (f.eb - 1)) - 1, p = f.mb + 1, emin = 1 - bias, emax = bias;
     int ev = msb128(r) + e0;                       /* value in [2^ev, 2^(ev+1)) */
     int lsb = (ev > emin ? ev : emin) - f.mb;      /* exponent of the last kept bit */
@@ -93,8 +93,10 @@ static uint64_t round_pack(ffmt f, int sign, u128 r, int e0, int sticky, int rm,
     if (q >> p) { q >>= 1; ev++; }                 /* rounding carried out of the top */
     if (tiny && !um && ftz) { *fl |= F_UE | F_PE; return signbit; }
     if (tiny && (inexact || um)) *fl |= F_UE;
+    /* An unmasked OE or UE is reported alone: silicon sets no PE with it. */
+    if (tiny && um) inexact = 0;
     if (ev > emax) {
-        *fl |= F_OE | F_PE;
+        *fl |= F_OE | (om ? 0 : F_PE);
         int inf = rm == 0 || (rm == 1 && sign) || (rm == 2 && !sign);
         return signbit | (inf ? ((uint64_t)((1u << f.eb) - 1) << f.mb)
                               : (((uint64_t)((1u << f.eb) - 2) << f.mb) | ((1ull << f.mb) - 1)));
@@ -108,7 +110,7 @@ static uint64_t round_pack(ffmt f, int sign, u128 r, int e0, int sticky, int rm,
 /* One element: (+-)(m1*m2) (+-) ad. *den: a denormal operand was read (and DAZ is off). */
 static uint64_t fma1x(ffmt f, uint64_t m1b, uint64_t m2b, uint64_t adb,
                       int negp, int negc, uint32_t csr, int *fl, int *den) {
-    int rm = (csr >> 13) & 3, ftz = (csr >> 15) & 1, daz = (csr >> 6) & 1, um = !((csr >> 11) & 1);
+    int rm = (csr >> 13) & 3, ftz = (csr >> 15) & 1, daz = (csr >> 6) & 1, um = !((csr >> 11) & 1), om = !((csr >> 10) & 1);
     int anynan;
     uint64_t qbit = 1ull << (f.mb - 1);
     fop a = unpack(f, m1b, daz, den), b = unpack(f, m2b, daz, den), c = unpack(f, adb, daz, den);
@@ -146,7 +148,7 @@ static uint64_t fma1x(ffmt f, uint64_t m1b, uint64_t m2b, uint64_t adb,
         else { r = y - x; sign = sy; }
         if (r == 0 && !sticky) return (uint64_t)(rm == 1) << (f.mb + f.eb);     /* exact cancellation */
     }
-    return round_pack(f, sign, r, e0, sticky, rm, ftz, um, fl);
+    return round_pack(f, sign, r, e0, sticky, rm, ftz, um, om, fl);
 }
 
 /*
