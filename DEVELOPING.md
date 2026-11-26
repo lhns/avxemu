@@ -106,7 +106,8 @@ FMA and BMI silicon: `semtest record` refuses other CPUs and TCG.
   `manifest.tsv` from XED. Changing XED's pin changes the manifest; v3compat regenerates its allow list from it.
 
 `semantics.intel.ref` came from an Intel VM whose CPUID hides the model; it differs from `semantics.ref` in
-one form, `movbe.m64_g.2`, and is not replayed. See `docs/vendor-differences.md`.
+one form, `movbe.m64_g.2`, and is not replayed; it predates the MXCSR cells and is stale. See `docs/vendor-differences.md`.
+An Intel Xeon 6975P and two AMD EPYC runners recorded the same `semantics.ref` lines with the MXCSR cells.
 
 ## CI
 
