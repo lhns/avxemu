@@ -71,8 +71,16 @@ which must give identical answers. `semantics-static-fault` checks fault handlin
 `test/known-failures.txt` lists failures that exist today (id, case glob, forms, reason). An unlisted failure
 and a listed entry whose cases all pass both fail the run.
 
+MXCSR is varied for every form, FP or not, from its own random stream (operands do not depend on it). The
+first 25 cases of a form walk a table of cells: each rounding mode, FTZ, DAZ, preset sticky flags, each single
+exception unmasked, and those combined with FTZ, DAZ, sticky flags, a rounding mode, several or all unmasked;
+smoke runs all of them. The rest draw rounding mode, FTZ, DAZ, sticky flags and 0-6 unmasked bits at random.
+The whole register is compared, after the instruction and at a fault (read from the signal frame, so it also
+fixes the si_code Linux reports). A form that does not touch MXCSR must leave it exactly as it was. A run
+fails if no FP form ever faulted with each of IE, DE, OE, UE, PE unmasked or a cell was never generated.
+
 Environment knobs: `KNOWN_VERBOSE=1`; `SEM_ONLY=glob`, `SEM_DUMP=file` (one line per case, raw rflags, to
-compare machines), `SEM_TRACE`, `SEM_DIFFMAX=n`.
+compare machines), `SEM_TRACE`, `SEM_DIFFMAX=n`; `SEM_FPDEFAULT=1` (default MXCSR only, skips the coverage check).
 
 Gather forms (`vgather*`, `vpgather*`) also compare the ymm file at a fault (from the signal frame on the CPU,
 from the register file on the emulator) and restart a faulted gather with the guard page readable: the result

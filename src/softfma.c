@@ -13,6 +13,7 @@
  */
 
 #include "softfma.h"
+#include "avxemu_helpers.h"
 #include <string.h>
 
 float half_to_float(uint16_t h) {
@@ -306,6 +307,17 @@ __attribute__((always_inline)) static inline void fma_lanes(ffmt f, int order, i
         r = fma1(f, m1, m2, ad, negp, nc, csr, fl);
         memcpy(out + i * w, &r, w);
     }
+}
+
+/* One divss that raises exactly one flag, in any rounding mode: IE, DE and ZE are decided before a result
+ * exists; the UE quotient is tiny and exact (unmasked, tiny alone traps), so no PE comes with it. */
+void fp_pending_operands(uint32_t ex, uint32_t *x, uint32_t *y) {
+    if (ex & 1)       { *x = 0;          *y = 0; }             /* IE: 0/0 */
+    else if (ex & 2)  { *x = 1;          *y = 0x3f800000u; }   /* DE: denormal / 1.0 */
+    else if (ex & 4)  { *x = 0x3f800000u; *y = 0; }            /* ZE: 1/0 */
+    else if (ex & 8)  { *x = 0x7f000000u; *y = 0x3f000000u; }  /* OE: 2^127 / 0.5 */
+    else if (ex & 16) { *x = 0x00800000u; *y = 0x40000000u; }  /* UE: 2^-126 / 2, a tiny exact result */
+    else              { *x = 0x3f800000u; *y = 0x40400000u; }  /* PE: 1/3 */
 }
 
 int fp_raise(uint32_t *mxcsr, uint32_t fl) {
