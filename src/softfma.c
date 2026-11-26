@@ -81,7 +81,7 @@ static fop unpack(ffmt f, uint64_t bits, int daz, int *denorm) {
 
 static uint64_t round_pack(ffmt f, int sign, u128 r, int e0, int sticky, int rm, int ftz, int um, int om, int *fl) {
     int bias = (1 << (f.eb - 1)) - 1, p = f.mb + 1, emin = 1 - bias, emax = bias;
-    int ev = msb128(r) + e0;                       /* value in [2^ev, 2^(ev+1)) */
+    int ev = msb128(r) + e0, ev0 = ev;             /* value in [2^ev, 2^(ev+1)) */
     int lsb = (ev > emin ? ev : emin) - f.mb;      /* exponent of the last kept bit */
     uint64_t signbit = (uint64_t)sign << (f.mb + f.eb);
     int inexact, tiny;
@@ -93,10 +93,10 @@ static uint64_t round_pack(ffmt f, int sign, u128 r, int e0, int sticky, int rm,
     if (q >> p) { q >>= 1; ev++; }                 /* rounding carried out of the top */
     if (tiny && !um && ftz) { *fl |= F_UE | F_PE; return signbit; }
     if (tiny && (inexact || um)) *fl |= F_UE;
-    /* An unmasked OE or UE is reported alone: silicon sets no PE with it. */
-    if (tiny && um) inexact = 0;
+    /* An unmasked UE is judged on the result rounded with an unbounded exponent: PE only if that is inexact. */
+    if (tiny && um) { u128 qx; ROUND(ev0 - f.mb - e0, qx, inexact); (void)qx; }
     if (ev > emax) {
-        *fl |= F_OE | (om ? 0 : F_PE);
+        *fl |= F_OE | ((om && !inexact) ? 0 : F_PE);     /* masked: the infinity or max is always inexact */
         int inf = rm == 0 || (rm == 1 && sign) || (rm == 2 && !sign);
         return signbit | (inf ? ((uint64_t)((1u << f.eb) - 1) << f.mb)
                               : (((uint64_t)((1u << f.eb) - 2) << f.mb) | ((1ull << f.mb) - 1)));
