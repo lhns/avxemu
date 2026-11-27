@@ -20,7 +20,7 @@ ctest --test-dir build -L 'hermetic|replay' --output-on-failure   # about a minu
 | `src/decode.c`, `emulate.c`, `names.c`, `regfile.h` | decoder and register-file emulator. Not in the library; the suite drives instructions through them |
 | `src/platform/linux/memory.c`, `maps.c` | fault-safe memory reads and mapping queries for operands |
 | `test/spec/` | the semantic suite (below) |
-| `test/reference/` | recorded digests: `semantics.ref` (the replay contract), `semantics.intel.ref` (a second recording, not replayed), `oracle.ref`, `bmi_oracle.ref` |
+| `test/reference/` | recorded digests: `semantics.ref` (the replay contract), `oracle.ref`, `bmi_oracle.ref` |
 | `test/check-helpers-lib.sh` | fails unless the archive is plain AVX1 code with no libc dependency; `--selftest` proves it fires on bad objects |
 | `docs/vendor-differences.md` | measured Intel/AMD differences and the decision on each |
 
@@ -105,8 +105,9 @@ FMA and BMI silicon: `semtest record` refuses other CPUs and TCG.
 - Manifest: `test/spec/gen-manifest.sh BUILD_DIR` (configured with `-DAVXEMU_TEST_XED=ON`) regenerates
   `manifest.tsv` from XED. Changing XED's pin changes the manifest; v3compat regenerates its allow list from it.
 
-`semantics.intel.ref` came from an Intel VM whose CPUID hides the model; it differs from `semantics.ref` in
-one form, `movbe.m64_g.2`, and is not replayed; it predates the MXCSR cells and is stale. See `docs/vendor-differences.md`.
+There is no Intel `semantics` reference. The old one (an Intel VM whose CPUID hid the model) was stale and replayed by
+nothing, so it was removed; it differed from `semantics.ref` in one form, `movbe.m64_g.2`, recorded in
+`docs/vendor-differences.md`. It will be re-recorded on an Intel AVX2 runner, the same way as `semantics.ref`.
 An Intel Xeon 6975P and two AMD EPYC runners recorded the same `semantics.ref` lines with the MXCSR cells.
 
 ## CI

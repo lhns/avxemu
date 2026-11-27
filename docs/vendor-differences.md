@@ -1,6 +1,8 @@
 # Intel and AMD differences
 
-What `test/reference/semantics.intel.ref` shows against `semantics.ref` (AMD). "Measured" is a
+What an Intel recording of the semantic suite showed against `semantics.ref` (AMD). That recording
+(`test/reference/semantics.intel.ref`) was stale and replayed by nothing, so it was removed; the Intel reference
+will be re-recorded on an Intel AVX2 runner. Its findings are kept below. "Measured" is a
 value in a raw dump; "inferred" is a conclusion drawn from them.
 
 ## The recording
@@ -10,7 +12,7 @@ value in a raw dump; "inferred" is a conclusion drawn from them.
   metal was not tested. AVX2, FMA and BMI run, ADX, SHA, CLFLUSHOPT and RTM fault with `#UD`.
 - The 80 forms added later (the 16 gathers, `vphadd`/`vphsub` words and ymm, `vmpsadbw`, ymm `vmovntdqa`,
   register-source `vbroadcastss/sd`, `vfmaddsub`/`vfmsubadd`) were recorded on a Xeon 6975P-C and are
-  identical to the AMD rows (digests included); those rows are marked in the file. The Haswell-class
+  identical to the AMD rows (digests included); those rows were marked in the removed file. The Haswell-class
   guest was not available for them.
 - Controls reproduced `semantics.ref` byte for byte on EPYC 7763, 9V74, 9V45 and Xeon 6975P, so the
   harness itself is not the source of any difference below.
